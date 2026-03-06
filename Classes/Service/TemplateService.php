@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 
-final class TemplateService
+final readonly class TemplateService
 {
     private const EXCLUDED_PAGE_FIELDS = [
         'uid', 'pid', 'tstamp', 'crdate', 'deleted', 'hidden', 'sorting',
@@ -18,29 +19,32 @@ final class TemplateService
     ];
 
     public function __construct(
-        private readonly ConnectionPool $connectionPool,
+        private ConnectionPool $connectionPool,
     ) {}
 
     /** @param array<string, mixed> $params */
     public function getAvailableCTypes(array &$params): void
     {
-        $items = $GLOBALS['TCA']['tt_content']['columns']['CType']['config']['items'] ?? [];
+        $items = $this->getTcaColumnItems('tt_content', 'CType');
         foreach ($items as $item) {
             $value = $item['value'] ?? '';
             if ($value === '' || $value === '--div--') {
                 continue;
             }
-            $params['items'][] = [
+            /** @var list<array{label: string, value: string}> $paramItems */
+            $paramItems = $params['items'] ?? [];
+            $paramItems[] = [
                 'label' => $item['label'] ?? $value,
                 'value' => $value,
             ];
+            $params['items'] = $paramItems;
         }
     }
 
     /** @param array<string, mixed> $params */
     public function getAvailablePageFields(array &$params): void
     {
-        $columns = $GLOBALS['TCA']['pages']['columns'] ?? [];
+        $columns = $this->getTcaColumns('pages');
         foreach ($columns as $fieldName => $fieldConfig) {
             if (in_array($fieldName, self::EXCLUDED_PAGE_FIELDS, true)) {
                 continue;
@@ -50,10 +54,13 @@ final class TemplateService
                 continue;
             }
             $label = $fieldConfig['label'] ?? $fieldName;
-            $params['items'][] = [
+            /** @var list<array{label: string, value: string}> $paramItems */
+            $paramItems = $params['items'] ?? [];
+            $paramItems[] = [
                 'label' => $label . ' [' . $fieldName . ']',
                 'value' => $fieldName,
             ];
+            $params['items'] = $paramItems;
         }
     }
 
@@ -70,37 +77,105 @@ final class TemplateService
         $rows = $queryBuilder->executeQuery()->fetchAllAssociative();
 
         $backendUser = $GLOBALS['BE_USER'] ?? null;
-        $isAdmin = $backendUser?->isAdmin() ?? false;
-        $userGroups = $backendUser?->userGroupsUID ?? [];
+        $isAdmin = $backendUser instanceof BackendUserAuthentication && $backendUser->isAdmin();
+        /** @var list<int> $userGroups */
+        $userGroups = $backendUser instanceof BackendUserAuthentication
+            ? $backendUser->userGroupsUID
+            : [];
 
         $templates = [];
         foreach ($rows as $row) {
-            $allowedGroups = array_filter(
-                array_map('intval', explode(',', (string)($row['be_groups'] ?? ''))),
-                static fn(int $g): bool => $g > 0,
-            );
+            $template = $this->hydrateTemplate($row);
+            $allowedGroups = $template->beGroups;
 
             if ($allowedGroups === [] || $isAdmin || array_intersect($allowedGroups, $userGroups) !== []) {
-                $templates[] = new Template(
-                    uid: (int)$row['uid'],
-                    title: (string)$row['title'],
-                    identifier: (string)$row['identifier'],
-                    description: (string)($row['description'] ?? ''),
-                    llmConfiguration: (int)($row['llm_configuration'] ?? 0),
-                    systemPrompt: (string)($row['system_prompt'] ?? ''),
-                    allowedCTypes: array_filter(explode(',', (string)($row['allowed_ctypes'] ?? ''))),
-                    pageFields: array_filter(explode(',', (string)($row['page_fields'] ?? ''))),
-                    referencePages: array_filter(
-                        array_map('intval', explode(',', (string)($row['reference_pages'] ?? ''))),
-                        static fn(int $v): bool => $v > 0,
-                    ),
-                    briefingMode: (string)($row['briefing_mode'] ?? 'optional'),
-                    publishMode: (string)($row['publish_mode'] ?? 'hidden'),
-                    beGroups: $allowedGroups,
-                );
+                $templates[] = $template;
             }
         }
 
         return $templates;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function hydrateTemplate(array $row): Template
+    {
+        $beGroupsRaw = is_string($row['be_groups'] ?? null) ? $row['be_groups'] : '';
+        $allowedGroups = array_values(array_filter(
+            array_map('intval', explode(',', $beGroupsRaw)),
+            static fn(int $g): bool => $g > 0,
+        ));
+
+        $allowedCTypesRaw = is_string($row['allowed_ctypes'] ?? null) ? $row['allowed_ctypes'] : '';
+        $pageFieldsRaw = is_string($row['page_fields'] ?? null) ? $row['page_fields'] : '';
+        $referencePagesRaw = is_string($row['reference_pages'] ?? null) ? $row['reference_pages'] : '';
+
+        return new Template(
+            uid: self::toInt($row['uid'] ?? 0),
+            title: is_string($row['title'] ?? null) ? $row['title'] : '',
+            identifier: is_string($row['identifier'] ?? null) ? $row['identifier'] : '',
+            description: is_string($row['description'] ?? null) ? $row['description'] : '',
+            llmConfiguration: self::toInt($row['llm_configuration'] ?? 0),
+            systemPrompt: is_string($row['system_prompt'] ?? null) ? $row['system_prompt'] : '',
+            allowedCTypes: array_values(array_filter(explode(',', $allowedCTypesRaw))),
+            pageFields: array_values(array_filter(explode(',', $pageFieldsRaw))),
+            referencePages: array_values(array_filter(
+                array_map('intval', explode(',', $referencePagesRaw)),
+                static fn(int $v): bool => $v > 0,
+            )),
+            briefingMode: is_string($row['briefing_mode'] ?? null) ? $row['briefing_mode'] : 'optional',
+            publishMode: is_string($row['publish_mode'] ?? null) ? $row['publish_mode'] : 'hidden',
+            beGroups: $allowedGroups,
+        );
+    }
+
+    /**
+     * @return array<int, array{label?: string, value?: string}>
+     */
+    private function getTcaColumnItems(string $table, string $column): array
+    {
+        $tca = $this->getTcaForTable($table);
+        /** @var array<string, array{config?: array{items?: array<int, array{label?: string, value?: string}>}}> $columns */
+        $columns = $tca['columns'] ?? [];
+        $columnConfig = $columns[$column] ?? [];
+
+        return $columnConfig['config']['items'] ?? [];
+    }
+
+    /**
+     * @return array<string, array{label?: string, config?: array{type?: string}}>
+     */
+    private function getTcaColumns(string $table): array
+    {
+        $tca = $this->getTcaForTable($table);
+        /** @var array<string, array{label?: string, config?: array{type?: string}}> $columns */
+        $columns = $tca['columns'] ?? [];
+
+        return $columns;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getTcaForTable(string $table): array
+    {
+        /** @var array<string, array<string, mixed>> $tca */
+        $tca = $GLOBALS['TCA'] ?? [];
+
+        return $tca[$table] ?? [];
+    }
+
+    private static function toInt(mixed $value): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            return (int) $value;
+        }
+
+        return 0;
     }
 }
