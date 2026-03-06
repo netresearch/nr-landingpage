@@ -2,10 +2,24 @@
       data-namespace-typo3-fluid="true">
 <f:layout name="Module" />
 <f:section name="Content">
-    <div class="landing-page-wizard" id="landing-page-wizard">
-        <div class="wizard-steps" role="tablist" aria-label="Wizard Steps">
+    <div class="landing-page-wizard" id="landing-page-wizard"
+         data-parent-page-id="{parentPageId}">
+        <h1><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.title" default="Landing Page Wizard" /></h1>
+        <div class="wizard-progress mb-4" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="5">
+            <div class="progress">
+                <div class="progress-bar" style="width: 20%"></div>
+            </div>
+            <div class="wizard-step-labels d-flex justify-content-between mt-1">
+                <span><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.step.template" default="Template" /></span>
+                <span><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.step.briefing" default="Briefing" /></span>
+                <span><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.step.pageFields" default="Page Fields" /></span>
+                <span><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.step.content" default="Content" /></span>
+                <span><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.step.placement" default="Placement" /></span>
+            </div>
         </div>
-        <div class="wizard-content" role="tabpanel">
+        <div class="wizard-content" role="tabpanel" aria-live="polite">
+        </div>
+        <div class="wizard-navigation mt-3">
         </div>
     </div>
 </f:section>

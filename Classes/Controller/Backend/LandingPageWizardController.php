@@ -38,6 +38,12 @@ final class LandingPageWizardController
         $this->initializeAction($request);
         \assert($this->moduleTemplate instanceof ModuleTemplate);
 
+        $queryParams = $request->getQueryParams();
+        $rawParentPageId = $queryParams['parentPageId'] ?? 0;
+        $parentPageId = is_numeric($rawParentPageId) ? (int) $rawParentPageId : 0;
+
+        $this->moduleTemplate->assign('parentPageId', $parentPageId);
+
         return $this->moduleTemplate->renderResponse('Backend/LandingPageWizard/Index');
     }
 

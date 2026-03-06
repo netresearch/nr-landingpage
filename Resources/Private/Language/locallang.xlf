@@ -6,6 +6,24 @@
             <trans-unit id="contextMenu.createLandingPage" resname="contextMenu.createLandingPage">
                 <source>Landing Page erstellen</source>
             </trans-unit>
+            <trans-unit id="wizard.title" resname="wizard.title">
+                <source>Landing Page Wizard</source>
+            </trans-unit>
+            <trans-unit id="wizard.step.template" resname="wizard.step.template">
+                <source>Template</source>
+            </trans-unit>
+            <trans-unit id="wizard.step.briefing" resname="wizard.step.briefing">
+                <source>Briefing</source>
+            </trans-unit>
+            <trans-unit id="wizard.step.pageFields" resname="wizard.step.pageFields">
+                <source>Page Fields</source>
+            </trans-unit>
+            <trans-unit id="wizard.step.content" resname="wizard.step.content">
+                <source>Content</source>
+            </trans-unit>
+            <trans-unit id="wizard.step.placement" resname="wizard.step.placement">
+                <source>Placement</source>
+            </trans-unit>
         </body>
     </file>
 </xliff>

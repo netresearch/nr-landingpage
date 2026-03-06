@@ -62,7 +62,6 @@ final class LandingPageItemProvider extends AbstractProvider
         ]);
 
         return [
-            // TODO: Phase 9 — create Resources/Public/JavaScript/context-menu-actions.js
             'data-callback-module' => '@netresearch/nr-landingpage/context-menu-actions',
             'data-navigate-uri' => $moduleUrl,
         ];
