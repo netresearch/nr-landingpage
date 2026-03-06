@@ -11,6 +11,8 @@ use Netresearch\NrLandingpage\Service\PageCreatorService;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 use Throwable;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
@@ -18,8 +20,10 @@ use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Page\PageRenderer;
 
-final class LandingPageWizardController
+final class LandingPageWizardController implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
+
     private ?ModuleTemplate $moduleTemplate = null;
 
     public function __construct(
@@ -65,7 +69,7 @@ final class LandingPageWizardController
 
             return new JsonResponse(['success' => true, 'data' => $data]);
         } catch (Throwable $e) {
-            return new JsonResponse(['success' => false, 'error' => $e->getMessage()], 500);
+            return $this->errorResponse($e);
         }
     }
 
@@ -89,7 +93,7 @@ final class LandingPageWizardController
 
             return new JsonResponse(['success' => true, 'data' => $questions]);
         } catch (Throwable $e) {
-            return new JsonResponse(['success' => false, 'error' => $e->getMessage()], 500);
+            return $this->errorResponse($e);
         }
     }
 
@@ -117,7 +121,7 @@ final class LandingPageWizardController
 
             return new JsonResponse(['success' => true, 'data' => $pageFields]);
         } catch (Throwable $e) {
-            return new JsonResponse(['success' => false, 'error' => $e->getMessage()], 500);
+            return $this->errorResponse($e);
         }
     }
 
@@ -157,7 +161,7 @@ final class LandingPageWizardController
                 'images' => $images,
             ]]);
         } catch (Throwable $e) {
-            return new JsonResponse(['success' => false, 'error' => $e->getMessage()], 500);
+            return $this->errorResponse($e);
         }
     }
 
@@ -196,7 +200,7 @@ final class LandingPageWizardController
 
             return new JsonResponse(['success' => true, 'data' => $contentSections[$sectionIndex]]);
         } catch (Throwable $e) {
-            return new JsonResponse(['success' => false, 'error' => $e->getMessage()], 500);
+            return $this->errorResponse($e);
         }
     }
 
@@ -257,7 +261,7 @@ final class LandingPageWizardController
 
             return new JsonResponse(['success' => true, 'data' => $result]);
         } catch (Throwable $e) {
-            return new JsonResponse(['success' => false, 'error' => $e->getMessage()], 500);
+            return $this->errorResponse($e);
         }
     }
 
@@ -337,5 +341,18 @@ final class LandingPageWizardController
         $value = $body[$key] ?? [];
 
         return is_array($value) ? $value : [];
+    }
+
+    private function errorResponse(Throwable $e): ResponseInterface
+    {
+        $this->logger?->error('Wizard action failed', [
+            'exception' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        return new JsonResponse([
+            'success' => false,
+            'error' => 'An internal error occurred. Please try again.',
+        ], 500);
     }
 }

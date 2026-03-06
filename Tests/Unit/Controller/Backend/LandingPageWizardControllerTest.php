@@ -298,7 +298,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         self::assertSame(500, $response->getStatusCode());
         $data = json_decode((string) $response->getBody(), true);
         self::assertFalse($data['success']);
-        self::assertSame('DataHandler failed', $data['error']);
+        self::assertStringContainsString('internal error', $data['error']);
     }
 
     #[Test]

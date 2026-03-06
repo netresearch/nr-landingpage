@@ -1,4 +1,5 @@
 import WizardState from '@netresearch/nr-landingpage/wizard-state.js';
+import Modal from '@typo3/backend/modal.js';
 import Notification from '@typo3/backend/notification.js';
 
 /**
@@ -28,10 +29,6 @@ class LandingPageWizard {
         this.stepLabels = container.querySelectorAll('.wizard-step-labels span');
 
         const parentPageId = parseInt(container.dataset.parentPageId || '0', 10);
-        if (parentPageId > 0) {
-            WizardState.setParentPageId(parentPageId);
-        }
-
         WizardState.reset();
         if (parentPageId > 0) {
             WizardState.setParentPageId(parentPageId);
@@ -60,6 +57,7 @@ class LandingPageWizard {
     async fetchJson(url, data = null) {
         const options = {
             method: data ? 'POST' : 'GET',
+            credentials: 'same-origin',
             headers: {},
         };
 
@@ -519,22 +517,38 @@ class LandingPageWizard {
             cardBody.className = 'card-body';
 
             if (section.header) {
-                const header = document.createElement('h5');
-                header.textContent = section.header;
+                const header = document.createElement('input');
+                header.type = 'text';
+                header.className = 'form-control form-control-lg mb-2';
+                header.value = section.header;
+                header.setAttribute('aria-label', 'Section header');
+                header.addEventListener('input', () => {
+                    WizardState.getContentSections()[index].header = header.value;
+                });
                 cardBody.appendChild(header);
             }
 
             if (section.subheader) {
-                const subheader = document.createElement('h6');
-                subheader.className = 'text-muted';
-                subheader.textContent = section.subheader;
+                const subheader = document.createElement('input');
+                subheader.type = 'text';
+                subheader.className = 'form-control form-control-sm text-muted mb-2';
+                subheader.value = section.subheader;
+                subheader.setAttribute('aria-label', 'Section subheader');
+                subheader.addEventListener('input', () => {
+                    WizardState.getContentSections()[index].subheader = subheader.value;
+                });
                 cardBody.appendChild(subheader);
             }
 
             if (section.bodytext) {
-                const bodytext = document.createElement('div');
-                bodytext.className = 'section-bodytext';
-                bodytext.textContent = section.bodytext;
+                const bodytext = document.createElement('textarea');
+                bodytext.className = 'form-control section-bodytext mb-2';
+                bodytext.rows = 4;
+                bodytext.value = section.bodytext;
+                bodytext.setAttribute('aria-label', 'Section body text');
+                bodytext.addEventListener('input', () => {
+                    WizardState.getContentSections()[index].bodytext = bodytext.value;
+                });
                 cardBody.appendChild(bodytext);
             }
 
@@ -684,7 +698,7 @@ class LandingPageWizard {
             true,
             {
                 label: 'Generate Landing Page',
-                handler: () => this.saveLandingPage(form),
+                handler: () => this.confirmAndSave(form),
                 cssClass: 'btn btn-success',
             },
             null
@@ -753,6 +767,26 @@ class LandingPageWizard {
         summary.appendChild(cardHeader);
         summary.appendChild(cardBody);
         this.contentArea.appendChild(summary);
+    }
+
+    /**
+     * Show confirmation modal before saving.
+     *
+     * @param {HTMLFormElement} form
+     */
+    confirmAndSave(form) {
+        const modal = Modal.confirm(
+            'Landing Page erstellen',
+            'Soll die Landing Page jetzt erstellt werden? Eine neue Seite wird im Seitenbaum angelegt.',
+            Modal.sizes.small,
+        );
+        modal.addEventListener('confirm.button.ok', () => {
+            modal.hideModal();
+            this.saveLandingPage(form);
+        });
+        modal.addEventListener('confirm.button.cancel', () => {
+            modal.hideModal();
+        });
     }
 
     /**
