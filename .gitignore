@@ -6,3 +6,4 @@ composer.lock
 .ddev/.ddev-docker-compose-*
 .ddev/db_snapshots
 .ddev/.homeadditions
+.ddev/docker-compose.traefik.yaml

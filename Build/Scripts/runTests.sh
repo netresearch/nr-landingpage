@@ -376,7 +376,7 @@ case ${TEST_SUITE} in
         SUITE_EXIT_CODE=$?
         ;;
     functional)
-        COMMAND=(php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c phpunit.xml --testsuite functional --exclude-group not-${DBMS} "$@")
+        COMMAND=(php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c phpunit.xml --testsuite functional --bootstrap Build/phpunit/FunctionalTestsBootstrap.php --exclude-group not-${DBMS} "$@")
 
         case ${DBMS} in
             mariadb)
