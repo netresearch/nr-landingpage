@@ -17,6 +17,20 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
     private const ALLOWED_HTML_TAGS = '<p><br><ul><ol><li><strong><em><a><h2><h3><h4>';
 
+    /**
+     * Sanitize HTML by stripping disallowed tags and removing XSS vectors.
+     */
+    private function sanitizeHtml(string $html): string
+    {
+        // Remove all tags except allowed ones
+        $html = strip_tags($html, self::ALLOWED_HTML_TAGS);
+        // Remove event handler attributes (onclick, onload, onerror, etc.)
+        $html = (string) preg_replace('/\s+on\w+\s*=\s*["\'][^"\']*["\']/i', '', $html);
+        // Remove javascript: URLs
+        $html = (string) preg_replace('/href\s*=\s*["\']javascript:[^"\']*["\']/i', 'href="#"', $html);
+        return $html;
+    }
+
     public function __construct(
         private readonly CompletionService $completionService,
     ) {}
@@ -169,7 +183,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 'ctype' => $item['ctype'],
                 'header' => is_string($item['header'] ?? null) ? $item['header'] : '',
                 'subheader' => is_string($item['subheader'] ?? null) ? $item['subheader'] : '',
-                'bodytext' => strip_tags($bodytext, self::ALLOWED_HTML_TAGS),
+                'bodytext' => $this->sanitizeHtml($bodytext),
             ];
         }
 

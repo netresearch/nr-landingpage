@@ -248,6 +248,93 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     }
 
     #[Test]
+    public function sanitizesEventHandlerAttributes(): void
+    {
+        $llmResponse = [
+            [
+                'section' => 'Main',
+                'ctype' => 'text',
+                'header' => 'Title',
+                'subheader' => '',
+                'bodytext' => '<p onclick="alert(1)">text</p>',
+            ],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = new ContentGeneratorService($completionService);
+        $result = $service->generateContent($this->createTemplate(), []);
+
+        self::assertStringNotContainsString('onclick', $result[0]['bodytext']);
+        self::assertSame('<p>text</p>', $result[0]['bodytext']);
+    }
+
+    #[Test]
+    public function sanitizesJavascriptUrls(): void
+    {
+        $llmResponse = [
+            [
+                'section' => 'Main',
+                'ctype' => 'text',
+                'header' => 'Title',
+                'subheader' => '',
+                'bodytext' => '<a href="javascript:alert(1)">link</a>',
+            ],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = new ContentGeneratorService($completionService);
+        $result = $service->generateContent($this->createTemplate(), []);
+
+        self::assertStringNotContainsString('javascript:', $result[0]['bodytext']);
+        self::assertSame('<a href="#">link</a>', $result[0]['bodytext']);
+    }
+
+    #[Test]
+    public function generatePageFieldsLogsOnError(): void
+    {
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')
+            ->willThrowException(new \RuntimeException('LLM exploded'));
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('error')
+            ->with('Page field generation failed', self::callback(
+                fn(array $context): bool => $context['template'] === 't'
+                    && $context['error'] === 'LLM exploded'
+            ));
+
+        $service = new ContentGeneratorService($completionService);
+        $service->setLogger($logger);
+        $service->generatePageFields($this->createTemplate(), []);
+    }
+
+    #[Test]
+    public function generatePageFieldsHandlesNonStringValues(): void
+    {
+        $llmResponse = [
+            'title' => 'Valid Title',
+            'seo_title' => 123,
+            'description' => ['not', 'a', 'string'],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = new ContentGeneratorService($completionService);
+        $result = $service->generatePageFields($this->createTemplate(), []);
+
+        self::assertCount(1, $result);
+        self::assertSame('Valid Title', $result['title']);
+        self::assertArrayNotHasKey('seo_title', $result);
+        self::assertArrayNotHasKey('description', $result);
+    }
+
+    #[Test]
     public function formatsBriefingAsKeyValueLines(): void
     {
         $completionService = $this->createMock(CompletionService::class);
