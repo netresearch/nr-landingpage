@@ -11,8 +11,8 @@ use Netresearch\NrLandingpage\Service\PageCreatorService;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use RuntimeException;
 use Throwable;
+use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Http\JsonResponse;
@@ -25,6 +25,7 @@ final class LandingPageWizardController
     public function __construct(
         private readonly ModuleTemplateFactory $moduleTemplateFactory,
         private readonly PageRenderer $pageRenderer,
+        private readonly UriBuilder $uriBuilder,
         private readonly TemplateService $templateService,
         private readonly BriefingService $briefingService,
         private readonly ContentGeneratorService $contentGeneratorService,
@@ -139,7 +140,7 @@ final class LandingPageWizardController
             // Optionally search for images based on section headers
             $images = [];
             foreach ($contentSections as $section) {
-                $keywords = $this->imageSearchService->extractKeywords($section['header']);
+                $keywords = $this->imageSearchService->extractKeywords($section['header'] ?? '');
                 if ($keywords !== []) {
                     $images[] = $this->imageSearchService->searchByKeywords($keywords, 3);
                 }
@@ -249,8 +250,6 @@ final class LandingPageWizardController
             );
 
             return new JsonResponse(['success' => true, 'data' => $result]);
-        } catch (RuntimeException $e) {
-            return new JsonResponse(['success' => false, 'error' => $e->getMessage()], 500);
         } catch (Throwable $e) {
             return new JsonResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
@@ -262,12 +261,12 @@ final class LandingPageWizardController
 
         $this->pageRenderer->addInlineSettingArray('NrLandingpage', [
             'ajaxUrls' => [
-                'templates' => '/ajax/nr-landingpage/wizard/templates',
-                'generateBriefing' => '/ajax/nr-landingpage/wizard/generate-briefing',
-                'generatePageFields' => '/ajax/nr-landingpage/wizard/generate-page-fields',
-                'generateContent' => '/ajax/nr-landingpage/wizard/generate-content',
-                'regenerateSection' => '/ajax/nr-landingpage/wizard/regenerate-section',
-                'save' => '/ajax/nr-landingpage/wizard/save',
+                'templates' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_templates'),
+                'generateBriefing' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_generate_briefing'),
+                'generatePageFields' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_generate_page_fields'),
+                'generateContent' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_generate_content'),
+                'regenerateSection' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_regenerate_section'),
+                'save' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_save'),
             ],
         ]);
 

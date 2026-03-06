@@ -82,7 +82,34 @@ final readonly class TemplateService
             return null;
         }
 
-        return $this->hydrateTemplate($row);
+        $template = $this->hydrateTemplate($row);
+
+        if (!$this->isTemplateAccessible($template)) {
+            return null;
+        }
+
+        return $template;
+    }
+
+    private function isTemplateAccessible(Template $template): bool
+    {
+        if ($template->beGroups === []) {
+            return true;
+        }
+
+        $backendUser = $GLOBALS['BE_USER'] ?? null;
+        if (!$backendUser instanceof BackendUserAuthentication) {
+            return false;
+        }
+
+        if ($backendUser->isAdmin()) {
+            return true;
+        }
+
+        /** @var list<int> $userGroups */
+        $userGroups = $backendUser->userGroupsUID;
+
+        return array_intersect($template->beGroups, $userGroups) !== [];
     }
 
     /** @return list<Template> */
@@ -97,19 +124,10 @@ final readonly class TemplateService
 
         $rows = $queryBuilder->executeQuery()->fetchAllAssociative();
 
-        $backendUser = $GLOBALS['BE_USER'] ?? null;
-        $isAdmin = $backendUser instanceof BackendUserAuthentication && $backendUser->isAdmin();
-        /** @var list<int> $userGroups */
-        $userGroups = $backendUser instanceof BackendUserAuthentication
-            ? $backendUser->userGroupsUID
-            : [];
-
         $templates = [];
         foreach ($rows as $row) {
             $template = $this->hydrateTemplate($row);
-            $allowedGroups = $template->beGroups;
-
-            if ($allowedGroups === [] || $isAdmin || array_intersect($allowedGroups, $userGroups) !== []) {
+            if ($this->isTemplateAccessible($template)) {
                 $templates[] = $template;
             }
         }

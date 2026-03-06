@@ -18,6 +18,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Http\Message\ServerRequestInterface;
 use ReflectionClass;
 use RuntimeException;
+use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
@@ -48,6 +49,9 @@ final class LandingPageWizardControllerTest extends UnitTestCase
 
         $pageRenderer = $this->createMock(PageRenderer::class);
 
+        /** @var UriBuilder $uriBuilder */
+        $uriBuilder = (new ReflectionClass(UriBuilder::class))->newInstanceWithoutConstructor();
+
         $templateService = new TemplateService($this->connectionPool);
         $briefingService = new BriefingService($this->completionService);
         $contentGeneratorService = new ContentGeneratorService($this->completionService);
@@ -58,6 +62,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         $this->subject = new LandingPageWizardController(
             $moduleTemplateFactory,
             $pageRenderer,
+            $uriBuilder,
             $templateService,
             $briefingService,
             $contentGeneratorService,
