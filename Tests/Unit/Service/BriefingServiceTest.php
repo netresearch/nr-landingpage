@@ -9,6 +9,7 @@ use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLlm\Service\Feature\CompletionService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use Psr\Log\LoggerInterface;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 
 #[CoversClass(BriefingService::class)]
@@ -131,5 +132,57 @@ final class BriefingServiceTest extends UnitTestCase
         $result = (new BriefingService($completionService))->generateQuestions($this->createTemplate());
         self::assertSame('select', $result[0]['type']);
         self::assertSame(['formal', 'casual'], $result[0]['options']);
+    }
+
+    #[Test]
+    public function returnsEmptyArrayWhenLlmReturnsUnexpectedStructure(): void
+    {
+        $completionService = $this->createMock(CompletionService::class);
+        // Return an array with no valid question items (all entries are scalar or missing required keys)
+        $completionService->method('completeJson')->willReturn([
+            'unexpected' => 'structure',
+            42,
+            null,
+        ]);
+
+        $service = new BriefingService($completionService);
+        self::assertSame([], $service->generateQuestions($this->createTemplate()));
+    }
+
+    #[Test]
+    public function logsErrorOnException(): void
+    {
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')
+            ->willThrowException(new \RuntimeException('LLM exploded'));
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('error')
+            ->with('Briefing generation failed', self::callback(
+                fn(array $context): bool => $context['template'] === 't'
+                    && $context['error'] === 'LLM exploded'
+            ));
+
+        $service = new BriefingService($completionService);
+        $service->setLogger($logger);
+        $service->generateQuestions($this->createTemplate());
+    }
+
+    #[Test]
+    public function handlesEmptySystemPrompt(): void
+    {
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->expects(self::once())
+            ->method('completeJson')
+            ->with(self::callback(
+                fn(string $p): bool => str_contains($p, 'JSON-Array')
+                    && str_contains($p, 'ANWEISUNGEN ZUR AUSGABE')
+            ))
+            ->willReturn([]);
+
+        (new BriefingService($completionService))->generateQuestions(
+            $this->createTemplate('')
+        );
     }
 }

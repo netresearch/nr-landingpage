@@ -29,6 +29,8 @@ final class BriefingService implements LoggerAwareInterface
     public function generateQuestions(Template $template): array
     {
         try {
+            // TODO: Use $template->llmConfiguration to load the LlmConfiguration record
+            // and route to the correct provider/model via LlmServiceManager::completeWithConfiguration()
             $response = $this->completionService->completeJson(
                 $this->buildPrompt($template),
                 ChatOptions::json(),
@@ -48,6 +50,8 @@ final class BriefingService implements LoggerAwareInterface
     {
         return <<<PROMPT
             {$template->systemPrompt}
+
+            --- ANWEISUNGEN ZUR AUSGABE ---
 
             Basierend auf dem obigen Kontext: Stelle dem User die relevanten
             Fragen um eine Landing Page zu erstellen. Maximal {self::MAX_QUESTIONS} Fragen.
