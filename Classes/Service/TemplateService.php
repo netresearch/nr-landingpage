@@ -6,6 +6,7 @@ namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 
 final readonly class TemplateService
@@ -62,6 +63,26 @@ final readonly class TemplateService
             ];
             $params['items'] = $paramItems;
         }
+    }
+
+    public function loadByUid(int $uid): ?Template
+    {
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('tx_nrlandingpage_domain_model_template');
+        $queryBuilder
+            ->select('*')
+            ->from('tx_nrlandingpage_domain_model_template')
+            ->where(
+                $queryBuilder->expr()->eq('uid', $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)),
+                $queryBuilder->expr()->eq('deleted', 0),
+                $queryBuilder->expr()->eq('hidden', 0),
+            );
+
+        $row = $queryBuilder->executeQuery()->fetchAssociative();
+        if ($row === false) {
+            return null;
+        }
+
+        return $this->hydrateTemplate($row);
     }
 
     /** @return list<Template> */
