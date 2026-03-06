@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+    <file source-language="en" datatype="plaintext" original="messages" date="2026-03-06T00:00:00Z" product-name="nr_landingpage">
+        <header/>
+        <body>
+            <trans-unit id="tx_nrlandingpage_domain_model_template" resname="tx_nrlandingpage_domain_model_template">
+                <source>Template</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.title" resname="tx_nrlandingpage_domain_model_template.title">
+                <source>Title</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.identifier" resname="tx_nrlandingpage_domain_model_template.identifier">
+                <source>Identifier</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.description" resname="tx_nrlandingpage_domain_model_template.description">
+                <source>Description</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.llm_configuration" resname="tx_nrlandingpage_domain_model_template.llm_configuration">
+                <source>LLM Configuration</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.system_prompt" resname="tx_nrlandingpage_domain_model_template.system_prompt">
+                <source>System Prompt</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.allowed_ctypes" resname="tx_nrlandingpage_domain_model_template.allowed_ctypes">
+                <source>Allowed Content Types</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.page_fields" resname="tx_nrlandingpage_domain_model_template.page_fields">
+                <source>Page Fields</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.reference_pages" resname="tx_nrlandingpage_domain_model_template.reference_pages">
+                <source>Reference Pages</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.briefing_mode" resname="tx_nrlandingpage_domain_model_template.briefing_mode">
+                <source>Briefing Mode</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.briefing_mode.none" resname="tx_nrlandingpage_domain_model_template.briefing_mode.none">
+                <source>None (no briefing)</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.briefing_mode.optional" resname="tx_nrlandingpage_domain_model_template.briefing_mode.optional">
+                <source>Optional</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.briefing_mode.required" resname="tx_nrlandingpage_domain_model_template.briefing_mode.required">
+                <source>Required</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.publish_mode" resname="tx_nrlandingpage_domain_model_template.publish_mode">
+                <source>Publish Mode</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.publish_mode.hidden" resname="tx_nrlandingpage_domain_model_template.publish_mode.hidden">
+                <source>Hidden (create as hidden page)</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.publish_mode.visible" resname="tx_nrlandingpage_domain_model_template.publish_mode.visible">
+                <source>Visible (publish immediately)</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.be_groups" resname="tx_nrlandingpage_domain_model_template.be_groups">
+                <source>Backend User Groups</source>
+            </trans-unit>
+            <trans-unit id="tabs.llm" resname="tabs.llm">
+                <source>LLM</source>
+            </trans-unit>
+            <trans-unit id="tabs.content" resname="tabs.content">
+                <source>Content</source>
+            </trans-unit>
+            <trans-unit id="tabs.page_fields" resname="tabs.page_fields">
+                <source>Page Fields</source>
+            </trans-unit>
+            <trans-unit id="tabs.wizard" resname="tabs.wizard">
+                <source>Wizard</source>
+            </trans-unit>
+            <trans-unit id="tabs.access" resname="tabs.access">
+                <source>Access</source>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>
