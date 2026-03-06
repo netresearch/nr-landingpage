@@ -11,12 +11,36 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use RuntimeException;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class PageCreatorService implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
+
+    private const RESERVED_PAGE_FIELDS = [
+        'uid',
+        'pid',
+        'doktype',
+        'hidden',
+        'deleted',
+        'sorting',
+        'slug',
+        'title',
+        'TSconfig',
+        'is_siteroot',
+        'perms_userid',
+        'perms_groupid',
+        'perms_user',
+        'perms_group',
+        'perms_everybody',
+        'editlock',
+        't3ver_oid',
+        't3ver_wsid',
+        't3ver_state',
+        't3ver_stage',
+    ];
 
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher,
@@ -66,6 +90,10 @@ class PageCreatorService implements LoggerAwareInterface
         }
 
         $dataHandler = $this->createDataHandler();
+        $workspaceId = $this->getCurrentWorkspaceId();
+        if ($workspaceId > 0) {
+            $this->logger?->info('Creating page in workspace', ['workspaceId' => $workspaceId]);
+        }
         $dataHandler->start($dataMap, []);
         $dataHandler->process_datamap();
 
@@ -118,10 +146,20 @@ class PageCreatorService implements LoggerAwareInterface
             'hidden' => $template->publishMode === 'hidden' ? 1 : 0,
         ];
 
+        $allowedFields = $template->pageFields;
         foreach ($pageFields as $field => $value) {
-            if (is_string($field) && is_string($value) && $value !== '') {
-                $data[$field] = $value;
+            if (!is_string($field) || !is_string($value) || $value === '') {
+                continue;
             }
+            if (in_array($field, self::RESERVED_PAGE_FIELDS, true)) {
+                $this->logger?->warning('Blocked reserved page field', ['field' => $field]);
+                continue;
+            }
+            if ($allowedFields !== [] && !in_array($field, $allowedFields, true)) {
+                $this->logger?->warning('Blocked non-allowed page field', ['field' => $field]);
+                continue;
+            }
+            $data[$field] = $value;
         }
 
         return $data;
@@ -158,6 +196,20 @@ class PageCreatorService implements LoggerAwareInterface
         }
 
         return $elements;
+    }
+
+    /**
+     * Get workspace ID from the current backend user.
+     * DataHandler automatically respects BE_USER->workspace for versioning.
+     */
+    protected function getCurrentWorkspaceId(): int
+    {
+        $beUser = $GLOBALS['BE_USER'] ?? null;
+        if ($beUser instanceof BackendUserAuthentication) {
+            return (int) $beUser->workspace;
+        }
+
+        return 0;
     }
 
     /**

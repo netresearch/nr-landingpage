@@ -135,10 +135,73 @@ final class PageCreatorServiceTest extends UnitTestCase
                     && ($dataMap['pages']['NEW_page']['description'] ?? '') === 'My Description';
             }), []);
 
+        $template = new Template(uid: 1, title: 'T', identifier: 't', pageFields: ['seo_title', 'description']);
         $service = $this->createService($dh);
-        $service->createLandingPage($this->createTemplate(), 10, 'T', '/t', [
+        $service->createLandingPage($template, 10, 'T', '/t', [
             'seo_title' => 'My SEO Title',
             'description' => 'My Description',
+        ], []);
+    }
+
+    #[Test]
+    public function reservedPageFieldsAreBlocked(): void
+    {
+        $dh = $this->createMockDataHandler(['NEW_page' => 1]);
+        $dh->expects(self::once())->method('start')
+            ->with(self::callback(function (array $dataMap): bool {
+                $page = $dataMap['pages']['NEW_page'];
+                // pid should be parentPageId (10), not overwritten to 999
+                return $page['pid'] === 10
+                    && !isset($page['TSconfig'])
+                    && !isset($page['is_siteroot']);
+            }), []);
+
+        $template = new Template(uid: 1, title: 'T', identifier: 't', pageFields: ['seo_title', 'pid', 'TSconfig', 'is_siteroot']);
+        $service = $this->createService($dh);
+        $service->createLandingPage($template, 10, 'T', '/t', [
+            'pid' => '999',
+            'TSconfig' => 'malicious = 1',
+            'is_siteroot' => '1',
+            'seo_title' => 'Valid',
+        ], []);
+    }
+
+    #[Test]
+    public function nonAllowedPageFieldsAreBlocked(): void
+    {
+        $dh = $this->createMockDataHandler(['NEW_page' => 1]);
+        $dh->expects(self::once())->method('start')
+            ->with(self::callback(function (array $dataMap): bool {
+                $page = $dataMap['pages']['NEW_page'];
+                return ($page['seo_title'] ?? '') === 'Valid'
+                    && !isset($page['og_title']);
+            }), []);
+
+        $template = new Template(uid: 1, title: 'T', identifier: 't', pageFields: ['seo_title']);
+        $service = $this->createService($dh);
+        $service->createLandingPage($template, 10, 'T', '/t', [
+            'seo_title' => 'Valid',
+            'og_title' => 'Not allowed by template',
+        ], []);
+    }
+
+    #[Test]
+    public function emptyPageFieldsAllowlistAllowsAllNonReservedFields(): void
+    {
+        $dh = $this->createMockDataHandler(['NEW_page' => 1]);
+        $dh->expects(self::once())->method('start')
+            ->with(self::callback(function (array $dataMap): bool {
+                $page = $dataMap['pages']['NEW_page'];
+                return ($page['seo_title'] ?? '') === 'Valid'
+                    && ($page['og_title'] ?? '') === 'Also valid';
+            }), []);
+
+        // Empty pageFields = no restriction (beyond reserved fields)
+        $template = new Template(uid: 1, title: 'T', identifier: 't', pageFields: []);
+        $service = $this->createService($dh);
+        $service->createLandingPage($template, 10, 'T', '/t', [
+            'seo_title' => 'Valid',
+            'og_title' => 'Also valid',
         ], []);
     }
 
