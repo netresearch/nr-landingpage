@@ -3,3 +3,6 @@
 declare(strict_types=1);
 
 defined('TYPO3') or die();
+
+$GLOBALS['TYPO3_CONF_VARS']['BE']['ContextMenu']['ItemProviders'][1700000001]
+    = \Netresearch\NrLandingpage\ContextMenu\LandingPageItemProvider::class;
