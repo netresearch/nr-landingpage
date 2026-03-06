@@ -1,0 +1,96 @@
+#!/bin/bash
+
+## Description: Install TYPO3 14 with nr_landingpage extension
+## Usage: install-v14
+## Example: ddev install-v14
+
+set -e
+
+VERSION=v14
+INSTALL_DIR="/var/www/html/$VERSION"
+EXTENSION_PATH="/var/www/nr_landingpage"
+
+echo "Installing TYPO3 v14 with nr_landingpage extension..."
+echo ""
+
+# Ensure proper ownership
+echo "Creating installation directory..."
+sudo chown -R "$(id -u):$(id -g)" "$INSTALL_DIR" 2>/dev/null || true
+rm -rf "$INSTALL_DIR"/* "$INSTALL_DIR"/.[!.]* 2>/dev/null || true
+mkdir -p "$INSTALL_DIR"
+
+# Create database
+echo "Setting up database..."
+mysql -h db -u root -p"root" -e "DROP DATABASE IF EXISTS ${VERSION};"
+mysql -h db -u root -p"root" -e "CREATE DATABASE ${VERSION};"
+
+# Install TYPO3 base distribution
+echo "Installing TYPO3 v14 base distribution..."
+cd "$INSTALL_DIR"
+composer create-project typo3/cms-base-distribution:^14 . --no-interaction --no-progress
+
+# Remove PHP platform override
+echo "Removing platform PHP override..."
+composer config --unset platform.php
+
+# Add extension repositories
+echo "Adding extensions..."
+composer config repositories.nr_vault path "/var/www/nr-vault"
+composer config repositories.nr_llm path "/var/www/nr-llm"
+composer config repositories.nr_landingpage path "$EXTENSION_PATH"
+composer require netresearch/nr-landingpage:@dev --no-interaction --no-progress
+
+# Setup TYPO3
+echo "Running TYPO3 setup..."
+vendor/bin/typo3 setup -n \
+    --dbname="$VERSION" \
+    --password=root \
+    --create-site="https://${VERSION}.nr-landingpage.ddev.site" \
+    --admin-user-password="$TYPO3_SETUP_ADMIN_PASSWORD"
+
+# Configure development settings
+echo "Configuring development settings..."
+mkdir -p "$INSTALL_DIR/config/system"
+cat > "$INSTALL_DIR/config/system/additional.php" << 'EOF'
+<?php
+// Development settings
+$GLOBALS['TYPO3_CONF_VARS']['BE']['debug'] = true;
+$GLOBALS['TYPO3_CONF_VARS']['FE']['debug'] = true;
+$GLOBALS['TYPO3_CONF_VARS']['SYS']['devIPmask'] = '*';
+$GLOBALS['TYPO3_CONF_VARS']['SYS']['displayErrors'] = 1;
+
+// Mail configuration (Mailpit)
+$GLOBALS['TYPO3_CONF_VARS']['MAIL']['transport'] = 'smtp';
+$GLOBALS['TYPO3_CONF_VARS']['MAIL']['transport_smtp_server'] = 'localhost:1025';
+$GLOBALS['TYPO3_CONF_VARS']['MAIL']['defaultMailFromAddress'] = 'admin@example.com';
+
+// Graphics
+$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor'] = 'ImageMagick';
+$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path'] = '/usr/bin/';
+
+// Security settings for DDEV multi-subdomain environment
+$GLOBALS['TYPO3_CONF_VARS']['SYS']['trustedHostsPattern'] = '.*';
+$GLOBALS['TYPO3_CONF_VARS']['SYS']['features']['security.backend.enforceReferrer'] = false;
+EOF
+
+# Setup extensions
+echo "Setting up extensions..."
+vendor/bin/typo3 extension:setup
+
+# Flush caches
+vendor/bin/typo3 cache:flush
+
+echo ""
+echo "-------------------------------------------"
+echo "TYPO3 $VERSION installation complete!"
+echo ""
+echo "Frontend: https://v14.nr-landingpage.ddev.site/"
+echo "Backend:  https://v14.nr-landingpage.ddev.site/typo3/"
+echo ""
+echo "Credentials:"
+echo "  Username: admin"
+echo "  Password: Joh316!!"
+echo ""
+echo "Note: Configure nr-llm LLM provider in TYPO3 backend"
+echo "  before using the Landing Page Wizard."
+echo "-------------------------------------------"

@@ -1,0 +1,35 @@
+services:
+    web:
+        environment:
+            - EXTENSION_KEY=nr_landingpage
+            - PACKAGE_NAME=netresearch/nr-landingpage
+            - TYPO3_DB_DRIVER=mysqli
+            - TYPO3_DB_USERNAME=root
+            - TYPO3_DB_PASSWORD=root
+            - TYPO3_DB_HOST=db
+            - TYPO3_SETUP_ADMIN_EMAIL=admin@example.com
+            - TYPO3_SETUP_ADMIN_USERNAME=admin
+            - TYPO3_SETUP_ADMIN_PASSWORD=Joh316!!
+            - TYPO3_PROJECT_NAME=EXT:nr_landingpage Dev Environment
+            - TYPO3_SERVER_TYPE=apache
+        volumes:
+            # Extension source
+            - type: bind
+              source: ../
+              target: /var/www/nr_landingpage
+              consistency: cached
+            # nr-llm dependency (sibling directory or path repository)
+            - type: bind
+              source: ../../nr-llm
+              target: /var/www/nr-llm
+              consistency: cached
+            # nr-vault dependency (needed by nr-llm)
+            - type: bind
+              source: ../../nr-vault
+              target: /var/www/nr-vault
+              consistency: cached
+            # TYPO3 v14 installation volume
+            - v14-data:/var/www/html/v14
+volumes:
+    v14-data:
+        name: "nr-landingpage-v14-data"
