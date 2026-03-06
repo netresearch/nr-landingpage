@@ -10,25 +10,48 @@ use Netresearch\NrLlm\Service\Option\ChatOptions;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Throwable;
+use TYPO3\HtmlSanitizer\Behavior;
+use TYPO3\HtmlSanitizer\Behavior\Attr;
+use TYPO3\HtmlSanitizer\Behavior\Tag;
+use TYPO3\HtmlSanitizer\Sanitizer;
+use TYPO3\HtmlSanitizer\Visitor\CommonVisitor;
 
 final class ContentGeneratorService implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
-    private const ALLOWED_HTML_TAGS = '<p><br><ul><ol><li><strong><em><a><h2><h3><h4>';
+    private ?Sanitizer $sanitizer = null;
 
-    /**
-     * Sanitize HTML by stripping disallowed tags and removing XSS vectors.
-     */
     private function sanitizeHtml(string $html): string
     {
-        // Remove all tags except allowed ones
-        $html = strip_tags($html, self::ALLOWED_HTML_TAGS);
-        // Remove event handler attributes (onclick, onload, onerror, etc.)
-        $html = (string) preg_replace('/\s+on\w+\s*=\s*["\'][^"\']*["\']/i', '', $html);
-        // Remove javascript: URLs
-        $html = (string) preg_replace('/href\s*=\s*["\']javascript:[^"\']*["\']/i', 'href="#"', $html);
-        return $html;
+        return $this->getSanitizer()->sanitize($html);
+    }
+
+    private function getSanitizer(): Sanitizer
+    {
+        if ($this->sanitizer === null) {
+            $hrefAttr = (new Attr('href'))
+                ->addValues(new Behavior\RegExpAttrValue('#^(https?://|/|mailto:|tel:)#'));
+
+            $behavior = (new Behavior())
+                ->withFlags(Behavior::ENCODE_INVALID_TAG)
+                ->withTags(
+                    new Tag('p'),
+                    new Tag('br'),
+                    new Tag('ul'),
+                    new Tag('ol'),
+                    new Tag('li'),
+                    new Tag('strong'),
+                    new Tag('em'),
+                    (new Tag('a'))->addAttrs($hrefAttr),
+                    new Tag('h2'),
+                    new Tag('h3'),
+                    new Tag('h4'),
+                );
+            $visitor = new CommonVisitor($behavior);
+            $this->sanitizer = new Sanitizer($behavior, $visitor);
+        }
+        return $this->sanitizer;
     }
 
     public function __construct(

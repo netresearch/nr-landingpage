@@ -10,6 +10,7 @@ use Netresearch\NrLlm\Service\Feature\CompletionService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 
 #[CoversClass(BriefingService::class)]
@@ -47,7 +48,8 @@ final class BriefingServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->expects(self::once())
             ->method('completeJson')
-            ->with(self::callback(fn(string $p): bool => str_contains($p, 'JSON-Array') && str_contains($p, '"id"') && str_contains($p, '"type"')
+            ->with(self::callback(
+                fn(string $p): bool => str_contains($p, 'JSON-Array') && str_contains($p, '"id"') && str_contains($p, '"type"'),
             ))
             ->willReturn([]);
 
@@ -60,12 +62,13 @@ final class BriefingServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->expects(self::once())
             ->method('completeJson')
-            ->with(self::callback(fn(string $p): bool => str_contains($p, 'My custom prompt for events')
+            ->with(self::callback(
+                fn(string $p): bool => str_contains($p, 'My custom prompt for events'),
             ))
             ->willReturn([]);
 
         (new BriefingService($completionService))->generateQuestions(
-            $this->createTemplate('My custom prompt for events')
+            $this->createTemplate('My custom prompt for events'),
         );
     }
 
@@ -74,7 +77,7 @@ final class BriefingServiceTest extends UnitTestCase
     {
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')
-            ->willThrowException(new \RuntimeException('LLM failed'));
+            ->willThrowException(new RuntimeException('LLM failed'));
 
         $service = new BriefingService($completionService);
         self::assertSame([], $service->generateQuestions($this->createTemplate()));
@@ -154,14 +157,14 @@ final class BriefingServiceTest extends UnitTestCase
     {
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')
-            ->willThrowException(new \RuntimeException('LLM exploded'));
+            ->willThrowException(new RuntimeException('LLM exploded'));
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::once())
             ->method('error')
             ->with('Briefing generation failed', self::callback(
                 fn(array $context): bool => $context['template'] === 't'
-                    && $context['error'] === 'LLM exploded'
+                    && $context['error'] === 'LLM exploded',
             ));
 
         $service = new BriefingService($completionService);
@@ -177,12 +180,12 @@ final class BriefingServiceTest extends UnitTestCase
             ->method('completeJson')
             ->with(self::callback(
                 fn(string $p): bool => str_contains($p, 'JSON-Array')
-                    && str_contains($p, 'ANWEISUNGEN ZUR AUSGABE')
+                    && str_contains($p, 'ANWEISUNGEN ZUR AUSGABE'),
             ))
             ->willReturn([]);
 
         (new BriefingService($completionService))->generateQuestions(
-            $this->createTemplate('')
+            $this->createTemplate(''),
         );
     }
 }

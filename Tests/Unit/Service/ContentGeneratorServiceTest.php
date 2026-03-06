@@ -10,6 +10,7 @@ use Netresearch\NrLlm\Service\Feature\CompletionService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 
 #[CoversClass(ContentGeneratorService::class)]
@@ -74,7 +75,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ->with(self::callback(
                 fn(string $p): bool => str_contains($p, '- audience: developers')
                     && str_contains($p, '- tone: formal')
-                    && str_contains($p, 'text, textmedia')
+                    && str_contains($p, 'text, textmedia'),
             ))
             ->willReturn([]);
 
@@ -92,7 +93,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(
-                fn(string $p): bool => str_contains($p, 'My landing page system prompt')
+                fn(string $p): bool => str_contains($p, 'My landing page system prompt'),
             ))
             ->willReturn([]);
 
@@ -122,7 +123,8 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $service = new ContentGeneratorService($completionService);
         $result = $service->generateContent($this->createTemplate(), []);
 
-        self::assertSame('<p><strong>bold</strong>alert(1)</p>', $result[0]['bodytext']);
+        // TYPO3 HtmlSanitizer encodes disallowed tags rather than stripping
+        self::assertSame('<p><strong>bold</strong>&lt;script&gt;alert(1)&lt;/script&gt;</p>', $result[0]['bodytext']);
     }
 
     #[Test]
@@ -168,7 +170,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     {
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')
-            ->willThrowException(new \RuntimeException('LLM failed'));
+            ->willThrowException(new RuntimeException('LLM failed'));
 
         $service = new ContentGeneratorService($completionService);
         self::assertSame([], $service->generateContent($this->createTemplate(), []));
@@ -179,14 +181,14 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     {
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')
-            ->willThrowException(new \RuntimeException('LLM exploded'));
+            ->willThrowException(new RuntimeException('LLM exploded'));
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::once())
             ->method('error')
             ->with('Content generation failed', self::callback(
                 fn(array $context): bool => $context['template'] === 't'
-                    && $context['error'] === 'LLM exploded'
+                    && $context['error'] === 'LLM exploded',
             ));
 
         $service = new ContentGeneratorService($completionService);
@@ -241,7 +243,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     {
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')
-            ->willThrowException(new \RuntimeException('LLM failed'));
+            ->willThrowException(new RuntimeException('LLM failed'));
 
         $service = new ContentGeneratorService($completionService);
         self::assertSame([], $service->generatePageFields($this->createTemplate(), []));
@@ -290,7 +292,8 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $result = $service->generateContent($this->createTemplate(), []);
 
         self::assertStringNotContainsString('javascript:', $result[0]['bodytext']);
-        self::assertSame('<a href="#">link</a>', $result[0]['bodytext']);
+        // HtmlSanitizer removes invalid href entirely rather than replacing with #
+        self::assertSame('<a>link</a>', $result[0]['bodytext']);
     }
 
     #[Test]
@@ -298,14 +301,14 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     {
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')
-            ->willThrowException(new \RuntimeException('LLM exploded'));
+            ->willThrowException(new RuntimeException('LLM exploded'));
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::once())
             ->method('error')
             ->with('Page field generation failed', self::callback(
                 fn(array $context): bool => $context['template'] === 't'
-                    && $context['error'] === 'LLM exploded'
+                    && $context['error'] === 'LLM exploded',
             ));
 
         $service = new ContentGeneratorService($completionService);
@@ -342,7 +345,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ->method('completeJson')
             ->with(self::callback(
                 fn(string $p): bool => str_contains($p, '- company: Acme Corp')
-                    && str_contains($p, '- product: Widget')
+                    && str_contains($p, '- product: Widget'),
             ))
             ->willReturn([]);
 

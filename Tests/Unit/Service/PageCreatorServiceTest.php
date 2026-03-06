@@ -11,6 +11,7 @@ use Netresearch\NrLandingpage\Service\PageCreatorService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use RuntimeException;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 
@@ -211,7 +212,7 @@ final class PageCreatorServiceTest extends UnitTestCase
         $dh = $this->createMockDataHandler([], ['Some error occurred']);
         $service = $this->createService($dh);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/Some error occurred/');
 
         $service->createLandingPage($this->createTemplate(), 10, 'T', '/t', [], []);
@@ -223,7 +224,7 @@ final class PageCreatorServiceTest extends UnitTestCase
         $dh = $this->createMockDataHandler([]);
         $service = $this->createService($dh);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/no UID returned/');
 
         $service->createLandingPage($this->createTemplate(), 10, 'T', '/t', [], []);
