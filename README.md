@@ -76,6 +76,26 @@ git clone <repository-url>
 composer install
 ```
 
+### Local TYPO3 Environment (DDEV)
+
+A DDEV configuration is included for local development with a full TYPO3 installation:
+
+```bash
+ddev start
+ddev install-v14
+```
+
+This installs TYPO3 v14 with the extension and all dependencies (including `nr-llm` and `nr-vault` via Composer).
+
+- **Backend:** https://v14.nr-landingpage.ddev.site/typo3/
+- **Credentials:** admin / Joh316!!
+
+> **Traefik users:** If ports 80/443 are already in use (e.g. by an external Traefik proxy),
+> DDEV will fall back to alternate ports. You can disable the DDEV router globally
+> (`router: none` in `~/.ddev/global_config.yaml`) and route traffic through your
+> existing Traefik by adding the `traefik` network and labels to
+> `.ddev/docker-compose.web.yaml`. See the [DDEV documentation on router configuration](https://ddev.readthedocs.io/en/stable/users/configuration/config/#router).
+
 ### Quality Checks
 
 ```bash
