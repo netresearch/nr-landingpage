@@ -35,8 +35,6 @@ composer config --unset platform.php
 
 # Add extension repositories
 echo "Adding extensions..."
-composer config repositories.nr_vault path "/var/www/nr-vault"
-composer config repositories.nr_llm path "/var/www/nr-llm"
 composer config repositories.nr_landingpage path "$EXTENSION_PATH"
 composer require netresearch/nr-landingpage:@dev --no-interaction --no-progress
 
