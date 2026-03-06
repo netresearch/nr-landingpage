@@ -1,0 +1,83 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Netresearch\NrLandingpage\Tests\Unit\Domain\Model;
+
+use Netresearch\NrLandingpage\Domain\Model\Template;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Test;
+use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
+
+#[CoversClass(Template::class)]
+final class TemplateTest extends UnitTestCase
+{
+    #[Test]
+    public function gettersReturnConstructorValues(): void
+    {
+        $template = new Template(
+            uid: 1,
+            title: 'Event LP',
+            identifier: 'event-lp',
+            description: 'Event landing page',
+            llmConfiguration: 5,
+            systemPrompt: 'You create event pages',
+            allowedCTypes: ['text', 'header', 'textmedia'],
+            pageFields: ['seo_title', 'description'],
+            referencePages: [10, 20],
+            briefingMode: 'optional',
+            publishMode: 'hidden',
+            beGroups: [1, 2],
+        );
+
+        self::assertSame(1, $template->uid);
+        self::assertSame('Event LP', $template->title);
+        self::assertSame('event-lp', $template->identifier);
+        self::assertSame('Event landing page', $template->description);
+        self::assertSame(5, $template->llmConfiguration);
+        self::assertSame('You create event pages', $template->systemPrompt);
+        self::assertSame(['text', 'header', 'textmedia'], $template->allowedCTypes);
+        self::assertSame(['seo_title', 'description'], $template->pageFields);
+        self::assertSame([10, 20], $template->referencePages);
+        self::assertSame('optional', $template->briefingMode);
+        self::assertSame('hidden', $template->publishMode);
+        self::assertSame([1, 2], $template->beGroups);
+    }
+
+    #[Test]
+    public function isBriefingRequiredReturnsTrueForRequired(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', briefingMode: 'required');
+        self::assertTrue($template->isBriefingRequired());
+        self::assertFalse($template->isBriefingSkippable());
+    }
+
+    #[Test]
+    public function isBriefingSkippableReturnsTrueForOptional(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', briefingMode: 'optional');
+        self::assertTrue($template->isBriefingSkippable());
+        self::assertFalse($template->isBriefingRequired());
+    }
+
+    #[Test]
+    public function isBriefingDisabledReturnsTrueForNone(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', briefingMode: 'none');
+        self::assertTrue($template->isBriefingDisabled());
+    }
+
+    #[Test]
+    public function hasReferencePagesReturnsFalseWhenEmpty(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't');
+        self::assertFalse($template->hasReferencePages());
+    }
+
+    #[Test]
+    public function hasReferencePagesReturnsTrueWhenSet(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', referencePages: [10]);
+        self::assertTrue($template->hasReferencePages());
+    }
+}
