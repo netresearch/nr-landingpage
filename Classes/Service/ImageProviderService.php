@@ -281,7 +281,9 @@ class ImageProviderService implements LoggerAwareInterface
             }
             $folder = $storage->getFolder($folderPath);
 
-            $filename = 'lp-' . date('Ymd-His') . '-' . substr(md5($sectionHeader . uniqid()), 0, 8) . '.png';
+            $extensionMap = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/gif' => 'gif', 'image/webp' => 'webp'];
+            $ext = $extensionMap[$mimeType] ?? 'png';
+            $filename = 'lp-' . date('Ymd-His') . '-' . substr(md5($sectionHeader . uniqid()), 0, 8) . '.' . $ext;
 
             $tempFile = tempnam(sys_get_temp_dir(), 'lpimg_');
             if ($tempFile === false) {
