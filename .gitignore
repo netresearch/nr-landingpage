@@ -1,6 +1,9 @@
 .Build/
 composer.lock
 .php-cs-fixer.cache
+Documentation-GENERATED-temp/
+test-results/
+.claude/
 
 # DDEV
 .ddev/.ddev-docker-compose-*
