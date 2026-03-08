@@ -1,40 +1,23 @@
 import WizardState from '@netresearch/nr-landingpage/wizard-state.js';
+import MultiStepWizard from '@typo3/backend/multi-step-wizard.js';
 import Modal from '@typo3/backend/modal.js';
 import Notification from '@typo3/backend/notification.js';
+import Severity from '@typo3/backend/severity.js';
+import Icons from '@typo3/backend/icons.js';
 
 /**
- * Main Landing Page Wizard orchestrator.
+ * Landing Page Wizard using TYPO3 MultiStepWizard modal overlay.
  *
- * Handles step navigation, AJAX calls to the backend controller,
- * and dynamic UI rendering for all five wizard steps.
+ * Triggered from the backend module launcher page.
+ * Uses the same AJAX endpoints and state management as before,
+ * but renders inside a native TYPO3 multi-step modal.
  */
 class LandingPageWizard {
     constructor() {
-        this.steps = ['template', 'briefing', 'pageFields', 'content', 'placement'];
-        this.container = null;
-        this.contentArea = null;
-        this.navigationArea = null;
-        this.progressBar = null;
-        this.stepLabels = null;
-    }
-
-    /**
-     * @param {HTMLElement} container
-     */
-    initialize(container) {
-        this.container = container;
-        this.contentArea = container.querySelector('.wizard-content');
-        this.navigationArea = container.querySelector('.wizard-navigation');
-        this.progressBar = container.querySelector('.progress-bar');
-        this.stepLabels = container.querySelectorAll('.wizard-step-labels span');
-
-        const parentPageId = parseInt(container.dataset.parentPageId || '0', 10);
-        WizardState.reset();
-        if (parentPageId > 0) {
-            WizardState.setParentPageId(parentPageId);
-        }
-
-        this.renderStep(0);
+        this._busy = false;
+        this._briefingForm = null;
+        this._briefingQuestions = null;
+        this._pageFieldsForm = null;
     }
 
     /**
@@ -48,17 +31,37 @@ class LandingPageWizard {
     }
 
     /**
+     * Get a localized label from TYPO3.lang.
+     *
+     * @param {string} key
+     * @param {...(string|number)} args
+     * @returns {string}
+     */
+    label(key, ...args) {
+        let text = TYPO3.lang?.[key] || key;
+        if (args.length > 0) {
+            let i = 0;
+            text = text.replace(/%[sd]/g, () => String(args[i++] ?? ''));
+        }
+        return text;
+    }
+
+    /**
      * Perform a fetch request and return parsed JSON.
      *
      * @param {string} url
-     * @param {Object|null} data - POST body (null for GET)
+     * @param {Object|null} data
      * @returns {Promise<Object>}
      */
     async fetchJson(url, data = null) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+
         const options = {
             method: data ? 'POST' : 'GET',
             credentials: 'same-origin',
             headers: {},
+            signal: controller.signal,
         };
 
         if (data) {
@@ -70,7 +73,12 @@ class LandingPageWizard {
         try {
             response = await fetch(url, options);
         } catch (error) {
+            if (error.name === 'AbortError') {
+                throw new Error('Request timed out');
+            }
             throw new Error('Network error: ' + error.message);
+        } finally {
+            clearTimeout(timeoutId);
         }
 
         let json;
@@ -87,67 +95,180 @@ class LandingPageWizard {
         return json.data;
     }
 
-    // ── Step rendering ──────────────────────────────────────────
-
     /**
-     * Render a wizard step by index.
+     * Open the wizard modal.
      *
-     * @param {number} index
+     * @param {number} parentPageId
+     * @param {number} regeneratePageUid  Page UID to re-generate (0 = new page)
      */
-    async renderStep(index) {
-        WizardState.setCurrentStep(index);
-        this.updateProgress(index);
-        this.contentArea.innerHTML = '';
-        this.navigationArea.innerHTML = '';
-
-        switch (this.steps[index]) {
-            case 'template':
-                await this.renderTemplateStep();
-                break;
-            case 'briefing':
-                await this.renderBriefingStep();
-                break;
-            case 'pageFields':
-                await this.renderPageFieldsStep();
-                break;
-            case 'content':
-                await this.renderContentStep();
-                break;
-            case 'placement':
-                this.renderPlacementStep();
-                break;
+    open(parentPageId = 0, regeneratePageUid = 0, preSelectTemplate = null) {
+        WizardState.reset();
+        this._briefingForm = null;
+        this._briefingQuestions = null;
+        this._pageFieldsForm = null;
+        if (parentPageId > 0) {
+            WizardState.setParentPageId(parentPageId);
         }
-    }
+        if (regeneratePageUid > 0) {
+            WizardState.sourcePageUid = regeneratePageUid;
+            WizardState.regenerateMode = true;
+        }
 
-    /**
-     * Step 1: Template selection.
-     */
-    async renderTemplateStep() {
-        this.showLoading('Loading templates...');
+        // When a template is provided directly, set it and skip the selection slide
+        if (preSelectTemplate?.uid) {
+            WizardState.setTemplate(preSelectTemplate);
+        } else {
+            MultiStepWizard.addSlide(
+                'landing-page-template',
+                this.label('wizard.step.template'),
+                '',
+                Severity.info,
+                this.label('wizard.step.template'),
+                ($slide) => this.renderTemplateSlide($slide),
+            );
+        }
 
-        try {
-            const templates = await this.fetchJson(this.getAjaxUrl('templates'));
+        MultiStepWizard.addSlide(
+            'landing-page-briefing',
+            this.label('wizard.step.briefing'),
+            '',
+            Severity.info,
+            this.label('wizard.step.briefing'),
+            ($slide) => this.renderBriefingSlide($slide),
+        );
 
-            this.contentArea.innerHTML = '';
+        MultiStepWizard.addSlide(
+            'landing-page-fields',
+            this.label('wizard.step.pageFields'),
+            '',
+            Severity.info,
+            this.label('wizard.step.pageFields'),
+            ($slide) => this.renderPageFieldsSlide($slide),
+        );
 
-            if (!templates || templates.length === 0) {
-                this.contentArea.innerHTML =
-                    '<div class="alert alert-warning" role="alert">No templates available. Please configure at least one template.</div>';
+        MultiStepWizard.addSlide(
+            'landing-page-content',
+            this.label('wizard.step.content'),
+            '',
+            Severity.info,
+            this.label('wizard.step.content'),
+            ($slide) => this.renderContentSlide($slide),
+        );
+
+        MultiStepWizard.addSlide(
+            'landing-page-placement',
+            this.label('wizard.step.placement'),
+            '',
+            Severity.notice,
+            this.label('wizard.step.placement'),
+            ($slide) => this.renderPlacementSlide($slide),
+        );
+
+        MultiStepWizard.show();
+
+        // Enable keyboard navigation: Enter advances to next step.
+        // Use a polling approach to attach the handler once the modal DOM exists,
+        // because the jQuery wizard-visible event may not propagate across frames.
+        let keyboardAttempts = 0;
+        const attachKeyboardHandler = () => {
+            const carousel = MultiStepWizard.getComponent();
+            const modal = carousel?.closest('.modal')?.get(0);
+            if (!modal) {
+                if (++keyboardAttempts < 50) {
+                    setTimeout(attachKeyboardHandler, 100);
+                }
                 return;
             }
 
-            const heading = document.createElement('h2');
-            heading.textContent = 'Select a Template';
-            this.contentArea.appendChild(heading);
+            modal.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+
+                // Don't intercept Enter in textareas (multiline input),
+                // on buttons (let native click), or on selects (let native open/select)
+                const tag = e.target?.tagName;
+                if (tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'SELECT') return;
+
+                const nextBtn = modal.querySelector('button[name="next"]');
+                if (nextBtn && !nextBtn.disabled) {
+                    e.preventDefault();
+                    nextBtn.click();
+                }
+            });
+        };
+        attachKeyboardHandler();
+    }
+
+    // ── Slide renderers ──────────────────────────────────────────
+
+    /**
+     * Step 1: Template selection.
+     *
+     * In re-generate mode, fetches generation info first to pre-select the
+     * template and store briefing answers. The template card is highlighted
+     * but all cards remain clickable (user may switch).
+     */
+    async renderTemplateSlide($slide) {
+        const container = this.getSlideElement($slide);
+        container.innerHTML = this.spinnerHtml(this.label('wizard.loading.templates'));
+        MultiStepWizard.lockNextStep();
+
+        try {
+            // In re-generate mode, load generation info in parallel with templates
+            let generationInfo = null;
+            const templatePromise = this.fetchJson(this.getAjaxUrl('templates'));
+
+            if (WizardState.regenerateMode && WizardState.sourcePageUid > 0) {
+                try {
+                    generationInfo = await this.fetchJson(this.getAjaxUrl('generationInfo'), {
+                        pageUid: WizardState.sourcePageUid,
+                    });
+                    // Store briefing answers and parent page for later steps
+                    if (generationInfo.briefingAnswers) {
+                        WizardState.setBriefingAnswers(generationInfo.briefingAnswers);
+                    }
+                    if (generationInfo.parentPageId > 0 && WizardState.getParentPageId() === 0) {
+                        WizardState.setParentPageId(generationInfo.parentPageId);
+                    }
+                } catch (infoError) {
+                    // Non-fatal — continue without pre-fill
+                    generationInfo = null;
+                }
+            }
+
+            const templates = await templatePromise;
+            container.innerHTML = '';
+
+            if (!templates || templates.length === 0) {
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-warning';
+                alert.setAttribute('role', 'alert');
+                alert.textContent = this.label('wizard.template.none');
+                container.appendChild(alert);
+                return;
+            }
+
+            // Show re-generate info banner
+            if (WizardState.regenerateMode) {
+                const infoBanner = document.createElement('div');
+                infoBanner.className = 'alert alert-info mb-3';
+                infoBanner.textContent = this.label('wizard.regenerate.info');
+                container.appendChild(infoBanner);
+            }
+
+            const heading = document.createElement('p');
+            heading.className = 'text-body-secondary mb-3';
+            heading.textContent = this.label('wizard.template.select');
+            container.appendChild(heading);
 
             const grid = document.createElement('div');
             grid.className = 'row g-3';
             grid.setAttribute('role', 'list');
-            grid.setAttribute('aria-label', 'Template list');
+
+            const preSelectUid = generationInfo?.templateUid || 0;
 
             templates.forEach((template) => {
                 const col = document.createElement('div');
-                col.className = 'col-12 col-md-6 col-lg-4';
+                col.className = 'col-12 col-md-6';
                 col.setAttribute('role', 'listitem');
 
                 const card = document.createElement('div');
@@ -155,7 +276,7 @@ class LandingPageWizard {
                 card.style.cursor = 'pointer';
                 card.setAttribute('role', 'button');
                 card.setAttribute('tabindex', '0');
-                card.setAttribute('aria-label', 'Template: ' + this.escapeHtml(template.title));
+                card.setAttribute('aria-label', template.title);
 
                 const cardBody = document.createElement('div');
                 cardBody.className = 'card-body';
@@ -165,12 +286,12 @@ class LandingPageWizard {
                 title.textContent = template.title;
 
                 const description = document.createElement('p');
-                description.className = 'card-text text-muted';
+                description.className = 'card-text text-body-secondary';
                 description.textContent = template.description || '';
 
                 const badge = document.createElement('span');
                 badge.className = 'badge bg-info';
-                badge.textContent = 'Briefing: ' + this.escapeHtml(template.briefingMode || 'none');
+                badge.textContent = this.label('wizard.template.briefingBadge', template.briefingMode || 'none');
 
                 cardBody.appendChild(title);
                 cardBody.appendChild(description);
@@ -180,13 +301,10 @@ class LandingPageWizard {
                 grid.appendChild(col);
 
                 const selectHandler = () => {
+                    grid.querySelectorAll('.card').forEach((c) => c.classList.remove('border-primary', 'shadow'));
+                    card.classList.add('border-primary', 'shadow');
                     WizardState.setTemplate(template);
-                    if (template.briefingMode === 'none') {
-                        // Skip briefing step
-                        this.renderStep(2);
-                    } else {
-                        this.goNext();
-                    }
+                    MultiStepWizard.unlockNextStep();
                 };
 
                 card.addEventListener('click', selectHandler);
@@ -196,196 +314,225 @@ class LandingPageWizard {
                         selectHandler();
                     }
                 });
+
+                // Auto-select in re-generate mode
+                if (preSelectUid > 0 && template.uid === preSelectUid) {
+                    selectHandler();
+                }
             });
 
-            this.contentArea.appendChild(grid);
+            container.appendChild(grid);
+
+            // Warn if original template was deleted and could not be pre-selected
+            if (preSelectUid > 0 && !WizardState.getTemplate()) {
+                const warning = document.createElement('div');
+                warning.className = 'alert alert-warning mt-3';
+                warning.textContent = this.label('wizard.regenerate.templateDeleted');
+                container.appendChild(warning);
+            }
         } catch (error) {
-            this.showError('Failed to load templates: ' + error.message, () => this.renderTemplateStep());
+            this.showSlideError(container, this.label('wizard.error.templates', error.message));
         }
     }
 
     /**
      * Step 2: Briefing questions.
      */
-    async renderBriefingStep() {
-        this.showLoading('Generating briefing questions...');
+    async renderBriefingSlide($slide) {
+        const container = this.getSlideElement($slide);
+        const template = WizardState.getTemplate();
+
+        if (!template || template.briefingMode === 'none') {
+            const msg = document.createElement('p');
+            msg.className = 'text-body-secondary';
+            msg.textContent = this.label('wizard.briefing.skipped');
+            container.appendChild(msg);
+            MultiStepWizard.unlockNextStep();
+            return;
+        }
+
+        container.innerHTML = this.spinnerHtml(this.label('wizard.loading.briefing'));
+        MultiStepWizard.lockNextStep();
 
         try {
-            const template = WizardState.getTemplate();
             const questions = await this.fetchJson(this.getAjaxUrl('generateBriefing'), {
                 templateUid: template.uid,
             });
 
-            this.contentArea.innerHTML = '';
-
-            const heading = document.createElement('h2');
-            heading.textContent = 'Briefing';
-            this.contentArea.appendChild(heading);
+            container.innerHTML = '';
 
             const description = document.createElement('p');
-            description.className = 'text-muted';
-            description.textContent = 'Answer the following questions to help generate your landing page content.';
-            this.contentArea.appendChild(description);
+            description.className = 'text-body-secondary mb-3';
+            description.textContent = this.label('wizard.briefing.description');
+            container.appendChild(description);
 
             const form = document.createElement('form');
-            form.setAttribute('aria-label', 'Briefing form');
             form.addEventListener('submit', (e) => e.preventDefault());
 
-            // Always add a title/topic field
-            const titleGroup = this.createFormGroup(
-                'briefing_title',
-                'Title / Topic',
-                'text',
-                '',
-                true,
-                'What is the main topic of this landing page?'
-            );
-            form.appendChild(titleGroup);
+            // Pre-fill title from saved briefing answers in re-generate mode
+            const savedAnswers = WizardState.getBriefingAnswers();
+            const prefillTitle = savedAnswers.title || '';
 
-            // Render dynamic questions from LLM
+            form.appendChild(this.createFormGroup(
+                'briefing_title',
+                this.label('wizard.briefing.titleLabel'),
+                'text',
+                prefillTitle,
+                true,
+                this.label('wizard.briefing.titlePlaceholder'),
+            ));
+
             if (Array.isArray(questions)) {
                 questions.forEach((question, index) => {
                     const fieldId = 'briefing_q_' + index;
                     const type = question.type || 'text';
                     const required = question.required === true;
                     const placeholder = question.placeholder || '';
-                    const label = question.label || question.question || 'Question ' + (index + 1);
+                    const labelText = question.label || question.question || 'Question ' + (index + 1);
+
+                    // Try to pre-fill from saved answers
+                    const questionKey = question.id || question.label || 'question_' + index;
+                    const prefillValue = savedAnswers[questionKey] || '';
 
                     if (type === 'select' && Array.isArray(question.options)) {
-                        const group = this.createSelectGroup(fieldId, label, question.options, required);
+                        const group = this.createSelectGroup(fieldId, labelText, question.options, required);
+                        if (prefillValue) {
+                            const select = group.querySelector('select');
+                            if (select) {
+                                select.value = prefillValue;
+                            }
+                        }
                         form.appendChild(group);
                     } else if (type === 'textarea') {
-                        const group = this.createFormGroup(fieldId, label, 'textarea', '', required, placeholder);
-                        form.appendChild(group);
+                        form.appendChild(this.createFormGroup(fieldId, labelText, 'textarea', prefillValue, required, placeholder));
                     } else {
-                        const group = this.createFormGroup(fieldId, label, 'text', '', required, placeholder);
-                        form.appendChild(group);
+                        form.appendChild(this.createFormGroup(fieldId, labelText, 'text', prefillValue, required, placeholder));
                     }
                 });
             }
 
-            this.contentArea.appendChild(form);
+            container.appendChild(form);
+            this._briefingForm = form;
+            this._briefingQuestions = questions;
 
-            const isOptional = template.briefingMode === 'optional';
-
-            this.renderNavigation(
-                true,
-                {
-                    label: 'Continue',
-                    handler: () => {
-                        const answers = this.collectBriefingAnswers(form, questions);
-                        const titleInput = form.querySelector('#briefing_title');
-                        if (!titleInput || !titleInput.value.trim()) {
-                            Notification.warning('Title required', 'Please enter a title or topic.');
-                            titleInput?.focus();
-                            return;
-                        }
-                        answers.title = titleInput.value.trim();
-                        WizardState.setBriefingAnswers(answers);
-                        WizardState.setTitle(answers.title);
-                        WizardState.setSlug(this.generateSlug(answers.title));
-                        this.goNext();
-                    },
-                },
-                isOptional
-                    ? {
-                        label: 'Skip',
-                        handler: () => {
-                            WizardState.setBriefingAnswers({});
-                            this.goNext();
-                        },
-                    }
-                    : null
-            );
-        } catch (error) {
-            this.showError('Failed to generate briefing: ' + error.message, () => this.renderBriefingStep());
-            this.renderNavigation(
-                true,
-                null,
-                {
-                    label: 'Skip',
-                    handler: () => {
-                        WizardState.setBriefingAnswers({});
-                        this.goNext();
-                    },
+            const titleInput = form.querySelector('#briefing_title');
+            const checkUnlock = () => {
+                if (titleInput?.value?.trim()) {
+                    MultiStepWizard.unlockNextStep();
+                } else if (template.briefingMode !== 'optional') {
+                    MultiStepWizard.lockNextStep();
                 }
-            );
+            };
+            titleInput?.addEventListener('input', checkUnlock);
+
+            // Check immediately — handles pre-filled values in re-generate mode
+            checkUnlock();
+
+            if (template.briefingMode === 'optional') {
+                MultiStepWizard.unlockNextStep();
+            }
+        } catch (error) {
+            this.showSlideError(container, this.label('wizard.error.briefing', error.message));
+            if (template.briefingMode !== 'required') {
+                MultiStepWizard.unlockNextStep();
+            }
         }
+    }
+
+    /**
+     * Collect briefing answers from the briefing form if it's still in the DOM.
+     */
+    collectAndStoreBriefingAnswers() {
+        const form = this._briefingForm;
+        if (!form || !form.isConnected) return;
+
+        const answers = this.collectBriefingAnswers(form, this._briefingQuestions);
+        const titleInput = form.querySelector('#briefing_title');
+        const titleVal = titleInput?.value?.trim() || '';
+        if (titleVal) {
+            answers.title = titleVal;
+            WizardState.setTitle(titleVal);
+            WizardState.setSlug(this.generateSlug(titleVal));
+        }
+        WizardState.setBriefingAnswers(answers);
+    }
+
+    /**
+     * Collect page field edits from the page fields form if it's still in the DOM.
+     */
+    collectAndStorePageFields() {
+        const form = this._pageFieldsForm;
+        if (!form || !form.isConnected) return;
+
+        const pageFields = this.collectPageFields(form);
+        WizardState.setPageFields(pageFields);
+        WizardState.setTitle(pageFields.title || '');
+        WizardState.setSlug(pageFields.slug || '');
     }
 
     /**
      * Step 3: Page fields (SEO, metadata).
      */
-    async renderPageFieldsStep() {
-        this.showLoading('Generating page fields...');
+    async renderPageFieldsSlide($slide) {
+        this.collectAndStoreBriefingAnswers();
+
+        const container = this.getSlideElement($slide);
+        container.innerHTML = this.spinnerHtml(this.label('wizard.loading.pageFields'));
+        MultiStepWizard.lockNextStep();
 
         try {
             const template = WizardState.getTemplate();
+            if (!template?.uid) {
+                throw new Error('No template selected');
+            }
             const fields = await this.fetchJson(this.getAjaxUrl('generatePageFields'), {
                 templateUid: template.uid,
                 briefingAnswers: WizardState.getBriefingAnswers(),
+                parentPageId: WizardState.getParentPageId(),
             });
 
-            this.contentArea.innerHTML = '';
-
-            const heading = document.createElement('h2');
-            heading.textContent = 'Page Fields';
-            this.contentArea.appendChild(heading);
+            container.innerHTML = '';
 
             const description = document.createElement('p');
-            description.className = 'text-muted';
-            description.textContent = 'Review and edit the generated page fields. These will be used as page properties.';
-            this.contentArea.appendChild(description);
+            description.className = 'text-body-secondary mb-3';
+            description.textContent = this.label('wizard.pageFields.description');
+            container.appendChild(description);
 
             const form = document.createElement('form');
-            form.setAttribute('aria-label', 'Page fields form');
             form.addEventListener('submit', (e) => e.preventDefault());
 
-            // Title field
             const titleValue = fields.title || WizardState.getTitle() || '';
-            form.appendChild(this.createFormGroup('pf_title', 'Page Title', 'text', titleValue, true));
+            form.appendChild(this.createFormGroup('pf_title', this.label('wizard.pageFields.pageTitle'), 'text', titleValue, true));
 
-            // Slug
             const slugValue = fields.slug || WizardState.getSlug() || this.generateSlug(titleValue);
-            form.appendChild(this.createFormGroup('pf_slug', 'URL Slug', 'text', slugValue, false));
+            form.appendChild(this.createFormGroup('pf_slug', this.label('wizard.pageFields.urlSlug'), 'text', slugValue, false));
 
-            // SEO Title with character counter
             const seoTitleValue = fields.seo_title || '';
-            const seoGroup = this.createFormGroup('pf_seo_title', 'SEO Title', 'text', seoTitleValue, false);
+            const seoGroup = this.createFormGroup('pf_seo_title', this.label('wizard.pageFields.seoTitle'), 'text', seoTitleValue, false);
             this.addCharacterCounter(seoGroup, 'pf_seo_title', 60);
             form.appendChild(seoGroup);
 
-            // Meta description with character counter
             const descValue = fields.description || '';
-            const descGroup = this.createFormGroup('pf_description', 'Meta Description', 'textarea', descValue, false);
+            const descGroup = this.createFormGroup('pf_description', this.label('wizard.pageFields.metaDescription'), 'textarea', descValue, false);
             this.addCharacterCounter(descGroup, 'pf_description', 160);
             form.appendChild(descGroup);
 
-            // OG Title
             if (fields.og_title !== undefined) {
-                form.appendChild(this.createFormGroup('pf_og_title', 'OG Title', 'text', fields.og_title || '', false));
+                form.appendChild(this.createFormGroup('pf_og_title', this.label('wizard.pageFields.ogTitle'), 'text', fields.og_title || '', false));
             }
-
-            // OG Description
             if (fields.og_description !== undefined) {
-                form.appendChild(
-                    this.createFormGroup('pf_og_description', 'OG Description', 'textarea', fields.og_description || '', false)
-                );
+                form.appendChild(this.createFormGroup('pf_og_description', this.label('wizard.pageFields.ogDescription'), 'textarea', fields.og_description || '', false));
             }
 
-            // Any additional fields from the response
             const knownFields = ['title', 'slug', 'seo_title', 'description', 'og_title', 'og_description'];
             Object.keys(fields).forEach((key) => {
                 if (!knownFields.includes(key) && typeof fields[key] === 'string') {
-                    form.appendChild(
-                        this.createFormGroup('pf_' + key, this.humanizeFieldName(key), 'text', fields[key], false)
-                    );
+                    form.appendChild(this.createFormGroup('pf_' + key, this.humanizeFieldName(key), 'text', fields[key], false));
                 }
             });
 
-            this.contentArea.appendChild(form);
+            container.appendChild(form);
 
-            // Auto-generate slug from title
             const titleInput = form.querySelector('#pf_title');
             const slugInput = form.querySelector('#pf_slug');
             if (titleInput && slugInput) {
@@ -394,99 +541,79 @@ class LandingPageWizard {
                 });
             }
 
+            this._pageFieldsForm = form;
             WizardState.setPageFields(fields);
-
-            this.renderNavigation(
-                true,
-                {
-                    label: 'Continue',
-                    handler: () => {
-                        const pageFields = this.collectPageFields(form);
-                        WizardState.setPageFields(pageFields);
-                        WizardState.setTitle(pageFields.title || '');
-                        WizardState.setSlug(pageFields.slug || '');
-                        this.goNext();
-                    },
-                },
-                {
-                    label: 'Skip',
-                    handler: () => this.goNext(),
-                }
-            );
+            MultiStepWizard.unlockNextStep();
         } catch (error) {
-            this.showError('Failed to generate page fields: ' + error.message, () => this.renderPageFieldsStep());
-            this.renderNavigation(
-                true,
-                null,
-                {
-                    label: 'Skip',
-                    handler: () => this.goNext(),
-                }
-            );
+            this.showSlideError(container, this.label('wizard.error.pageFields', error.message));
+            MultiStepWizard.unlockNextStep();
         }
     }
 
     /**
      * Step 4: Content sections.
      */
-    async renderContentStep() {
-        this.showLoading('Generating content sections...');
+    async renderContentSlide($slide) {
+        this.collectAndStorePageFields();
+
+        const container = this.getSlideElement($slide);
+        container.innerHTML = this.spinnerHtml(this.label('wizard.loading.content'));
+        MultiStepWizard.lockNextStep();
 
         try {
             const template = WizardState.getTemplate();
+            if (!template?.uid) {
+                throw new Error('No template selected');
+            }
             const result = await this.fetchJson(this.getAjaxUrl('generateContent'), {
                 templateUid: template.uid,
                 briefingAnswers: WizardState.getBriefingAnswers(),
+                parentPageId: WizardState.getParentPageId(),
             });
 
             const sections = result.sections || [];
             const images = result.images || [];
+            const imageErrors = result.imageErrors || [];
+            const hasImageTask = result.hasImageTask || false;
+            const aiAvailable = result.aiGenerationAvailable || false;
 
             WizardState.setContentSections(sections);
             WizardState.setImages(images);
+            WizardState.imageErrors = imageErrors;
+            WizardState.hasImageTask = hasImageTask;
+            WizardState.aiGenerationAvailable = aiAvailable;
 
-            this.renderContentSections(sections, images);
+            this.renderContentSections(container, sections, images);
+            MultiStepWizard.unlockNextStep();
         } catch (error) {
-            this.showError('Failed to generate content: ' + error.message, () => this.renderContentStep());
-            this.renderNavigation(
-                true,
-                null,
-                {
-                    label: 'Skip',
-                    handler: () => this.goNext(),
-                }
-            );
+            this.showSlideError(container, this.label('wizard.error.content', error.message));
+            MultiStepWizard.unlockNextStep();
         }
     }
 
     /**
-     * Render content sections UI (used both for initial load and after regeneration).
+     * Render content sections inside a container.
      *
+     * @param {HTMLElement} container
      * @param {Array} sections
      * @param {Array} images
      */
-    renderContentSections(sections, images) {
-        this.contentArea.innerHTML = '';
-
-        const heading = document.createElement('h2');
-        heading.textContent = 'Content Sections';
-        this.contentArea.appendChild(heading);
+    renderContentSections(container, sections, images) {
+        container.innerHTML = '';
 
         const description = document.createElement('p');
-        description.className = 'text-muted';
-        description.textContent = 'Review the generated content sections. You can regenerate individual sections.';
-        this.contentArea.appendChild(description);
+        description.className = 'text-body-secondary mb-3';
+        description.textContent = this.label('wizard.content.description');
+        container.appendChild(description);
 
         if (!sections || sections.length === 0) {
-            this.contentArea.innerHTML +=
-                '<div class="alert alert-info" role="alert">No content sections were generated.</div>';
-            this.renderNavigation(true, { label: 'Continue', handler: () => this.goNext() }, null);
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-info';
+            alert.setAttribute('role', 'alert');
+            alert.textContent = this.label('wizard.content.none');
+            container.appendChild(alert);
             return;
         }
-
-        const container = document.createElement('div');
-        container.className = 'content-sections';
-        container.setAttribute('aria-label', 'Content sections');
 
         sections.forEach((section, index) => {
             const card = document.createElement('div');
@@ -496,19 +623,21 @@ class LandingPageWizard {
             const cardHeader = document.createElement('div');
             cardHeader.className = 'card-header d-flex justify-content-between align-items-center';
 
+            // Build section title with DOM methods instead of innerHTML
             const sectionTitle = document.createElement('span');
-            sectionTitle.innerHTML =
-                '<strong>' +
-                this.escapeHtml(section.section || 'Section ' + (index + 1)) +
-                '</strong> ' +
-                '<span class="badge bg-secondary ms-2">' +
-                this.escapeHtml(section.ctype || 'text') +
-                '</span>';
+            const strong = document.createElement('strong');
+            strong.textContent = section.section || 'Section ' + (index + 1);
+            sectionTitle.appendChild(strong);
+            sectionTitle.appendChild(document.createTextNode(' '));
+            const ctypeBadge = document.createElement('span');
+            ctypeBadge.className = 'badge bg-secondary ms-2';
+            ctypeBadge.textContent = section.ctype || 'text';
+            sectionTitle.appendChild(ctypeBadge);
 
-            const regenerateBtn = this.createButton('Regenerate', 'btn btn-sm btn-outline-primary', async () => {
-                await this.regenerateSection(index);
+            const regenerateBtn = this.createButton(this.label('wizard.button.regenerate'), 'btn btn-sm btn-outline-primary', async () => {
+                await this.regenerateSection(container, index);
             });
-            regenerateBtn.setAttribute('aria-label', 'Regenerate section ' + (index + 1));
+            regenerateBtn.setAttribute('aria-label', this.label('wizard.button.regenerate') + ' ' + (index + 1));
 
             cardHeader.appendChild(sectionTitle);
             cardHeader.appendChild(regenerateBtn);
@@ -521,7 +650,7 @@ class LandingPageWizard {
                 header.type = 'text';
                 header.className = 'form-control form-control-lg mb-2';
                 header.value = section.header;
-                header.setAttribute('aria-label', 'Section header');
+                header.setAttribute('aria-label', this.label('wizard.content.sectionHeader'));
                 header.addEventListener('input', () => {
                     WizardState.getContentSections()[index].header = header.value;
                 });
@@ -531,9 +660,9 @@ class LandingPageWizard {
             if (section.subheader) {
                 const subheader = document.createElement('input');
                 subheader.type = 'text';
-                subheader.className = 'form-control form-control-sm text-muted mb-2';
+                subheader.className = 'form-control form-control-sm text-body-secondary mb-2';
                 subheader.value = section.subheader;
-                subheader.setAttribute('aria-label', 'Section subheader');
+                subheader.setAttribute('aria-label', this.label('wizard.content.sectionSubheader'));
                 subheader.addEventListener('input', () => {
                     WizardState.getContentSections()[index].subheader = subheader.value;
                 });
@@ -545,35 +674,135 @@ class LandingPageWizard {
                 bodytext.className = 'form-control section-bodytext mb-2';
                 bodytext.rows = 4;
                 bodytext.value = section.bodytext;
-                bodytext.setAttribute('aria-label', 'Section body text');
+                bodytext.setAttribute('aria-label', this.label('wizard.content.sectionBody'));
                 bodytext.addEventListener('input', () => {
                     WizardState.getContentSections()[index].bodytext = bodytext.value;
                 });
                 cardBody.appendChild(bodytext);
             }
 
-            // Image suggestions
-            if (images[index] && images[index].length > 0) {
+            // Image selection area (always shown)
+            {
                 const imageSection = document.createElement('div');
-                imageSection.className = 'mt-3';
+                imageSection.className = 'mt-3 border-top pt-3';
 
                 const imageLabel = document.createElement('small');
-                imageLabel.className = 'text-muted d-block mb-2';
-                imageLabel.textContent = 'Image suggestions:';
+                imageLabel.className = 'text-body-secondary d-block mb-2';
+                imageLabel.textContent = this.label('wizard.content.imageSuggestions');
                 imageSection.appendChild(imageLabel);
 
-                const imageList = document.createElement('div');
-                imageList.className = 'd-flex gap-2 flex-wrap';
+                // Show image generation error if present
+                const imageError = (WizardState.imageErrors || [])[index];
+                if (imageError) {
+                    const errorAlert = document.createElement('div');
+                    errorAlert.className = 'alert alert-warning alert-sm py-1 px-2 mb-2';
+                    errorAlert.style.fontSize = '0.85em';
+                    errorAlert.textContent = this.label('wizard.content.imageGenerationError') + ' ' + imageError;
+                    imageSection.appendChild(errorAlert);
+                }
 
-                images[index].forEach((img) => {
-                    const imgBadge = document.createElement('span');
-                    imgBadge.className = 'badge bg-light text-dark border';
-                    imgBadge.textContent = img.title || img.name || 'Image';
-                    imgBadge.setAttribute('title', this.escapeHtml(img.description || ''));
-                    imageList.appendChild(imgBadge);
-                });
+                const imageList = document.createElement('div');
+                imageList.className = 'd-flex gap-2 flex-wrap mb-2';
+
+                const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
+                this.renderImageCards(imageList, sectionImages, index);
+
+                // Show info when automatic search found no images
+                const keywords = section.imageKeywords || [];
+                if (sectionImages.length === 0 && keywords.length > 0) {
+                    const emptyInfo = document.createElement('div');
+                    emptyInfo.className = 'alert alert-info py-2 px-3 mb-2';
+                    emptyInfo.style.fontSize = '0.85em';
+                    emptyInfo.textContent = this.label('wizard.content.imageAutoSearchEmpty', keywords.join(', '));
+                    imageSection.appendChild(emptyInfo);
+                }
 
                 imageSection.appendChild(imageList);
+
+                // Search input for finding more images — pre-filled with AI keywords
+                const searchRow = document.createElement('div');
+                searchRow.className = 'd-flex gap-2 align-items-center flex-wrap';
+
+                const searchInput = document.createElement('input');
+                searchInput.type = 'text';
+                searchInput.className = 'form-control form-control-sm';
+                searchInput.placeholder = this.label('wizard.content.imageSearchPlaceholder');
+                searchInput.style.maxWidth = '250px';
+                if (keywords.length > 0) {
+                    searchInput.value = keywords.join(' ');
+                }
+
+                const searchBtn = this.createIconButton(
+                    'actions-search',
+                    this.label('wizard.content.imageSearchButton'),
+                    'btn btn-sm btn-outline-secondary',
+                    async () => {
+                        const query = searchInput.value.trim();
+                        if (!query) return;
+                        searchBtn.disabled = true;
+                        try {
+                            const result = await this.fetchJson(this.getAjaxUrl('searchImages'), { query });
+                            const found = result.images || [];
+                            if (found.length === 0) {
+                                Notification.info(this.label('wizard.content.imageSearchEmpty'));
+                            } else {
+                                this.renderImageCards(imageList, found, index);
+                            }
+                        } catch (err) {
+                            Notification.error(this.label('wizard.error.imageSearch'), err.message);
+                        } finally {
+                            searchBtn.disabled = false;
+                        }
+                    },
+                );
+
+                searchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        searchBtn.click();
+                    }
+                });
+
+                searchRow.appendChild(searchInput);
+                searchRow.appendChild(searchBtn);
+
+                // AI Generate button (shown when AI source is configured and available)
+                const aiAvailable = WizardState.aiGenerationAvailable || false;
+                const hasImageTask = WizardState.hasImageTask || false;
+                if (aiAvailable && hasImageTask) {
+                    const generateBtn = this.createIconButton(
+                        'actions-bolt',
+                        this.label('wizard.content.imageGenerateButton'),
+                        'btn btn-sm btn-outline-warning',
+                        async () => {
+                            generateBtn.disabled = true;
+                            generateBtn.textContent = this.label('wizard.content.imageGenerating');
+                            try {
+                                const template = WizardState.getTemplate();
+                                const sectionData = WizardState.getContentSections()[index] || {};
+                                const result = await this.fetchJson(this.getAjaxUrl('generateImage'), {
+                                    templateUid: template.uid,
+                                    imagePrompt: sectionData.imagePrompt || '',
+                                    sectionHeader: sectionData.header || sectionData.section || '',
+                                });
+                                const img = result.image;
+                                if (img) {
+                                    this.renderImageCards(imageList, [img], index);
+                                    Notification.success(this.label('wizard.content.imageGenerated'));
+                                }
+                            } catch (err) {
+                                Notification.error(this.label('wizard.error.imageGenerate'), err.message);
+                            } finally {
+                                generateBtn.disabled = false;
+                                this.setIconButtonLabel(generateBtn, this.label('wizard.content.imageGenerateButton'));
+                            }
+                        },
+                    );
+                    searchRow.appendChild(generateBtn);
+                }
+
+                imageSection.appendChild(searchRow);
+
                 cardBody.appendChild(imageSection);
             }
 
@@ -581,106 +810,194 @@ class LandingPageWizard {
             card.appendChild(cardBody);
             container.appendChild(card);
         });
+    }
 
-        this.contentArea.appendChild(container);
+    /**
+     * Render selectable image cards into a container.
+     * Merges new images with any already shown (avoids duplicates).
+     *
+     * @param {HTMLElement} imageList
+     * @param {Array} newImages
+     * @param {number} sectionIndex
+     */
+    renderImageCards(imageList, newImages, sectionIndex) {
+        // Track already-shown UIDs to avoid duplicates when searching
+        const shownUids = new Set();
+        imageList.querySelectorAll('[data-image-uid]').forEach((el) => {
+            shownUids.add(parseInt(el.dataset.imageUid, 10));
+        });
 
-        this.renderNavigation(
-            true,
-            {
-                label: 'Continue',
-                handler: () => this.goNext(),
-            },
-            {
-                label: 'Skip',
-                handler: () => {
-                    WizardState.setContentSections([]);
-                    this.goNext();
-                },
+        const sections = WizardState.getContentSections();
+        const currentImageUid = sections[sectionIndex].imageUid || 0;
+
+        newImages.forEach((img) => {
+            if (shownUids.has(img.uid)) return;
+            shownUids.add(img.uid);
+
+            const imgCard = document.createElement('div');
+            imgCard.className = 'card text-center';
+            imgCard.style.cssText = 'width:120px;cursor:pointer;';
+            imgCard.setAttribute('role', 'button');
+            imgCard.setAttribute('tabindex', '0');
+            imgCard.setAttribute('aria-label', img.title || img.name || 'Image');
+            imgCard.dataset.imageUid = String(img.uid);
+
+            // Auto-select recommended image when no image is selected yet
+            const isRecommended = img.recommended === true;
+            const shouldAutoSelect = isRecommended && currentImageUid === 0 && sections[sectionIndex].imageUid === 0;
+            if (shouldAutoSelect) {
+                sections[sectionIndex].imageUid = img.uid;
             }
-        );
+
+            if (sections[sectionIndex].imageUid === img.uid) {
+                imgCard.classList.add('border-primary', 'shadow-sm');
+            }
+
+            // Thumbnail or placeholder
+            if (img.publicUrl) {
+                const thumbnail = document.createElement('img');
+                thumbnail.src = img.publicUrl;
+                thumbnail.alt = img.alternative || img.title || img.name || '';
+                thumbnail.className = 'card-img-top';
+                thumbnail.style.cssText = 'height:80px;object-fit:cover;';
+                imgCard.appendChild(thumbnail);
+            } else {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'bg-secondary-subtle d-flex align-items-center justify-content-center';
+                placeholder.style.cssText = 'height:80px;';
+                placeholder.textContent = '\uD83D\uDDBC';
+                imgCard.appendChild(placeholder);
+            }
+
+            const imgBody = document.createElement('div');
+            imgBody.className = 'card-body p-1';
+
+            // Show "recommended" / "AI" badge
+            if (isRecommended || img.generated) {
+                const badge = document.createElement('span');
+                badge.className = img.generated
+                    ? 'badge bg-warning text-dark mb-1'
+                    : 'badge bg-success text-white mb-1';
+                badge.style.fontSize = '0.65rem';
+                badge.textContent = img.generated ? 'AI' : '\u2605 Best';
+                imgBody.appendChild(badge);
+            }
+
+            const imgTitle = document.createElement('small');
+            imgTitle.className = 'text-truncate d-block';
+            imgTitle.style.maxWidth = '110px';
+            imgTitle.textContent = img.title || img.name || 'Image';
+            imgBody.appendChild(imgTitle);
+            imgCard.appendChild(imgBody);
+
+            const selectImage = () => {
+                const secs = WizardState.getContentSections();
+                const isSelected = secs[sectionIndex].imageUid === img.uid;
+
+                secs[sectionIndex].imageUid = isSelected ? 0 : img.uid;
+
+                // Update visual state for all cards in this section's image list
+                imageList.querySelectorAll('.card').forEach((c) => {
+                    c.classList.remove('border-primary', 'shadow-sm');
+                });
+                if (!isSelected) {
+                    imgCard.classList.add('border-primary', 'shadow-sm');
+                }
+            };
+
+            imgCard.addEventListener('click', selectImage);
+            imgCard.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectImage();
+                }
+            });
+
+            imageList.appendChild(imgCard);
+        });
     }
 
     /**
      * Regenerate a single content section via AJAX.
      *
+     * @param {HTMLElement} container
      * @param {number} index
      */
-    async regenerateSection(index) {
+    async regenerateSection(container, index) {
+        if (this._busy) {
+            return;
+        }
+        this._busy = true;
+
         const card = document.getElementById('section-card-' + index);
         if (card) {
             const cardBody = card.querySelector('.card-body');
             if (cardBody) {
-                cardBody.innerHTML =
-                    '<div class="d-flex align-items-center" role="status" aria-live="polite">' +
-                    '<div class="spinner-border spinner-border-sm me-2" aria-hidden="true"></div>' +
-                    '<span>Regenerating section...</span></div>';
+                cardBody.innerHTML = this.spinnerHtml(this.label('wizard.loading.regenerating'));
             }
         }
 
         try {
             const template = WizardState.getTemplate();
+            if (!template?.uid) {
+                throw new Error('No template selected');
+            }
             const newSection = await this.fetchJson(this.getAjaxUrl('regenerateSection'), {
                 templateUid: template.uid,
                 briefingAnswers: WizardState.getBriefingAnswers(),
+                parentPageId: WizardState.getParentPageId(),
                 sectionIndex: index,
             });
 
             WizardState.updateContentSection(index, newSection);
-            Notification.success('Section regenerated', 'Section ' + (index + 1) + ' has been regenerated.');
+            Notification.success(
+                this.label('wizard.notification.sectionRegenerated'),
+                this.label('wizard.notification.sectionRegeneratedMessage', index + 1),
+            );
 
-            // Re-render all sections
-            this.renderContentSections(WizardState.getContentSections(), WizardState.getImages());
+            this.renderContentSections(container, WizardState.getContentSections(), WizardState.getImages());
         } catch (error) {
-            Notification.error('Regeneration failed', error.message);
-
-            // Restore original section display
-            this.renderContentSections(WizardState.getContentSections(), WizardState.getImages());
+            Notification.error(this.label('wizard.notification.regenerationFailed'), error.message);
+            this.renderContentSections(container, WizardState.getContentSections(), WizardState.getImages());
+        } finally {
+            this._busy = false;
         }
     }
 
     /**
-     * Step 5: Placement and save.
+     * Step 5: Placement & Save.
      */
-    renderPlacementStep() {
-        this.contentArea.innerHTML = '';
-
-        const heading = document.createElement('h2');
-        heading.textContent = 'Placement & Save';
-        this.contentArea.appendChild(heading);
+    async renderPlacementSlide($slide) {
+        const container = this.getSlideElement($slide);
+        container.innerHTML = '';
 
         const description = document.createElement('p');
-        description.className = 'text-muted';
-        description.textContent = 'Review your settings and create the landing page.';
-        this.contentArea.appendChild(description);
+        description.className = 'text-body-secondary mb-3';
+        description.textContent = this.label('wizard.placement.description');
+        container.appendChild(description);
 
         const form = document.createElement('form');
-        form.setAttribute('aria-label', 'Placement form');
         form.addEventListener('submit', (e) => e.preventDefault());
 
-        // Title
-        form.appendChild(
-            this.createFormGroup('placement_title', 'Page Title', 'text', WizardState.getTitle(), true)
-        );
+        form.appendChild(this.createFormGroup('placement_title', this.label('wizard.pageFields.pageTitle'), 'text', WizardState.getTitle(), true));
+        form.appendChild(this.createFormGroup('placement_slug', this.label('wizard.pageFields.urlSlug'), 'text', WizardState.getSlug(), false));
 
-        // Slug
-        form.appendChild(
-            this.createFormGroup('placement_slug', 'URL Slug', 'text', WizardState.getSlug(), false)
-        );
-
-        // Parent Page ID
         const parentValue = WizardState.getParentPageId() > 0 ? String(WizardState.getParentPageId()) : '';
-        form.appendChild(
-            this.createFormGroup(
-                'placement_parent',
-                'Parent Page ID',
-                'number',
-                parentValue,
-                true,
-                'Enter the UID of the parent page'
-            )
-        );
+        form.appendChild(this.createFormGroup(
+            'placement_parent',
+            this.label('wizard.placement.parentPageId'),
+            'number',
+            parentValue,
+            true,
+            this.label('wizard.placement.parentPageIdPlaceholder'),
+        ));
 
-        // Auto-generate slug from title
+        // Set min="1" on parent page input
+        const parentInput = form.querySelector('#placement_parent');
+        if (parentInput) {
+            parentInput.min = '1';
+        }
+
         const titleInput = form.querySelector('#placement_title');
         const slugInput = form.querySelector('#placement_slug');
         if (titleInput && slugInput) {
@@ -689,26 +1006,20 @@ class LandingPageWizard {
             });
         }
 
-        this.contentArea.appendChild(form);
+        container.appendChild(form);
 
-        // Summary
-        this.renderSummary();
+        this.renderSummary(container);
 
-        this.renderNavigation(
-            true,
-            {
-                label: 'Generate Landing Page',
-                handler: () => this.confirmAndSave(form),
-                cssClass: 'btn btn-success',
-            },
-            null
-        );
+        // Repurpose the Next button as "Generate Landing Page" action
+        this.replaceNextButtonWithGenerate(form);
     }
 
     /**
      * Render a summary of selections.
+     *
+     * @param {HTMLElement} container
      */
-    renderSummary() {
+    renderSummary(container) {
         const template = WizardState.getTemplate();
         const sections = WizardState.getContentSections();
         const pageFields = WizardState.getPageFields();
@@ -718,7 +1029,9 @@ class LandingPageWizard {
 
         const cardHeader = document.createElement('div');
         cardHeader.className = 'card-header';
-        cardHeader.innerHTML = '<strong>Summary</strong>';
+        const headerStrong = document.createElement('strong');
+        headerStrong.textContent = this.label('wizard.summary');
+        cardHeader.appendChild(headerStrong);
 
         const cardBody = document.createElement('div');
         cardBody.className = 'card-body';
@@ -726,47 +1039,74 @@ class LandingPageWizard {
         const list = document.createElement('dl');
         list.className = 'row mb-0';
 
-        // Template
         if (template) {
-            list.innerHTML +=
-                '<dt class="col-sm-3">Template</dt>' +
-                '<dd class="col-sm-9">' +
-                this.escapeHtml(template.title) +
-                '</dd>';
+            this.addDefinitionItem(list, this.label('wizard.step.template'), template.title);
         }
 
-        // Page fields count
         const fieldCount = Object.keys(pageFields).length;
         if (fieldCount > 0) {
-            list.innerHTML +=
-                '<dt class="col-sm-3">Page Fields</dt>' +
-                '<dd class="col-sm-9">' +
-                fieldCount +
-                ' field(s) configured</dd>';
+            this.addDefinitionItem(list, this.label('wizard.step.pageFields'), this.label('wizard.summary.fieldsConfigured', fieldCount));
         }
 
-        // Sections count
         if (sections.length > 0) {
-            list.innerHTML +=
-                '<dt class="col-sm-3">Content Sections</dt>' +
-                '<dd class="col-sm-9">' +
-                sections.length +
-                ' section(s)</dd>';
+            this.addDefinitionItem(list, this.label('wizard.step.content'), this.label('wizard.summary.sections', sections.length));
 
             const sectionNames = sections
-                .map((s) => this.escapeHtml(s.section || s.header || 'Untitled'))
+                .map((s) => s.section || s.header || this.label('wizard.summary.untitled'))
                 .join(', ');
-            list.innerHTML +=
-                '<dt class="col-sm-3">Sections</dt>' +
-                '<dd class="col-sm-9">' +
-                sectionNames +
-                '</dd>';
+            this.addDefinitionItem(list, this.label('wizard.summary.sectionNames'), sectionNames);
         }
 
         cardBody.appendChild(list);
         summary.appendChild(cardHeader);
         summary.appendChild(cardBody);
-        this.contentArea.appendChild(summary);
+        container.appendChild(summary);
+    }
+
+    /**
+     * Add a dt/dd pair to a definition list.
+     *
+     * @param {HTMLDListElement} dl
+     * @param {string} term
+     * @param {string} definition
+     */
+    addDefinitionItem(dl, term, definition) {
+        const dt = document.createElement('dt');
+        dt.className = 'col-sm-3';
+        dt.textContent = term;
+
+        const dd = document.createElement('dd');
+        dd.className = 'col-sm-9';
+        dd.textContent = definition;
+
+        dl.appendChild(dt);
+        dl.appendChild(dd);
+    }
+
+    /**
+     * Repurpose the modal "Next" button as "Generate Landing Page" on the final step.
+     *
+     * Replaces the default carousel-advance handler with the save flow,
+     * updates the button label, and adds success styling.
+     *
+     * @param {HTMLFormElement} form
+     */
+    replaceNextButtonWithGenerate(form) {
+        const carousel = MultiStepWizard.getComponent();
+        const modal = carousel?.closest('.modal');
+        const nextBtn = modal?.find('button[name="next"]');
+        if (!nextBtn || nextBtn.length === 0) {
+            return;
+        }
+
+        // Remove TYPO3's default next-slide handler and attach save flow
+        nextBtn.off('click').on('click', (e) => {
+            e.preventDefault();
+            this.confirmAndSave(form);
+        });
+        nextBtn.text(this.label('wizard.button.generate'));
+        nextBtn.removeClass('btn-primary').addClass('btn-success');
+        nextBtn.prop('disabled', false);
     }
 
     /**
@@ -775,9 +1115,34 @@ class LandingPageWizard {
      * @param {HTMLFormElement} form
      */
     confirmAndSave(form) {
+        const titleInput = form.querySelector('#placement_title');
+        const parentInput = form.querySelector('#placement_parent');
+        const title = titleInput?.value?.trim() || '';
+        const parentPageId = parseInt(parentInput?.value || '0', 10);
+
+        if (!title) {
+            Notification.warning(
+                this.label('wizard.notification.titleRequired'),
+                this.label('wizard.notification.pageTitleRequired'),
+            );
+            titleInput?.focus();
+            return;
+        }
+
+        if (parentPageId <= 0) {
+            Notification.warning(
+                this.label('wizard.notification.parentRequired'),
+                this.label('wizard.notification.parentRequiredMessage'),
+            );
+            parentInput?.focus();
+            return;
+        }
+
+        const confirmTitleKey = WizardState.regenerateMode ? 'wizard.confirm.regenerateTitle' : 'wizard.confirm.title';
+        const confirmMsgKey = WizardState.regenerateMode ? 'wizard.confirm.regenerateMessage' : 'wizard.confirm.message';
         const modal = Modal.confirm(
-            'Landing Page erstellen',
-            'Soll die Landing Page jetzt erstellt werden? Eine neue Seite wird im Seitenbaum angelegt.',
+            this.label(confirmTitleKey),
+            this.label(confirmMsgKey),
             Modal.sizes.small,
         );
         modal.addEventListener('confirm.button.ok', () => {
@@ -795,6 +1160,19 @@ class LandingPageWizard {
      * @param {HTMLFormElement} form
      */
     async saveLandingPage(form) {
+        if (this._busy) {
+            return;
+        }
+
+        const template = WizardState.getTemplate();
+        if (!template || !template.uid) {
+            Notification.error(
+                this.label('wizard.error.templateMissing'),
+                '',
+            );
+            return;
+        }
+
         const titleInput = form.querySelector('#placement_title');
         const slugInput = form.querySelector('#placement_slug');
         const parentInput = form.querySelector('#placement_parent');
@@ -803,22 +1181,9 @@ class LandingPageWizard {
         const slug = slugInput?.value?.trim() || '';
         const parentPageId = parseInt(parentInput?.value || '0', 10);
 
-        if (!title) {
-            Notification.warning('Title required', 'Please enter a page title.');
-            titleInput?.focus();
-            return;
-        }
-
-        if (parentPageId <= 0) {
-            Notification.warning('Parent page required', 'Please enter a valid parent page ID.');
-            parentInput?.focus();
-            return;
-        }
-
-        this.showLoading('Creating landing page...');
+        this._busy = true;
 
         try {
-            const template = WizardState.getTemplate();
             const result = await this.fetchJson(this.getAjaxUrl('save'), {
                 templateUid: template.uid,
                 parentPageId: parentPageId,
@@ -826,118 +1191,53 @@ class LandingPageWizard {
                 slug: slug,
                 pageFields: WizardState.getPageFields(),
                 contentSections: WizardState.getContentSections(),
+                briefingAnswers: WizardState.getBriefingAnswers(),
+                sourcePageUid: WizardState.sourcePageUid || 0,
             });
 
-            this.renderSuccessScreen(result, title);
-            Notification.success('Landing page created', 'The landing page "' + title + '" has been created.');
-        } catch (error) {
-            this.showError('Failed to create landing page: ' + error.message, () => this.saveLandingPage(form));
-            this.renderNavigation(
-                true,
-                {
-                    label: 'Retry',
-                    handler: () => this.renderPlacementStep(),
-                },
-                null
+            MultiStepWizard.dismiss();
+
+            Notification.success(
+                this.label('wizard.notification.created'),
+                this.label('wizard.notification.createdMessage', title),
             );
-        }
-    }
 
-    /**
-     * Render success screen after page creation.
-     *
-     * @param {Object} result
-     * @param {string} title
-     */
-    renderSuccessScreen(result, title) {
-        this.contentArea.innerHTML = '';
-        this.navigationArea.innerHTML = '';
+            if (result.pageUid) {
+                // Refresh page tree so the new page appears
+                top.document.dispatchEvent(new CustomEvent('typo3:pagetree:refresh'));
 
-        const container = document.createElement('div');
-        container.className = 'text-center py-5';
-
-        const icon = document.createElement('div');
-        icon.className = 'mb-3';
-        icon.innerHTML =
-            '<span class="icon icon-size-large icon-state-default">' +
-            '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" class="text-success" viewBox="0 0 16 16">' +
-            '<path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>' +
-            '</svg></span>';
-
-        const heading = document.createElement('h2');
-        heading.className = 'text-success';
-        heading.textContent = 'Landing Page Created!';
-
-        const message = document.createElement('p');
-        message.className = 'lead';
-        message.textContent = 'The landing page "' + this.escapeHtml(title) + '" has been successfully created.';
-
-        container.appendChild(icon);
-        container.appendChild(heading);
-        container.appendChild(message);
-
-        if (result.pageUid) {
-            const btnGroup = document.createElement('div');
-            btnGroup.className = 'd-flex gap-2 justify-content-center mt-4';
-
-            // Edit page button
-            const editUrl =
-                top.TYPO3.settings.FormEngine?.moduleUrl ||
-                '/typo3/record/edit?edit[pages][' + result.pageUid + ']=edit';
-            const editBtn = this.createButton('Edit Page Properties', 'btn btn-primary', () => {
-                top.TYPO3.Backend.ContentContainer.setUrl(
-                    '/typo3/record/edit?edit[pages][' + result.pageUid + ']=edit'
-                );
-            });
-
-            // View in page module
-            const viewBtn = this.createButton('Open in Page Module', 'btn btn-outline-primary', () => {
-                top.TYPO3.Backend.ContentContainer.setUrl('/typo3/module/web/layout?id=' + result.pageUid);
-            });
-
-            // Create another
-            const newBtn = this.createButton('Create Another', 'btn btn-outline-secondary', () => {
-                WizardState.reset();
-                this.renderStep(0);
-            });
-
-            btnGroup.appendChild(editBtn);
-            btnGroup.appendChild(viewBtn);
-            btnGroup.appendChild(newBtn);
-            container.appendChild(btnGroup);
-        }
-
-        this.contentArea.appendChild(container);
-
-        // Update progress to 100%
-        if (this.progressBar) {
-            this.progressBar.style.width = '100%';
-        }
-    }
-
-    // ── Navigation ──────────────────────────────────────────────
-
-    goNext() {
-        const current = WizardState.getCurrentStep();
-        if (current < this.steps.length - 1) {
-            this.renderStep(current + 1);
-        }
-    }
-
-    goBack() {
-        const current = WizardState.getCurrentStep();
-        if (current > 0) {
-            // If briefing was skipped (briefingMode === 'none'), go back to template
-            const template = WizardState.getTemplate();
-            if (current === 2 && template && template.briefingMode === 'none') {
-                this.renderStep(0);
-            } else {
-                this.renderStep(current - 1);
+                const pageLayoutUrl = TYPO3.settings.NrLandingpage?.moduleUrls?.pageLayout || '';
+                if (pageLayoutUrl) {
+                    top.TYPO3.Backend.ContentContainer.setUrl(pageLayoutUrl + '&id=' + result.pageUid);
+                }
             }
+        } catch (error) {
+            Notification.error(
+                this.label('wizard.error.save', error.message),
+                '',
+            );
+        } finally {
+            this._busy = false;
         }
     }
 
     // ── UI helpers ──────────────────────────────────────────────
+
+    /**
+     * Extract the raw DOM element from jQuery or Element.
+     *
+     * @param {*} $slide
+     * @returns {HTMLElement}
+     */
+    getSlideElement($slide) {
+        if ($slide instanceof HTMLElement) {
+            return $slide;
+        }
+        if ($slide?.get) {
+            return $slide.get(0);
+        }
+        return $slide;
+    }
 
     /**
      * Escape HTML to prevent XSS.
@@ -952,6 +1252,33 @@ class LandingPageWizard {
         const div = document.createElement('div');
         div.appendChild(document.createTextNode(text));
         return div.innerHTML;
+    }
+
+    /**
+     * Create a spinner loading HTML string.
+     *
+     * @param {string} message
+     * @returns {string}
+     */
+    spinnerHtml(message = '') {
+        return '<div class="d-flex align-items-center justify-content-center py-4" role="status" aria-live="polite">'
+            + '<div class="spinner-border spinner-border-sm me-2" aria-hidden="true"></div>'
+            + '<span>' + this.escapeHtml(message) + '</span></div>';
+    }
+
+    /**
+     * Show an error message inside a slide container.
+     *
+     * @param {HTMLElement} container
+     * @param {string} message
+     */
+    showSlideError(container, message) {
+        container.innerHTML = '';
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-danger';
+        alert.setAttribute('role', 'alert');
+        alert.textContent = message;
+        container.appendChild(alert);
     }
 
     /**
@@ -972,109 +1299,47 @@ class LandingPageWizard {
     }
 
     /**
-     * Show a loading spinner in the content area.
+     * Create a button with a TYPO3 icon and label text.
      *
-     * @param {string} message
+     * @param {string} iconIdentifier TYPO3 icon identifier (e.g. 'actions-search')
+     * @param {string} label Button text
+     * @param {string} cssClass CSS classes for the button
+     * @param {Function} onClick Click handler
+     * @returns {HTMLButtonElement}
      */
-    showLoading(message = 'Loading...') {
-        this.contentArea.innerHTML =
-            '<div class="d-flex align-items-center justify-content-center py-5" role="status" aria-live="polite">' +
-            '<div class="spinner-border me-3" aria-hidden="true"></div>' +
-            '<span>' +
-            this.escapeHtml(message) +
-            '</span></div>';
+    createIconButton(iconIdentifier, label, cssClass, onClick) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = cssClass;
+        button.addEventListener('click', onClick);
+
+        // Set text immediately, then replace with icon + text once loaded
+        button.textContent = label;
+        Icons.getIcon(iconIdentifier, Icons.sizes.small).then((iconMarkup) => {
+            const span = document.createElement('span');
+            span.className = 'me-1';
+            span.innerHTML = iconMarkup;
+            button.textContent = '';
+            button.appendChild(span);
+            button.appendChild(document.createTextNode(label));
+        });
+
+        return button;
     }
 
     /**
-     * Show an error message with an optional retry button.
+     * Update label text of an icon button (preserves icon if present).
      *
-     * @param {string} message
-     * @param {Function|null} retryHandler
+     * @param {HTMLButtonElement} button
+     * @param {string} label
      */
-    showError(message, retryHandler = null) {
-        this.contentArea.innerHTML = '';
-
-        const alert = document.createElement('div');
-        alert.className = 'alert alert-danger';
-        alert.setAttribute('role', 'alert');
-        alert.textContent = message;
-
-        if (retryHandler) {
-            const retryBtn = this.createButton('Retry', 'btn btn-outline-danger btn-sm ms-3', retryHandler);
-            alert.appendChild(retryBtn);
+    setIconButtonLabel(button, label) {
+        const iconSpan = button.querySelector('span.me-1');
+        button.textContent = '';
+        if (iconSpan) {
+            button.appendChild(iconSpan);
         }
-
-        this.contentArea.appendChild(alert);
-    }
-
-    /**
-     * Update progress bar and step labels.
-     *
-     * @param {number} stepIndex
-     */
-    updateProgress(stepIndex) {
-        const percentage = ((stepIndex + 1) / this.steps.length) * 100;
-
-        if (this.progressBar) {
-            this.progressBar.style.width = percentage + '%';
-            this.progressBar.parentElement?.parentElement?.setAttribute('aria-valuenow', String(stepIndex + 1));
-        }
-
-        if (this.stepLabels) {
-            this.stepLabels.forEach((label, i) => {
-                label.classList.toggle('fw-bold', i === stepIndex);
-                label.classList.toggle('text-primary', i === stepIndex);
-                label.classList.toggle('text-muted', i < stepIndex);
-            });
-        }
-    }
-
-    /**
-     * Render navigation buttons (back, next/action, skip).
-     *
-     * @param {boolean} showBack
-     * @param {Object|null} nextConfig - { label, handler, cssClass? }
-     * @param {Object|null} skipConfig - { label, handler }
-     */
-    renderNavigation(showBack, nextConfig, skipConfig) {
-        this.navigationArea.innerHTML = '';
-
-        const nav = document.createElement('div');
-        nav.className = 'd-flex justify-content-between';
-
-        const leftGroup = document.createElement('div');
-        const rightGroup = document.createElement('div');
-        rightGroup.className = 'd-flex gap-2';
-
-        if (showBack && WizardState.getCurrentStep() > 0) {
-            const backBtn = this.createButton('Back', 'btn btn-outline-secondary', () => this.goBack());
-            backBtn.setAttribute('aria-label', 'Go to previous step');
-            leftGroup.appendChild(backBtn);
-        }
-
-        if (skipConfig) {
-            const skipBtn = this.createButton(
-                skipConfig.label || 'Skip',
-                'btn btn-outline-secondary',
-                skipConfig.handler
-            );
-            skipBtn.setAttribute('aria-label', 'Skip this step');
-            rightGroup.appendChild(skipBtn);
-        }
-
-        if (nextConfig) {
-            const nextBtn = this.createButton(
-                nextConfig.label || 'Continue',
-                nextConfig.cssClass || 'btn btn-primary',
-                nextConfig.handler
-            );
-            nextBtn.setAttribute('aria-label', nextConfig.label || 'Continue to next step');
-            rightGroup.appendChild(nextBtn);
-        }
-
-        nav.appendChild(leftGroup);
-        nav.appendChild(rightGroup);
-        this.navigationArea.appendChild(nav);
+        button.appendChild(document.createTextNode(label));
     }
 
     /**
@@ -1082,7 +1347,7 @@ class LandingPageWizard {
      *
      * @param {string} id
      * @param {string} label
-     * @param {string} type - 'text', 'textarea', 'number'
+     * @param {string} type
      * @param {string} value
      * @param {boolean} required
      * @param {string} placeholder
@@ -1129,7 +1394,6 @@ class LandingPageWizard {
         }
 
         group.appendChild(input);
-
         return group;
     }
 
@@ -1170,7 +1434,7 @@ class LandingPageWizard {
 
         const emptyOption = document.createElement('option');
         emptyOption.value = '';
-        emptyOption.textContent = '-- Please select --';
+        emptyOption.textContent = '-- ' + this.label('wizard.select.placeholder') + ' --';
         select.appendChild(emptyOption);
 
         options.forEach((opt) => {
@@ -1186,7 +1450,6 @@ class LandingPageWizard {
         });
 
         group.appendChild(select);
-
         return group;
     }
 
@@ -1201,15 +1464,19 @@ class LandingPageWizard {
         const input = group.querySelector('#' + inputId);
         if (!input) return;
 
+        const counterId = 'char-counter-' + inputId;
         const counter = document.createElement('small');
-        counter.className = 'form-text text-muted';
+        counter.className = 'form-text text-body-secondary';
+        counter.id = counterId;
         counter.setAttribute('aria-live', 'polite');
+        counter.setAttribute('aria-atomic', 'true');
+        input.setAttribute('aria-describedby', counterId);
 
         const updateCounter = () => {
             const length = input.value.length;
-            counter.textContent = length + ' / ' + maxLength + ' characters';
+            counter.textContent = length + ' / ' + maxLength;
             counter.classList.toggle('text-danger', length > maxLength);
-            counter.classList.toggle('text-muted', length <= maxLength);
+            counter.classList.toggle('text-body-secondary', length <= maxLength);
         };
 
         updateCounter();
@@ -1226,17 +1493,15 @@ class LandingPageWizard {
      */
     collectBriefingAnswers(form, questions) {
         const answers = {};
-
         if (Array.isArray(questions)) {
             questions.forEach((question, index) => {
                 const input = form.querySelector('#briefing_q_' + index);
                 if (input) {
-                    const key = question.key || question.label || 'question_' + index;
+                    const key = question.id || question.label || 'question_' + index;
                     answers[key] = input.value.trim();
                 }
             });
         }
-
         return answers;
     }
 
@@ -1249,14 +1514,12 @@ class LandingPageWizard {
     collectPageFields(form) {
         const fields = {};
         const inputs = form.querySelectorAll('input, textarea, select');
-
         inputs.forEach((input) => {
             const name = input.id.replace(/^pf_/, '');
             if (name) {
                 fields[name] = input.value.trim();
             }
         });
-
         return fields;
     }
 
@@ -1268,7 +1531,7 @@ class LandingPageWizard {
      */
     generateSlug(text) {
         if (!text) return '';
-        return '/' + text
+        const slug = text
             .toLowerCase()
             .replace(/[äÄ]/g, 'ae')
             .replace(/[öÖ]/g, 'oe')
@@ -1277,28 +1540,49 @@ class LandingPageWizard {
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-+|-+$/g, '')
             .replace(/-{2,}/g, '-');
+        return slug ? '/' + slug : '';
     }
 
     /**
-     * Convert a field key to a human-readable label.
+     * Convert a field name to a human-readable label.
      *
-     * @param {string} key
+     * @param {string} fieldName
      * @returns {string}
      */
-    humanizeFieldName(key) {
-        return key
+    humanizeFieldName(fieldName) {
+        return fieldName
             .replace(/_/g, ' ')
-            .replace(/([a-z])([A-Z])/g, '$1 $2')
             .replace(/\b\w/g, (c) => c.toUpperCase());
     }
 }
 
-// Auto-initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    const container = document.getElementById('landing-page-wizard');
-    if (container) {
-        new LandingPageWizard().initialize(container);
+// Initialize: bind buttons on the launcher page
+const launchButton = document.getElementById('nr-landingpage-launch-wizard');
+if (launchButton) {
+    const wizard = new LandingPageWizard();
+    const parentPageId = parseInt(launchButton.dataset.parentPageId || '0', 10);
+    const regeneratePageUid = parseInt(launchButton.dataset.regeneratePageUid || '0', 10);
+
+    launchButton.addEventListener('click', () => {
+        wizard.open(parentPageId, regeneratePageUid);
+    });
+
+    // "Create Landing Page" buttons on template cards — skip template selection step
+    document.querySelectorAll('.nr-landingpage-create-from-template').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            try {
+                const template = JSON.parse(btn.dataset.template || '{}');
+                wizard.open(parentPageId, 0, template);
+            } catch {
+                wizard.open(parentPageId);
+            }
+        });
+    });
+
+    // Auto-start wizard when triggered from context menu or re-generate button
+    if (launchButton.dataset.autoStart === '1') {
+        wizard.open(parentPageId, regeneratePageUid);
     }
-});
+}
 
 export default LandingPageWizard;
