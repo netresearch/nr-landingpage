@@ -15,6 +15,17 @@ class ContextMenuActions {
             top.TYPO3.Backend.ContentContainer.setUrl(dataset.navigateUri);
         }
     }
+
+    /**
+     * @param {string} table
+     * @param {number} uid
+     * @param {Object} dataset
+     */
+    regenerateLandingPage(table, uid, dataset) {
+        if (dataset.navigateUri) {
+            top.TYPO3.Backend.ContentContainer.setUrl(dataset.navigateUri);
+        }
+    }
 }
 
 export default new ContextMenuActions();

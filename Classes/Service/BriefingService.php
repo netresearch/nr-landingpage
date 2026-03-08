@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
+use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Service\Feature\CompletionService;
-use Netresearch\NrLlm\Service\Option\ChatOptions;
+use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Throwable;
@@ -14,11 +15,14 @@ use Throwable;
 final class BriefingService implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
+    use LlmCompletionTrait;
 
     private const MAX_QUESTIONS = 8;
 
     public function __construct(
         private readonly CompletionService $completionService,
+        private readonly LlmServiceManagerInterface $llmServiceManager,
+        private readonly LlmConfigurationRepository $configurationRepository,
     ) {}
 
     /**
@@ -29,12 +33,7 @@ final class BriefingService implements LoggerAwareInterface
     public function generateQuestions(Template $template): array
     {
         try {
-            // TODO: Use $template->llmConfiguration to load the LlmConfiguration record
-            // and route to the correct provider/model via LlmServiceManager::completeWithConfiguration()
-            $response = $this->completionService->completeJson(
-                $this->buildPrompt($template),
-                ChatOptions::json(),
-            );
+            $response = $this->completeJsonWithTemplate($template, $this->buildPrompt($template));
         } catch (Throwable $e) {
             $this->logger?->error('Briefing generation failed', [
                 'template' => $template->identifier,
@@ -53,8 +52,18 @@ final class BriefingService implements LoggerAwareInterface
 
             --- ANWEISUNGEN ZUR AUSGABE ---
 
-            Basierend auf dem obigen Kontext: Stelle dem User die relevanten
-            Fragen um eine Landing Page zu erstellen. Maximal {self::MAX_QUESTIONS} Fragen.
+            Stelle dem User die wichtigsten Fragen, um eine effektive Landing Page zu erstellen.
+            Maximal {self::MAX_QUESTIONS} Fragen, priorisiert nach Wichtigkeit:
+
+            1. Ziel/Thema der Seite (immer als erste Frage, required)
+            2. Zielgruppe und deren Beduerfnisse
+            3. Kernbotschaft oder Alleinstellungsmerkmal (USP)
+            4. Gewuenschte Handlung (Call-to-Action)
+            5. Weitere kontextspezifische Fragen je nach Template
+
+            Verwende kurze, verstaendliche Labels. Biete bei type=select sinnvolle Optionen an.
+            Die Fragen sollen dem AI-Content-Generator genuegend Kontext liefern, um hochwertige,
+            zielgruppenspezifische Inhalte zu erstellen.
 
             Antworte ausschliesslich als JSON-Array:
             [

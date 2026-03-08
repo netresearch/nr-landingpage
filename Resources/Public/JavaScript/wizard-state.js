@@ -10,15 +10,19 @@ class WizardState {
     }
 
     reset() {
-        this.currentStep = 0;
         this.selectedTemplate = null;
         this.briefingAnswers = {};
         this.pageFields = {};
         this.contentSections = [];
         this.images = [];
         this.parentPageId = 0;
+        this.sourcePageUid = 0;
+        this.regenerateMode = false;
         this.title = '';
         this.slug = '';
+        this.imageErrors = [];
+        this.hasImageTask = false;
+        this.aiGenerationAvailable = false;
     }
 
     setTemplate(template) {
@@ -83,14 +87,6 @@ class WizardState {
 
     getSlug() {
         return this.slug;
-    }
-
-    setCurrentStep(step) {
-        this.currentStep = step;
-    }
-
-    getCurrentStep() {
-        return this.currentStep;
     }
 
     updateContentSection(index, section) {

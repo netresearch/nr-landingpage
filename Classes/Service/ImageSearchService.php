@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Service;
 
+use Throwable;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Resource\ResourceFactory;
 
-final readonly class ImageSearchService
+readonly class ImageSearchService
 {
     private const STOP_WORDS = [
         'der', 'die', 'das', 'ein', 'eine', 'und', 'oder', 'mit', 'von', 'fuer', 'auf',
@@ -16,6 +18,7 @@ final readonly class ImageSearchService
 
     public function __construct(
         private ConnectionPool $connectionPool,
+        private ResourceFactory $resourceFactory,
     ) {}
 
     /**
@@ -24,7 +27,7 @@ final readonly class ImageSearchService
      * and sys_file: name (filename).
      *
      * @param list<string> $keywords
-     * @return list<array{uid: int, name: string, title: string, alternative: string}>
+     * @return list<array{uid: int, name: string, title: string, alternative: string, publicUrl: string}>
      */
     public function searchByKeywords(array $keywords, int $maxResults = 5): array
     {
@@ -82,12 +85,26 @@ final readonly class ImageSearchService
 
         $result = [];
         foreach ($rows as $row) {
-            $uid = $row['uid'] ?? 0;
+            $rawUid = $row['uid'] ?? 0;
+            $uid = is_int($rawUid) ? $rawUid : (is_string($rawUid) ? (int) $rawUid : 0);
+            if ($uid <= 0) {
+                continue;
+            }
+
+            $publicUrl = '';
+            try {
+                $file = $this->resourceFactory->getFileObject($uid);
+                $publicUrl = $file->getPublicUrl() ?? '';
+            } catch (Throwable) {
+                // skip files that cannot be resolved
+            }
+
             $result[] = [
-                'uid' => is_int($uid) ? $uid : (is_string($uid) ? (int) $uid : 0),
+                'uid' => $uid,
                 'name' => is_string($row['name'] ?? null) ? $row['name'] : '',
                 'title' => is_string($row['title'] ?? null) ? $row['title'] : '',
                 'alternative' => is_string($row['alternative'] ?? null) ? $row['alternative'] : '',
+                'publicUrl' => $publicUrl,
             ];
         }
 

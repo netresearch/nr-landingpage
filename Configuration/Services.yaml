@@ -22,5 +22,12 @@ services:
   Netresearch\NrLandingpage\Service\ImageSearchService:
     public: true
 
+  Netresearch\NrLandingpage\Service\ImageProviderService:
+    public: true
+    configurator: ['@Netresearch\NrLandingpage\Service\ImageGeneratorRegistrar', 'register']
+
   Netresearch\NrLandingpage\Service\PageCreatorService:
+    public: true
+
+  Netresearch\NrLandingpage\Service\PromptOptimizerService:
     public: true

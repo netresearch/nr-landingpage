@@ -10,7 +10,7 @@ return [
         'position' => ['after' => 'web_layout'],
         'access' => 'user',
         'iconIdentifier' => 'nr-landingpage-module',
-        'labels' => 'EXT:nr_landingpage/Resources/Private/Language/locallang_mod.xlf',
+        'labels' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_mod.xlf',
         'routes' => [
             '_default' => [
                 'target' => LandingPageWizardController::class . '::indexAction',

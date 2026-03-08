@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Service;
 
+use Netresearch\NrLandingpage\Domain\Model\GenerationContext;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Event\AfterContentGenerationEvent;
 use Netresearch\NrLandingpage\Event\BeforePageCreationEvent;
@@ -50,7 +51,7 @@ class PageCreatorService implements LoggerAwareInterface
      * Create a landing page with content elements via DataHandler.
      *
      * @param array<string, string> $pageFields SEO and other page field values
-     * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string}> $contentSections
+     * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid?: int, colPos?: int}> $contentSections
      * @return array{pageUid: int, contentUids: list<int>}
      * @throws RuntimeException if page creation fails
      */
@@ -61,8 +62,10 @@ class PageCreatorService implements LoggerAwareInterface
         string $slug,
         array $pageFields,
         array $contentSections,
+        ?GenerationContext $generationContext = null,
     ): array {
         $pageData = $this->buildPageData($template, $parentPageId, $title, $slug, $pageFields);
+        $pageData = $this->addGenerationMetadata($pageData, $template, $generationContext);
         $contentElements = $this->buildContentElements($contentSections);
 
         /** @var BeforePageCreationEvent $event */
@@ -85,6 +88,32 @@ class PageCreatorService implements LoggerAwareInterface
             $newContentId = 'NEW_content_' . $index;
             $element['pid'] = $newPageId;
             $element['sorting'] = ($index + 1) * 256;
+
+            $rawImageUid = $contentSections[$index]['imageUid'] ?? 0;
+            $imageUid = is_int($rawImageUid) ? $rawImageUid : (is_numeric($rawImageUid) ? (int) $rawImageUid : 0);
+            $ctype = is_string($element['CType'] ?? null) ? $element['CType'] : '';
+
+            $imageField = $this->getImageFieldForCType($ctype);
+
+            // Upgrade CType when an image is selected but current type has no image field
+            if ($imageUid > 0 && $imageField === '') {
+                $ctype = 'textpic';
+                $element['CType'] = 'textpic';
+                $imageField = 'image';
+            }
+
+            if ($imageUid > 0 && $imageField !== '') {
+                $newRefId = 'NEW_ref_' . $index;
+                $dataMap['sys_file_reference'][$newRefId] = [
+                    'pid' => $newPageId,
+                    'uid_local' => $imageUid,
+                    'uid_foreign' => $newContentId,
+                    'tablenames' => 'tt_content',
+                    'fieldname' => $imageField,
+                ];
+                $element[$imageField] = $newRefId;
+            }
+
             $dataMap['tt_content'][$newContentId] = $element;
             $contentUidMap[] = $newContentId;
         }
@@ -146,6 +175,11 @@ class PageCreatorService implements LoggerAwareInterface
             'hidden' => $template->publishMode === 'hidden' ? 1 : 0,
         ];
 
+        if ($template->backendLayout !== '') {
+            $data['backend_layout'] = $template->backendLayout;
+            $data['backend_layout_next_level'] = $template->backendLayout;
+        }
+
         $allowedFields = $template->pageFields;
         foreach ($pageFields as $field => $value) {
             if (!is_string($field) || !is_string($value) || $value === '') {
@@ -166,7 +200,36 @@ class PageCreatorService implements LoggerAwareInterface
     }
 
     /**
-     * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string}> $contentSections
+     * @param array<string, mixed> $pageData
+     * @return array<string, mixed>
+     */
+    private function addGenerationMetadata(
+        array $pageData,
+        Template $template,
+        ?GenerationContext $generationContext,
+    ): array {
+        $pageData['tx_nrlandingpage_template_uid'] = $template->uid;
+        $pageData['tx_nrlandingpage_config_hash'] = $template->getConfigHash();
+        $pageData['tx_nrlandingpage_generated_at'] = time();
+
+        if ($generationContext !== null) {
+            $pageData['tx_nrlandingpage_briefing_data'] = json_encode(
+                $generationContext->briefingAnswers,
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+            );
+            $pageData['tx_nrlandingpage_source_page_uid'] = $generationContext->sourcePageUid;
+
+            // Re-generated pages are always hidden for editorial review
+            if ($generationContext->sourcePageUid > 0) {
+                $pageData['hidden'] = 1;
+            }
+        }
+
+        return $pageData;
+    }
+
+    /**
+     * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid?: int, colPos?: int}> $contentSections
      * @return list<array<string, mixed>>
      */
     private function buildContentElements(array $contentSections): array
@@ -176,10 +239,13 @@ class PageCreatorService implements LoggerAwareInterface
             if (!is_array($section)) {
                 continue;
             }
+            $rawColPos = $section['colPos'] ?? 0;
+            $colPos = is_int($rawColPos) ? $rawColPos : (is_numeric($rawColPos) ? (int) $rawColPos : 0);
+
             $element = [
                 'CType' => (string) ($section['ctype'] ?? 'text'),
                 'header' => (string) ($section['header'] ?? ''),
-                'colPos' => 0,
+                'colPos' => $colPos,
             ];
 
             $subheader = (string) ($section['subheader'] ?? '');
@@ -196,6 +262,24 @@ class PageCreatorService implements LoggerAwareInterface
         }
 
         return $elements;
+    }
+
+    /**
+     * Determine which field stores images/media for a given CType.
+     *
+     * Covers all standard TYPO3 v14 CTypes that support file references:
+     * - textmedia: uses 'assets' (images, video, audio)
+     * - textpic, image: uses 'image'
+     * - uploads: uses 'media'
+     */
+    private function getImageFieldForCType(string $ctype): string
+    {
+        return match ($ctype) {
+            'textmedia' => 'assets',
+            'image', 'textpic' => 'image',
+            'uploads' => 'media',
+            default => '',
+        };
     }
 
     /**
