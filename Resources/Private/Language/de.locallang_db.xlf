@@ -1,175 +1,231 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
-    <file source-language="en" datatype="plaintext" original="messages" date="2026-03-06T00:00:00Z" product-name="nr_landingpage">
+    <file source-language="en" target-language="de" datatype="plaintext" original="messages" date="2026-03-06T00:00:00Z" product-name="nr_landingpage">
         <header/>
         <body>
             <trans-unit id="tx_nrlandingpage_domain_model_template" resname="tx_nrlandingpage_domain_model_template">
                 <source>Landing Page Template</source>
+                <target>Landing-Page-Vorlage</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.title" resname="tx_nrlandingpage_domain_model_template.title">
                 <source>Template Name</source>
+                <target>Vorlagenname</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.identifier" resname="tx_nrlandingpage_domain_model_template.identifier">
                 <source>Identifier</source>
+                <target>Bezeichner</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.description" resname="tx_nrlandingpage_domain_model_template.description">
                 <source>Description</source>
+                <target>Beschreibung</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.llm_configuration" resname="tx_nrlandingpage_domain_model_template.llm_configuration">
                 <source>AI Model</source>
+                <target>KI-Modell</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.system_prompt" resname="tx_nrlandingpage_domain_model_template.system_prompt">
                 <source>AI Instructions</source>
+                <target>KI-Anweisungen</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.allowed_ctypes" resname="tx_nrlandingpage_domain_model_template.allowed_ctypes">
                 <source>Allowed Content Types</source>
+                <target>Erlaubte Inhaltstypen</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.page_fields" resname="tx_nrlandingpage_domain_model_template.page_fields">
                 <source>Page Properties for AI</source>
+                <target>Seiteneigenschaften für KI</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.reference_pages" resname="tx_nrlandingpage_domain_model_template.reference_pages">
                 <source>Example Pages</source>
+                <target>Beispielseiten</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.briefing_mode" resname="tx_nrlandingpage_domain_model_template.briefing_mode">
                 <source>Briefing</source>
+                <target>Briefing</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.briefing_mode.none" resname="tx_nrlandingpage_domain_model_template.briefing_mode.none">
                 <source>Skip — no questions before generation</source>
+                <target>Überspringen — keine Fragen vor der Generierung</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.briefing_mode.optional" resname="tx_nrlandingpage_domain_model_template.briefing_mode.optional">
                 <source>Optional — editors may skip the questionnaire</source>
+                <target>Optional — Redakteure können den Fragebogen überspringen</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.briefing_mode.required" resname="tx_nrlandingpage_domain_model_template.briefing_mode.required">
                 <source>Required — editors must answer before generating</source>
+                <target>Pflicht — Redakteure müssen vor der Generierung antworten</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.publish_mode" resname="tx_nrlandingpage_domain_model_template.publish_mode">
                 <source>Page Visibility</source>
+                <target>Seitensichtbarkeit</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.publish_mode.hidden" resname="tx_nrlandingpage_domain_model_template.publish_mode.hidden">
                 <source>Hidden — review before publishing</source>
+                <target>Versteckt — vor Veröffentlichung prüfen</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.publish_mode.visible" resname="tx_nrlandingpage_domain_model_template.publish_mode.visible">
                 <source>Visible — publish immediately</source>
+                <target>Sichtbar — sofort veröffentlichen</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.be_groups" resname="tx_nrlandingpage_domain_model_template.be_groups">
                 <source>Allowed Editor Groups</source>
+                <target>Erlaubte Redakteursgruppen</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.title.description" resname="tx_nrlandingpage_domain_model_template.title.description">
                 <source>Name shown to editors when selecting this template in the wizard.</source>
+                <target>Name, der Redakteuren bei der Vorlagenauswahl im Wizard angezeigt wird.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.identifier.description" resname="tx_nrlandingpage_domain_model_template.identifier.description">
                 <source>Auto-generated technical slug. Used internally — no need to change.</source>
+                <target>Automatisch generierter technischer Slug. Wird intern verwendet — muss nicht geändert werden.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.description.description" resname="tx_nrlandingpage_domain_model_template.description.description">
                 <source>Brief explanation of what this template creates. Editors see this in the wizard to help choose the right template.</source>
+                <target>Kurze Erklärung, was diese Vorlage erzeugt. Redakteure sehen dies im Wizard zur Auswahl der richtigen Vorlage.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.llm_configuration.default" resname="tx_nrlandingpage_domain_model_template.llm_configuration.default">
                 <source>-- Use Default --</source>
+                <target>-- Standard verwenden --</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.llm_configuration.description" resname="tx_nrlandingpage_domain_model_template.llm_configuration.description">
                 <source>Which AI model generates the content. Leave on "Default" to use the globally configured model.</source>
+                <target>Welches KI-Modell die Inhalte generiert. Auf „Standard" belassen, um das global konfigurierte Modell zu nutzen.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.system_prompt.description" resname="tx_nrlandingpage_domain_model_template.system_prompt.description">
                 <source>Instructions that tell the AI how to write: tone, style, length, language, and constraints. Example: "Write in formal German, max 200 words per section, include a call-to-action." Tip: Use "Auto-optimize" to generate instructions from your template settings, or "Preview" to test the full output.</source>
+                <target>Anweisungen, die der KI sagen, wie sie schreiben soll: Tonalität, Stil, Länge, Sprache und Vorgaben. Beispiel: „Schreibe in formellem Deutsch, max. 200 Wörter pro Abschnitt, mit Call-to-Action." Tipp: „Auto-optimieren" generiert Anweisungen aus Ihren Vorlageneinstellungen, „Vorschau" testet die komplette Ausgabe.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.allowed_ctypes.description" resname="tx_nrlandingpage_domain_model_template.allowed_ctypes.description">
                 <source>Which content elements the AI may use on the page (e.g. text, image, header). Only checked types will appear in generated pages.</source>
+                <target>Welche Inhaltselemente die KI auf der Seite verwenden darf (z. B. Text, Bild, Überschrift). Nur aktivierte Typen erscheinen auf generierten Seiten.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.page_fields.description" resname="tx_nrlandingpage_domain_model_template.page_fields.description">
                 <source>Page properties the AI should fill in automatically (e.g. SEO title, meta description, Open Graph). Editors can review and adjust these in the wizard.</source>
+                <target>Seiteneigenschaften, die die KI automatisch ausfüllen soll (z. B. SEO-Titel, Meta-Beschreibung, Open Graph). Redakteure können diese im Wizard prüfen und anpassen.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.reference_pages.description" resname="tx_nrlandingpage_domain_model_template.reference_pages.description">
                 <source>Select existing pages as examples. The AI analyzes their structure and content style to produce a similar result.</source>
+                <target>Bestehende Seiten als Beispiel auswählen. Die KI analysiert deren Struktur und Inhaltsstil, um ein ähnliches Ergebnis zu erzeugen.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.briefing_mode.description" resname="tx_nrlandingpage_domain_model_template.briefing_mode.description">
                 <source>Should editors answer questions about the page topic before content is generated? A briefing helps the AI produce more targeted content.</source>
+                <target>Sollen Redakteure Fragen zum Seitenthema beantworten, bevor Inhalte generiert werden? Ein Briefing hilft der KI, zielgerichtetere Inhalte zu erstellen.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.publish_mode.description" resname="tx_nrlandingpage_domain_model_template.publish_mode.description">
                 <source>Whether the generated page is hidden (for editorial review) or immediately visible on the website.</source>
+                <target>Ob die generierte Seite versteckt (zur redaktionellen Prüfung) oder sofort auf der Website sichtbar ist.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.be_groups.description" resname="tx_nrlandingpage_domain_model_template.be_groups.description">
                 <source>Restrict this template to specific editor groups. Leave empty to make it available to everyone.</source>
+                <target>Diese Vorlage auf bestimmte Redakteursgruppen einschränken. Leer lassen, um sie für alle verfügbar zu machen.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.backend_layout" resname="tx_nrlandingpage_domain_model_template.backend_layout">
                 <source>Page Layout</source>
+                <target>Seitenlayout</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.backend_layout.description" resname="tx_nrlandingpage_domain_model_template.backend_layout.description">
                 <source>Layout for generated pages. Determines which content columns are available (e.g. main, sidebar, footer).</source>
+                <target>Layout für generierte Seiten. Bestimmt die verfügbaren Inhaltsspalten (z. B. Hauptinhalt, Seitenleiste, Fußzeile).</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.backend_layout.none" resname="tx_nrlandingpage_domain_model_template.backend_layout.none">
                 <source>-- Inherit from parent page --</source>
+                <target>-- Von übergeordneter Seite erben --</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task" resname="tx_nrlandingpage_domain_model_template.image_task">
                 <source>Image Source</source>
+                <target>Bildquelle</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.description" resname="tx_nrlandingpage_domain_model_template.image_task.description">
                 <source>How to find images for the page. "Media Library only" searches existing files. With an AI task selected, missing images are generated automatically.</source>
+                <target>Wie Bilder für die Seite gefunden werden. „Nur Mediathek" durchsucht vorhandene Dateien. Mit einem KI-Task werden fehlende Bilder automatisch generiert.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.none" resname="tx_nrlandingpage_domain_model_template.image_task.none">
                 <source>-- Media Library only (no AI) --</source>
+                <target>-- Nur Mediathek (keine KI) --</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.prompt_optimizer_context" resname="tx_nrlandingpage_domain_model_template.prompt_optimizer_context">
                 <source>Optimization Context</source>
+                <target>Optimierungskontext</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.prompt_optimizer_context.description" resname="tx_nrlandingpage_domain_model_template.prompt_optimizer_context.description">
                 <source>Background information used when auto-optimizing: brand guidelines, target audience, tone of voice. The optimizer combines this with your content types, page fields, and example pages to generate tailored AI instructions.</source>
+                <target>Hintergrundinformationen für die Auto-Optimierung: Markenrichtlinien, Zielgruppe, Tonalität. Der Optimierer kombiniert dies mit Ihren Inhaltstypen, Seitenfeldern und Beispielseiten, um maßgeschneiderte KI-Anweisungen zu generieren.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.prompt_optimizer_meta_prompt" resname="tx_nrlandingpage_domain_model_template.prompt_optimizer_meta_prompt">
                 <source>Optimization Strategy</source>
+                <target>Optimierungsstrategie</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.prompt_optimizer_meta_prompt.description" resname="tx_nrlandingpage_domain_model_template.prompt_optimizer_meta_prompt.description">
                 <source>Advanced: Override how the AI optimizes your instructions. Leave empty to use the built-in strategy. Only change this if the default optimization doesn't fit your needs.</source>
+                <target>Erweitert: Überschreibt, wie die KI Ihre Anweisungen optimiert. Leer lassen für die eingebaute Strategie. Nur ändern, wenn die Standard-Optimierung nicht passt.</target>
             </trans-unit>
             <trans-unit id="tabs.ai" resname="tabs.ai">
                 <source>AI Configuration</source>
+                <target>KI-Konfiguration</target>
             </trans-unit>
             <trans-unit id="tabs.content_layout" resname="tabs.content_layout">
                 <source>Content &amp; Layout</source>
+                <target>Inhalt &amp; Layout</target>
             </trans-unit>
             <trans-unit id="tabs.wizard" resname="tabs.wizard">
                 <source>Wizard</source>
+                <target>Assistent</target>
             </trans-unit>
             <trans-unit id="tabs.access" resname="tabs.access">
                 <source>Access</source>
+                <target>Zugriff</target>
             </trans-unit>
             <trans-unit id="palette.prompt_optimizer" resname="palette.prompt_optimizer">
                 <source>Prompt Optimization</source>
+                <target>Prompt-Optimierung</target>
             </trans-unit>
             <trans-unit id="fieldInformation.generatedPageCount" resname="fieldInformation.generatedPageCount">
                 <source>%d page(s) generated with this template</source>
+                <target>%d Seite(n) mit diesem Template generiert</target>
             </trans-unit>
             <trans-unit id="fieldInformation.promptTools.optimize.title" resname="fieldInformation.promptTools.optimize.title">
                 <source>Auto-optimize</source>
+                <target>Auto-optimieren</target>
             </trans-unit>
             <trans-unit id="fieldInformation.promptTools.optimize.description" resname="fieldInformation.promptTools.optimize.description">
                 <source>Analyzes your template settings (content types, page fields, example pages, layout) and generates optimized AI instructions. Replaces the current prompt text.</source>
+                <target>Analysiert Ihre Vorlageneinstellungen (Inhaltstypen, Seitenfelder, Beispielseiten, Layout) und generiert optimierte KI-Anweisungen. Ersetzt den aktuellen Prompt-Text.</target>
             </trans-unit>
             <trans-unit id="fieldInformation.promptTools.preview.title" resname="fieldInformation.promptTools.preview.title">
                 <source>Preview</source>
+                <target>Vorschau</target>
             </trans-unit>
             <trans-unit id="fieldInformation.promptTools.preview.description" resname="fieldInformation.promptTools.preview.description">
                 <source>Runs a full test generation with a sample topic. Shows the resulting content sections and matched images without creating a page. Use this to verify your prompt produces good results.</source>
+                <target>Führt eine vollständige Testgenerierung mit einem Beispielthema durch. Zeigt die erzeugten Inhaltsbereiche und zugeordneten Bilder an, ohne eine Seite zu erstellen. Nutzen Sie dies, um zu prüfen, ob Ihr Prompt gute Ergebnisse liefert.</target>
             </trans-unit>
             <trans-unit id="fieldControl.optimizePrompt" resname="fieldControl.optimizePrompt">
                 <source>Auto-optimize — Generate AI instructions based on your template settings</source>
+                <target>Auto-optimieren — KI-Anweisungen aus Ihren Vorlageneinstellungen generieren</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate" resname="fieldControl.testGenerate">
                 <source>Preview — Simulate a full page generation with content and images</source>
+                <target>Vorschau — Komplette Seitengenerierung mit Inhalten und Bildern simulieren</target>
             </trans-unit>
             <trans-unit id="fieldControl.optimizePrompt.confirm.title" resname="fieldControl.optimizePrompt.confirm.title">
                 <source>Generate Optimized AI Instructions</source>
+                <target>Optimierte KI-Anweisungen generieren</target>
             </trans-unit>
             <trans-unit id="fieldControl.optimizePrompt.confirm.message" resname="fieldControl.optimizePrompt.confirm.message">
                 <source>The AI will analyze your template configuration (content types, page fields, example pages, layout, and optimization context) and generate optimized instructions. This replaces the current text. Continue?</source>
+                <target>Die KI analysiert Ihre Vorlagenkonfiguration (Inhaltstypen, Seitenfelder, Beispielseiten, Layout und Optimierungskontext) und generiert optimierte Anweisungen. Der aktuelle Text wird ersetzt. Fortfahren?</target>
             </trans-unit>
             <trans-unit id="fieldControl.optimizePrompt.running" resname="fieldControl.optimizePrompt.running">
                 <source>Optimizing instructions…</source>
+                <target>Anweisungen werden optimiert…</target>
             </trans-unit>
             <trans-unit id="fieldControl.optimizePrompt.success" resname="fieldControl.optimizePrompt.success">
                 <source>Instructions optimized</source>
+                <target>Anweisungen optimiert</target>
             </trans-unit>
             <trans-unit id="fieldControl.optimizePrompt.error" resname="fieldControl.optimizePrompt.error">
                 <source>Optimization failed</source>
+                <target>Optimierung fehlgeschlagen</target>
             </trans-unit>
         </body>
     </file>
