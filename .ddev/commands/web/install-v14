@@ -75,6 +75,10 @@ EOF
 echo "Setting up extensions..."
 vendor/bin/typo3 extension:setup
 
+# Install German language pack
+echo "Installing German language pack..."
+vendor/bin/typo3 language:update de || true
+
 # Flush caches
 vendor/bin/typo3 cache:flush
 

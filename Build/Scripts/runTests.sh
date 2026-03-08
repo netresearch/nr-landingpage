@@ -271,7 +271,7 @@ IMAGE_ALPINE="${IMAGE_PREFIX}alpine:3.20"
 IMAGE_MARIADB="docker.io/mariadb:${DBMS_VERSION}"
 IMAGE_MYSQL="docker.io/mysql:${DBMS_VERSION}"
 IMAGE_POSTGRES="docker.io/postgres:${DBMS_VERSION}-alpine"
-IMAGE_PLAYWRIGHT="mcr.microsoft.com/playwright:v1.57.0-noble"
+IMAGE_PLAYWRIGHT="mcr.microsoft.com/playwright:v1.58.2-noble"
 
 shift $((OPTIND - 1))
 
@@ -336,23 +336,34 @@ case ${TEST_SUITE} in
         if [ -n "${TYPO3_BASE_URL:-}" ]; then
             echo "Using TYPO3_BASE_URL from environment: ${TYPO3_BASE_URL}"
         elif type "ddev" >/dev/null 2>&1 && ddev describe >/dev/null 2>&1; then
-            TYPO3_BASE_URL="https://v14.nr-landingpage.ddev.site"
+            # Detect v14 HTTPS URL dynamically from ddev describe (includes port)
+            TYPO3_BASE_URL=$(ddev describe -j 2>/dev/null | python3 -c "
+import sys, json
+d = json.load(sys.stdin)['raw']
+for u in d.get('urls', []) + d.get('extra_urls', []):
+    if 'v14.' in u and u.startswith('https://'):
+        print(u); break
+" 2>/dev/null)
+            if [ -z "${TYPO3_BASE_URL}" ]; then
+                # Fallback: use primary URL if no v14 URL found
+                TYPO3_BASE_URL=$(ddev describe -j 2>/dev/null | python3 -c "
+import sys, json; print(json.load(sys.stdin)['raw'].get('primary_url', ''))" 2>/dev/null)
+            fi
             echo "Using ddev TYPO3 URL: ${TYPO3_BASE_URL}"
         else
-            TYPO3_BASE_URL="https://v14.nr-landingpage.ddev.site"
             echo "Warning: No TYPO3 instance detected."
             echo "E2E tests require a running TYPO3 instance."
             echo "  1. Start ddev: ddev start"
             echo "  2. Or set: TYPO3_BASE_URL=https://your-typo3.local $0 -s e2e"
+            exit 1
         fi
 
         mkdir -p .Build/.cache/npm
-        mkdir -p node_modules
 
         # Check for permission issues (root-owned files from previous container runs)
-        if [ -d "node_modules" ] && [ "$(find node_modules -maxdepth 1 -user root 2>/dev/null | head -1)" ]; then
-            echo "Error: node_modules contains root-owned files."
-            echo "Please remove and retry: sudo rm -rf node_modules"
+        if [ -d "Tests/E2E/node_modules" ] && [ "$(find Tests/E2E/node_modules -maxdepth 1 -user root 2>/dev/null | head -1)" ]; then
+            echo "Error: Tests/E2E/node_modules contains root-owned files."
+            echo "Please remove and retry: sudo rm -rf Tests/E2E/node_modules"
             exit 1
         fi
 
@@ -361,13 +372,15 @@ case ${TEST_SUITE} in
         if type "ddev" >/dev/null 2>&1 && ddev describe >/dev/null 2>&1; then
             ROUTER_IP=$(${CONTAINER_BIN} inspect ddev-router --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
             if [ -n "${ROUTER_IP}" ]; then
+                # Extract hostname from TYPO3_BASE_URL for --add-host
+                DDEV_HOSTNAME=$(echo "${TYPO3_BASE_URL}" | sed 's|https\?://||;s|:.*||')
                 DDEV_PARAMS="--network ddev_default"
-                DDEV_PARAMS="${DDEV_PARAMS} --add-host v14.nr-landingpage.ddev.site:${ROUTER_IP}"
-                echo "Connecting to ddev network (router IP: ${ROUTER_IP})"
+                DDEV_PARAMS="${DDEV_PARAMS} --add-host ${DDEV_HOSTNAME}:${ROUTER_IP}"
+                echo "Connecting to ddev network (router IP: ${ROUTER_IP}, host: ${DDEV_HOSTNAME})"
             fi
         fi
 
-        COMMAND="npm ci && npx playwright test $*"
+        COMMAND="cd Tests/E2E && npm ci && npx playwright test $*"
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} ${DDEV_PARAMS} --name e2e-${SUFFIX} \
             -e TYPO3_BASE_URL="${TYPO3_BASE_URL}" \
             -e CI="${CI:-}" \
