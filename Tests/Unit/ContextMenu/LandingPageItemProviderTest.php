@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Tests\Unit\ContextMenu;
 
 use Netresearch\NrLandingpage\ContextMenu\LandingPageItemProvider;
+use Netresearch\NrLandingpage\Service\LandingPageDetectionService;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionMethod;
+use ReflectionProperty;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -87,6 +90,9 @@ final class LandingPageItemProviderTest extends UnitTestCase
                 'briefing_mode' => 'optional',
                 'publish_mode' => 'hidden',
                 'be_groups' => '',
+                'backend_layout' => '',
+                'prompt_optimizer_context' => '',
+                'prompt_optimizer_meta_prompt' => '',
                 'deleted' => 0,
                 'hidden' => 0,
             ],
@@ -112,6 +118,11 @@ final class LandingPageItemProviderTest extends UnitTestCase
         $uriBuilder = $this->createMock(UriBuilder::class);
         $uriBuilder->method('buildUriFromRoute')->willReturn(new Uri('/module/nr-landingpage'));
         GeneralUtility::setSingletonInstance(UriBuilder::class, $uriBuilder);
+
+        // Mock LandingPageDetectionService for isGeneratedLandingPage() check
+        $detectionService = $this->createMock(LandingPageDetectionService::class);
+        $detectionService->method('isGeneratedLandingPage')->willReturn(false);
+        $this->subject->setDetectionService($detectionService);
     }
 
     /**
@@ -138,5 +149,85 @@ final class LandingPageItemProviderTest extends UnitTestCase
         $connectionPool->method('getQueryBuilderForTable')->willReturn($queryBuilder);
 
         return new TemplateService($connectionPool);
+    }
+
+    #[Test]
+    public function getPriorityReturns50(): void
+    {
+        self::assertSame(50, $this->subject->getPriority());
+    }
+
+    #[Test]
+    public function canRenderReturnsFalseForUnknownItemName(): void
+    {
+        $this->subject->setContext('pages', '42', 'tree');
+
+        $canRender = new ReflectionMethod($this->subject, 'canRender');
+        self::assertFalse($canRender->invoke($this->subject, 'unknownItem', 'item'));
+    }
+
+    #[Test]
+    public function canRenderReturnsFalseWhenItemIsDisabled(): void
+    {
+        $templateService = $this->createTemplateService([
+            [
+                'uid' => 1, 'title' => 'Test', 'identifier' => 'test', 'description' => '',
+                'llm_configuration' => 0, 'system_prompt' => '', 'allowed_ctypes' => '',
+                'page_fields' => '', 'reference_pages' => '', 'briefing_mode' => 'optional',
+                'publish_mode' => 'hidden', 'be_groups' => '', 'backend_layout' => '',
+                'prompt_optimizer_context' => '', 'prompt_optimizer_meta_prompt' => '',
+                'deleted' => 0, 'hidden' => 0,
+            ],
+        ]);
+
+        $this->subject->setContext('pages', '42', 'tree');
+        $this->subject->setTemplateService($templateService);
+
+        // Inject disabled items via reflection
+        $disabledProp = new ReflectionProperty($this->subject, 'disabledItems');
+        $disabledProp->setValue($this->subject, ['landingPageCreate']);
+
+        $canRender = new ReflectionMethod($this->subject, 'canRender');
+        self::assertFalse($canRender->invoke($this->subject, 'landingPageCreate', 'item'));
+    }
+
+    #[Test]
+    public function addItemsIncludesNavigateUriInDataset(): void
+    {
+        $this->registerServiceMocks();
+        $templateService = $this->createTemplateService([
+            [
+                'uid' => 1,
+                'title' => 'Test',
+                'identifier' => 'test',
+                'description' => '',
+                'llm_configuration' => 0,
+                'system_prompt' => '',
+                'allowed_ctypes' => '',
+                'page_fields' => '',
+                'reference_pages' => '',
+                'briefing_mode' => 'optional',
+                'publish_mode' => 'hidden',
+                'be_groups' => '',
+                'backend_layout' => '',
+                'prompt_optimizer_context' => '',
+                'prompt_optimizer_meta_prompt' => '',
+                'deleted' => 0,
+                'hidden' => 0,
+            ],
+        ]);
+
+        $this->subject->setContext('pages', '42', 'tree');
+        $this->subject->setTemplateService($templateService);
+
+        $items = $this->subject->addItems([]);
+
+        self::assertArrayHasKey('landingPageCreate', $items);
+        $item = $items['landingPageCreate'];
+        self::assertArrayHasKey('additionalAttributes', $item);
+        self::assertArrayHasKey('data-callback-module', $item['additionalAttributes']);
+        self::assertSame('@netresearch/nr-landingpage/context-menu-actions', $item['additionalAttributes']['data-callback-module']);
+        self::assertArrayHasKey('data-navigate-uri', $item['additionalAttributes']);
+        self::assertNotEmpty($item['additionalAttributes']['data-navigate-uri']);
     }
 }

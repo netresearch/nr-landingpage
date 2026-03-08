@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\ContextMenu;
 
+use Netresearch\NrLandingpage\Service\LandingPageDetectionService;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use TYPO3\CMS\Backend\ContextMenu\ItemProviders\AbstractProvider;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
@@ -19,9 +20,16 @@ final class LandingPageItemProvider extends AbstractProvider
             'iconIdentifier' => 'nr-landingpage-module',
             'callbackAction' => 'createLandingPage',
         ],
+        'landingPageRegenerate' => [
+            'type' => 'item',
+            'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:contextMenu.regenerateLandingPage',
+            'iconIdentifier' => 'actions-bolt',
+            'callbackAction' => 'regenerateLandingPage',
+        ],
     ];
 
     private ?TemplateService $templateService = null;
+    private ?LandingPageDetectionService $detectionService = null;
 
     protected function initialize(): void
     {
@@ -40,15 +48,19 @@ final class LandingPageItemProvider extends AbstractProvider
 
     protected function canRender(string $itemName, string $type): bool
     {
-        if ($itemName !== 'landingPageCreate') {
-            return false;
-        }
-
         if (in_array($itemName, $this->disabledItems, true)) {
             return false;
         }
 
-        return $this->getTemplateService()->loadForUser() !== [];
+        if ($itemName === 'landingPageCreate') {
+            return $this->getTemplateService()->hasTemplatesForUser();
+        }
+
+        if ($itemName === 'landingPageRegenerate') {
+            return $this->getDetectionService()->isGeneratedLandingPage((int) $this->identifier);
+        }
+
+        return false;
     }
 
     /**
@@ -57,14 +69,32 @@ final class LandingPageItemProvider extends AbstractProvider
     protected function getAdditionalAttributes(string $itemName): array
     {
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        $moduleUrl = (string) $uriBuilder->buildUriFromRoute('nr_landingpage', [
-            'parentPageId' => $this->identifier,
-        ]);
+
+        if ($itemName === 'landingPageRegenerate') {
+            $moduleUrl = (string) $uriBuilder->buildUriFromRoute('nr_landingpage', [
+                'regeneratePageUid' => $this->identifier,
+                'autoStartWizard' => 1,
+            ]);
+        } else {
+            $moduleUrl = (string) $uriBuilder->buildUriFromRoute('nr_landingpage', [
+                'parentPageId' => $this->identifier,
+                'autoStartWizard' => 1,
+            ]);
+        }
 
         return [
             'data-callback-module' => '@netresearch/nr-landingpage/context-menu-actions',
             'data-navigate-uri' => $moduleUrl,
         ];
+    }
+
+    private function getDetectionService(): LandingPageDetectionService
+    {
+        if ($this->detectionService === null) {
+            $this->detectionService = GeneralUtility::getContainer()->get(LandingPageDetectionService::class);
+        }
+
+        return $this->detectionService;
     }
 
     private function getTemplateService(): TemplateService
@@ -82,5 +112,13 @@ final class LandingPageItemProvider extends AbstractProvider
     public function setTemplateService(TemplateService $templateService): void
     {
         $this->templateService = $templateService;
+    }
+
+    /**
+     * @internal Only for testing purposes
+     */
+    public function setDetectionService(LandingPageDetectionService $detectionService): void
+    {
+        $this->detectionService = $detectionService;
     }
 }
