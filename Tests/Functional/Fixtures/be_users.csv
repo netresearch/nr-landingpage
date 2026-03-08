@@ -1,0 +1,4 @@
+"be_users"
+,"uid","pid","username","password","admin","disable","deleted"
+,1,0,"admin","$2y$12$LlGOhVFBx9LOHG5JnFIXaerXsz8oNTqrR2snm8XYNFlV5kMmBbqbq",1,0,0
+,2,0,"editor","$2y$12$LlGOhVFBx9LOHG5JnFIXaerXsz8oNTqrR2snm8XYNFlV5kMmBbqbq",0,0,0

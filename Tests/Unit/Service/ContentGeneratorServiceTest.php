@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Tests\Unit\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
+use Netresearch\NrLandingpage\Service\BackendLayoutService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
+use Netresearch\NrLandingpage\Service\CTypeMetadataService;
+use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Service\Feature\CompletionService;
+use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\LoggerInterface;
@@ -16,6 +20,24 @@ use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 #[CoversClass(ContentGeneratorService::class)]
 final class ContentGeneratorServiceTest extends UnitTestCase
 {
+    private function createService(CompletionService $completionService): ContentGeneratorService
+    {
+        $cTypeMetadataService = $this->createMock(CTypeMetadataService::class);
+        $cTypeMetadataService->method('buildCTypeDescription')->willReturn('');
+
+        $backendLayoutService = $this->createMock(BackendLayoutService::class);
+        $backendLayoutService->method('getColumnMap')->willReturn([0 => 'Main']);
+        $backendLayoutService->method('formatColumnMapForPrompt')->willReturn('');
+
+        return new ContentGeneratorService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+            $cTypeMetadataService,
+            $backendLayoutService,
+        );
+    }
+
     private function createTemplate(
         string $systemPrompt = 'Test prompt',
         array $allowedCTypes = ['text', 'textmedia'],
@@ -54,7 +76,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $result = $service->generateContent($this->createTemplate(), ['topic' => 'Testing']);
 
         self::assertCount(2, $result);
@@ -79,7 +101,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ))
             ->willReturn([]);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $service->generateContent(
             $this->createTemplate(),
             ['audience' => 'developers', 'tone' => 'formal'],
@@ -97,7 +119,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ))
             ->willReturn([]);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $service->generateContent(
             $this->createTemplate('My landing page system prompt'),
             ['topic' => 'Test'],
@@ -120,7 +142,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $result = $service->generateContent($this->createTemplate(), []);
 
         // TYPO3 HtmlSanitizer encodes disallowed tags rather than stripping
@@ -128,7 +150,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     }
 
     #[Test]
-    public function generateContentFiltersInvalidCTypes(): void
+    public function generateContentFallsBackInvalidCTypeToText(): void
     {
         $llmResponse = [
             ['section' => 'Valid', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
@@ -138,11 +160,12 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $result = $service->generateContent($this->createTemplate(), []);
 
-        self::assertCount(1, $result);
-        self::assertSame('Valid', $result[0]['section']);
+        self::assertCount(2, $result);
+        self::assertSame('text', $result[0]['ctype']);
+        self::assertSame('text', $result[1]['ctype']);
     }
 
     #[Test]
@@ -158,7 +181,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $result = $service->generateContent($this->createTemplate(), []);
 
         self::assertCount(1, $result);
@@ -172,7 +195,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService->method('completeJson')
             ->willThrowException(new RuntimeException('LLM failed'));
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         self::assertSame([], $service->generateContent($this->createTemplate(), []));
     }
 
@@ -191,7 +214,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
                     && $context['error'] === 'LLM exploded',
             ));
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $service->setLogger($logger);
         $service->generateContent($this->createTemplate(), []);
     }
@@ -208,7 +231,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $result = $service->generatePageFields($this->createTemplate(), ['topic' => 'Test']);
 
         self::assertSame('My Page Title', $result['title']);
@@ -230,12 +253,48 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $result = $service->generatePageFields($this->createTemplate(), []);
 
         self::assertCount(3, $result);
         self::assertArrayNotHasKey('unknown_field', $result);
         self::assertArrayNotHasKey('another_extra', $result);
+    }
+
+    #[Test]
+    public function generatePageFieldsAcceptsAllFieldsWhenAllowedFieldsEmpty(): void
+    {
+        $llmResponse = [
+            'title' => 'My Title',
+            'seo_title' => 'SEO Title',
+            'description' => 'A description',
+            'custom_field' => 'Custom Value',
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = $this->createService($completionService);
+        $result = $service->generatePageFields($this->createTemplate(pageFields: []), []);
+
+        self::assertCount(4, $result);
+        self::assertSame('My Title', $result['title']);
+        self::assertSame('Custom Value', $result['custom_field']);
+    }
+
+    #[Test]
+    public function pageFieldsPromptUsesDefaultFieldsWhenEmpty(): void
+    {
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->expects(self::once())
+            ->method('completeJson')
+            ->with(self::callback(
+                fn(string $p): bool => str_contains($p, 'title, seo_title, description, og_title, og_description'),
+            ))
+            ->willReturn([]);
+
+        $service = $this->createService($completionService);
+        $service->generatePageFields($this->createTemplate(pageFields: []), ['topic' => 'Test']);
     }
 
     #[Test]
@@ -245,7 +304,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService->method('completeJson')
             ->willThrowException(new RuntimeException('LLM failed'));
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         self::assertSame([], $service->generatePageFields($this->createTemplate(), []));
     }
 
@@ -265,7 +324,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $result = $service->generateContent($this->createTemplate(), []);
 
         self::assertStringNotContainsString('onclick', $result[0]['bodytext']);
@@ -288,7 +347,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $result = $service->generateContent($this->createTemplate(), []);
 
         self::assertStringNotContainsString('javascript:', $result[0]['bodytext']);
@@ -311,7 +370,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
                     && $context['error'] === 'LLM exploded',
             ));
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $service->setLogger($logger);
         $service->generatePageFields($this->createTemplate(), []);
     }
@@ -328,13 +387,122 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $result = $service->generatePageFields($this->createTemplate(), []);
 
         self::assertCount(1, $result);
         self::assertSame('Valid Title', $result['title']);
         self::assertArrayNotHasKey('seo_title', $result);
         self::assertArrayNotHasKey('description', $result);
+    }
+
+    #[Test]
+    public function validateSectionsSkipsNonStringSectionOrCtype(): void
+    {
+        $llmResponse = [
+            ['section' => 123, 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
+            ['section' => 'Valid', 'ctype' => ['array'], 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
+            ['section' => 'Good', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>ok</p>'],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = $this->createService($completionService);
+        $result = $service->generateContent($this->createTemplate(), []);
+
+        self::assertCount(1, $result);
+        self::assertSame('Good', $result[0]['section']);
+    }
+
+    #[Test]
+    public function validateSectionsHandlesNonStringHeaderAndSubheader(): void
+    {
+        $llmResponse = [
+            ['section' => 'S', 'ctype' => 'text', 'header' => 123, 'subheader' => ['array'], 'bodytext' => null],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = $this->createService($completionService);
+        $result = $service->generateContent($this->createTemplate(), []);
+
+        self::assertCount(1, $result);
+        self::assertSame('', $result[0]['header']);
+        self::assertSame('', $result[0]['subheader']);
+        self::assertSame('', $result[0]['bodytext']);
+    }
+
+    #[Test]
+    public function pageFieldsPromptContainsFieldNames(): void
+    {
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->expects(self::once())
+            ->method('completeJson')
+            ->with(self::callback(
+                fn(string $p): bool => str_contains($p, 'title, seo_title, description')
+                    && str_contains($p, 'seo_title')
+                    && str_contains($p, 'max. 60 Zeichen'),
+            ))
+            ->willReturn([]);
+
+        $service = $this->createService($completionService);
+        $service->generatePageFields($this->createTemplate(), ['topic' => 'Test']);
+    }
+
+    #[Test]
+    public function generateContentAllowsAnyCTypeWhenAllowedCTypesEmpty(): void
+    {
+        $llmResponse = [
+            ['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>a</p>'],
+            ['section' => 'Media', 'ctype' => 'textmedia', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>b</p>'],
+            ['section' => 'Custom', 'ctype' => 'html', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>c</p>'],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = $this->createService($completionService);
+        $result = $service->generateContent($this->createTemplate(allowedCTypes: []), []);
+
+        self::assertCount(3, $result);
+        self::assertSame('text', $result[0]['ctype']);
+        self::assertSame('textmedia', $result[1]['ctype']);
+        self::assertSame('html', $result[2]['ctype']);
+    }
+
+    #[Test]
+    public function generateContentFallsBackToTextForInvalidCType(): void
+    {
+        $llmResponse = [
+            ['section' => 'Hero', 'ctype' => 'html', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>a</p>'],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = $this->createService($completionService);
+        $result = $service->generateContent($this->createTemplate(allowedCTypes: ['text', 'textmedia']), []);
+
+        self::assertCount(1, $result);
+        self::assertSame('text', $result[0]['ctype']);
+    }
+
+    #[Test]
+    public function promptUsesDefaultCTypesWhenAllowedCTypesEmpty(): void
+    {
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->expects(self::once())
+            ->method('completeJson')
+            ->with(self::callback(
+                fn(string $p): bool => str_contains($p, 'text, textmedia, textpic')
+                    && str_contains($p, 'gaengige Content-Typen'),
+            ))
+            ->willReturn([]);
+
+        $service = $this->createService($completionService);
+        $service->generateContent($this->createTemplate(allowedCTypes: []), ['topic' => 'Test']);
     }
 
     #[Test]
@@ -349,10 +517,118 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ))
             ->willReturn([]);
 
-        $service = new ContentGeneratorService($completionService);
+        $service = $this->createService($completionService);
         $service->generateContent(
             $this->createTemplate(),
             ['company' => 'Acme Corp', 'product' => 'Widget'],
         );
+    }
+
+    #[Test]
+    public function generateContentIncludesColPosInValidatedSections(): void
+    {
+        $llmResponse = [
+            ['section' => 'Hero', 'ctype' => 'text', 'colPos' => 0, 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>a</p>'],
+            ['section' => 'Sidebar', 'ctype' => 'text', 'colPos' => 1, 'header' => 'S', 'subheader' => '', 'bodytext' => '<p>b</p>'],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $backendLayoutService = $this->createMock(BackendLayoutService::class);
+        $backendLayoutService->method('getColumnMap')->willReturn([0 => 'Main', 1 => 'Sidebar']);
+        $backendLayoutService->method('formatColumnMapForPrompt')->willReturn('colPos 0 = "Main", colPos 1 = "Sidebar"');
+
+        $cTypeMetadataService = $this->createMock(CTypeMetadataService::class);
+        $cTypeMetadataService->method('buildCTypeDescription')->willReturn('');
+
+        $service = new ContentGeneratorService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+            $cTypeMetadataService,
+            $backendLayoutService,
+        );
+
+        $result = $service->generateContent($this->createTemplate(), []);
+
+        self::assertSame(0, $result[0]['colPos']);
+        self::assertSame(1, $result[1]['colPos']);
+    }
+
+    #[Test]
+    public function generateContentFallsBackToFirstValidColPosForInvalidValue(): void
+    {
+        $llmResponse = [
+            ['section' => 'Hero', 'ctype' => 'text', 'colPos' => 99, 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>a</p>'],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $backendLayoutService = $this->createMock(BackendLayoutService::class);
+        $backendLayoutService->method('getColumnMap')->willReturn([0 => 'Main', 1 => 'Sidebar']);
+        $backendLayoutService->method('formatColumnMapForPrompt')->willReturn('');
+
+        $cTypeMetadataService = $this->createMock(CTypeMetadataService::class);
+        $cTypeMetadataService->method('buildCTypeDescription')->willReturn('');
+
+        $service = new ContentGeneratorService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+            $cTypeMetadataService,
+            $backendLayoutService,
+        );
+
+        $result = $service->generateContent($this->createTemplate(), []);
+
+        self::assertSame(0, $result[0]['colPos']);
+    }
+
+    #[Test]
+    public function generateContentDefaultsColPosToZeroWhenMissing(): void
+    {
+        $llmResponse = [
+            ['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>a</p>'],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = $this->createService($completionService);
+        $result = $service->generateContent($this->createTemplate(), []);
+
+        self::assertSame(0, $result[0]['colPos']);
+    }
+
+    #[Test]
+    public function generateContentHandlesNumericStringColPos(): void
+    {
+        $llmResponse = [
+            ['section' => 'Hero', 'ctype' => 'text', 'colPos' => '1', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>a</p>'],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $backendLayoutService = $this->createMock(BackendLayoutService::class);
+        $backendLayoutService->method('getColumnMap')->willReturn([0 => 'Main', 1 => 'Sidebar']);
+        $backendLayoutService->method('formatColumnMapForPrompt')->willReturn('');
+
+        $cTypeMetadataService = $this->createMock(CTypeMetadataService::class);
+        $cTypeMetadataService->method('buildCTypeDescription')->willReturn('');
+
+        $service = new ContentGeneratorService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+            $cTypeMetadataService,
+            $backendLayoutService,
+        );
+
+        $result = $service->generateContent($this->createTemplate(), []);
+
+        self::assertSame(1, $result[0]['colPos']);
     }
 }

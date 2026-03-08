@@ -1,0 +1,6 @@
+"tx_nrlandingpage_domain_model_template"
+,"uid","pid","title","identifier","description","llm_configuration","system_prompt","allowed_ctypes","page_fields","reference_pages","briefing_mode","publish_mode","be_groups","backend_layout","prompt_optimizer_context","prompt_optimizer_meta_prompt","image_task","hidden","deleted"
+,1,0,"Product LP","product-lp","Product landing page template",0,"Write product descriptions","text,textmedia","seo_title,description","","optional","hidden","","pagets__default","Brand: Acme Corp","",0,0,0
+,2,0,"Event LP","event-lp","Event landing page template",0,"Write event pages","text,header","seo_title","","required","visible","1,2","","","Custom meta-prompt for events",5,0,0
+,3,0,"Hidden Template","hidden-tpl","Should not be loaded",0,"","text","","","none","hidden","","","","",0,1,0
+,4,0,"Deleted Template","deleted-tpl","Should not be loaded",0,"","text","","","none","hidden","","","","",0,0,1

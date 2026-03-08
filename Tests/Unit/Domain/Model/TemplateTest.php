@@ -28,6 +28,10 @@ final class TemplateTest extends UnitTestCase
             briefingMode: 'optional',
             publishMode: 'hidden',
             beGroups: [1, 2],
+            backendLayout: 'pagets__default',
+            promptOptimizerContext: 'Brand: Acme',
+            promptOptimizerMetaPrompt: 'Custom meta-prompt',
+            imageTask: 42,
         );
 
         self::assertSame(1, $template->uid);
@@ -42,6 +46,10 @@ final class TemplateTest extends UnitTestCase
         self::assertSame('optional', $template->briefingMode);
         self::assertSame('hidden', $template->publishMode);
         self::assertSame([1, 2], $template->beGroups);
+        self::assertSame('pagets__default', $template->backendLayout);
+        self::assertSame('Brand: Acme', $template->promptOptimizerContext);
+        self::assertSame('Custom meta-prompt', $template->promptOptimizerMetaPrompt);
+        self::assertSame(42, $template->imageTask);
     }
 
     #[Test]
@@ -79,5 +87,55 @@ final class TemplateTest extends UnitTestCase
     {
         $template = new Template(uid: 1, title: 'T', identifier: 't', referencePages: [10]);
         self::assertTrue($template->hasReferencePages());
+    }
+
+    #[Test]
+    public function imageTaskDefaultsToZero(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't');
+        self::assertSame(0, $template->imageTask);
+        self::assertFalse($template->hasImageTask());
+    }
+
+    #[Test]
+    public function hasImageTaskReturnsTrueWhenSet(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', imageTask: 5);
+        self::assertSame(5, $template->imageTask);
+        self::assertTrue($template->hasImageTask());
+    }
+
+    #[Test]
+    public function getConfigHashReturnsConsistentHash(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', systemPrompt: 'prompt', allowedCTypes: ['text']);
+        self::assertSame($template->getConfigHash(), $template->getConfigHash());
+    }
+
+    #[Test]
+    public function getConfigHashChangesWhenSystemPromptChanges(): void
+    {
+        $a = new Template(uid: 1, title: 'T', identifier: 't', systemPrompt: 'prompt A', allowedCTypes: ['text'], pageFields: [], backendLayout: '', llmConfiguration: 0, imageTask: 0);
+        $b = new Template(uid: 1, title: 'T', identifier: 't', systemPrompt: 'prompt B', allowedCTypes: ['text'], pageFields: [], backendLayout: '', llmConfiguration: 0, imageTask: 0);
+
+        self::assertNotSame($a->getConfigHash(), $b->getConfigHash());
+    }
+
+    #[Test]
+    public function getConfigHashChangesWhenCTypesChange(): void
+    {
+        $a = new Template(uid: 1, title: 'T', identifier: 't', systemPrompt: 'prompt', allowedCTypes: ['text'], pageFields: [], backendLayout: '', llmConfiguration: 0, imageTask: 0);
+        $b = new Template(uid: 1, title: 'T', identifier: 't', systemPrompt: 'prompt', allowedCTypes: ['header'], pageFields: [], backendLayout: '', llmConfiguration: 0, imageTask: 0);
+
+        self::assertNotSame($a->getConfigHash(), $b->getConfigHash());
+    }
+
+    #[Test]
+    public function getConfigHashIsDeterministicRegardlessOfCtypeOrder(): void
+    {
+        $a = new Template(uid: 1, title: 'T', identifier: 't', systemPrompt: 'prompt', allowedCTypes: ['text', 'header'], pageFields: [], backendLayout: '', llmConfiguration: 0, imageTask: 0);
+        $b = new Template(uid: 1, title: 'T', identifier: 't', systemPrompt: 'prompt', allowedCTypes: ['header', 'text'], pageFields: [], backendLayout: '', llmConfiguration: 0, imageTask: 0);
+
+        self::assertSame($a->getConfigHash(), $b->getConfigHash());
     }
 }

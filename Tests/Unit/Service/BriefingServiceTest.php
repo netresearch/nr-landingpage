@@ -6,7 +6,9 @@ namespace Netresearch\NrLandingpage\Tests\Unit\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Service\BriefingService;
+use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Service\Feature\CompletionService;
+use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\LoggerInterface;
@@ -31,7 +33,11 @@ final class BriefingServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
-        $service = new BriefingService($completionService);
+        $service = new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        );
         $questions = $service->generateQuestions($this->createTemplate());
 
         self::assertCount(2, $questions);
@@ -53,7 +59,11 @@ final class BriefingServiceTest extends UnitTestCase
             ))
             ->willReturn([]);
 
-        (new BriefingService($completionService))->generateQuestions($this->createTemplate());
+        (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions($this->createTemplate());
     }
 
     #[Test]
@@ -67,7 +77,11 @@ final class BriefingServiceTest extends UnitTestCase
             ))
             ->willReturn([]);
 
-        (new BriefingService($completionService))->generateQuestions(
+        (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions(
             $this->createTemplate('My custom prompt for events'),
         );
     }
@@ -79,7 +93,11 @@ final class BriefingServiceTest extends UnitTestCase
         $completionService->method('completeJson')
             ->willThrowException(new RuntimeException('LLM failed'));
 
-        $service = new BriefingService($completionService);
+        $service = new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        );
         self::assertSame([], $service->generateQuestions($this->createTemplate()));
     }
 
@@ -93,7 +111,11 @@ final class BriefingServiceTest extends UnitTestCase
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')->willReturn($questions);
 
-        $result = (new BriefingService($completionService))->generateQuestions($this->createTemplate());
+        $result = (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions($this->createTemplate());
         self::assertCount(8, $result);
     }
 
@@ -107,7 +129,11 @@ final class BriefingServiceTest extends UnitTestCase
             'not-an-array',
         ]);
 
-        $result = (new BriefingService($completionService))->generateQuestions($this->createTemplate());
+        $result = (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions($this->createTemplate());
         self::assertCount(1, $result);
         self::assertSame('valid', $result[0]['id']);
     }
@@ -120,7 +146,11 @@ final class BriefingServiceTest extends UnitTestCase
             ['id' => 'q1', 'label' => 'Q1', 'type' => 'invalid_type'],
         ]);
 
-        $result = (new BriefingService($completionService))->generateQuestions($this->createTemplate());
+        $result = (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions($this->createTemplate());
         self::assertSame('text', $result[0]['type']);
     }
 
@@ -132,7 +162,11 @@ final class BriefingServiceTest extends UnitTestCase
             ['id' => 'style', 'label' => 'Stil', 'type' => 'select', 'options' => ['formal', 'casual']],
         ]);
 
-        $result = (new BriefingService($completionService))->generateQuestions($this->createTemplate());
+        $result = (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions($this->createTemplate());
         self::assertSame('select', $result[0]['type']);
         self::assertSame(['formal', 'casual'], $result[0]['options']);
     }
@@ -148,7 +182,11 @@ final class BriefingServiceTest extends UnitTestCase
             null,
         ]);
 
-        $service = new BriefingService($completionService);
+        $service = new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        );
         self::assertSame([], $service->generateQuestions($this->createTemplate()));
     }
 
@@ -167,9 +205,50 @@ final class BriefingServiceTest extends UnitTestCase
                     && $context['error'] === 'LLM exploded',
             ));
 
-        $service = new BriefingService($completionService);
+        $service = new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        );
         $service->setLogger($logger);
         $service->generateQuestions($this->createTemplate());
+    }
+
+    #[Test]
+    public function skipsItemsWithNonStringIdOrLabel(): void
+    {
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn([
+            ['id' => 123, 'label' => 'Numeric ID', 'type' => 'text'],
+            ['id' => 'valid', 'label' => ['array'], 'type' => 'text'],
+            ['id' => 'ok', 'label' => 'OK', 'type' => 123],
+            ['id' => 'good', 'label' => 'Good', 'type' => 'text', 'placeholder' => ['not-string']],
+            ['id' => 'fine', 'label' => 'Fine', 'type' => 'text', 'placeholder' => 'hint'],
+        ]);
+
+        $result = (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions($this->createTemplate());
+        self::assertCount(1, $result);
+        self::assertSame('fine', $result[0]['id']);
+    }
+
+    #[Test]
+    public function optionsWithNonScalarValuesAreConvertedToEmptyStrings(): void
+    {
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn([
+            ['id' => 'q', 'label' => 'Q', 'type' => 'select', 'options' => ['valid', ['nested'], 42]],
+        ]);
+
+        $result = (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions($this->createTemplate());
+        self::assertSame(['valid', '', '42'], $result[0]['options']);
     }
 
     #[Test]
@@ -184,7 +263,11 @@ final class BriefingServiceTest extends UnitTestCase
             ))
             ->willReturn([]);
 
-        (new BriefingService($completionService))->generateQuestions(
+        (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions(
             $this->createTemplate(''),
         );
     }
