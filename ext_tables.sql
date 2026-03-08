@@ -9,5 +9,19 @@ CREATE TABLE tx_nrlandingpage_domain_model_template (
     reference_pages text,
     briefing_mode varchar(20) NOT NULL DEFAULT 'optional',
     publish_mode varchar(20) NOT NULL DEFAULT 'hidden',
-    be_groups text
+    be_groups text,
+    backend_layout varchar(255) NOT NULL DEFAULT '',
+    prompt_optimizer_context text,
+    prompt_optimizer_meta_prompt text,
+    image_task int(11) unsigned NOT NULL DEFAULT 0
+);
+
+CREATE TABLE pages (
+    tx_nrlandingpage_template_uid int(11) unsigned DEFAULT 0,
+    tx_nrlandingpage_briefing_data text,
+    tx_nrlandingpage_config_hash varchar(64) NOT NULL DEFAULT '',
+    tx_nrlandingpage_generated_at int(11) unsigned DEFAULT 0,
+    tx_nrlandingpage_source_page_uid int(11) unsigned DEFAULT 0,
+
+    KEY idx_template_uid (tx_nrlandingpage_template_uid)
 );
