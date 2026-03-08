@@ -40,3 +40,4 @@ step-by-step backend wizard.
    Installation/Index
    Configuration/Index
    Usage/Index
+   Troubleshooting/Index
