@@ -1,26 +1,160 @@
 <html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
       data-namespace-typo3-fluid="true">
 <f:layout name="Module" />
 <f:section name="Content">
-    <div class="landing-page-wizard" id="landing-page-wizard"
-         data-parent-page-id="{parentPageId}">
-        <h1><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.title" default="Landing Page Wizard" /></h1>
-        <div class="wizard-progress mb-4" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="5">
-            <div class="progress">
-                <div class="progress-bar" style="width: 20%"></div>
+    <div class="landing-page-module p-4" id="landing-page-module">
+
+        <!-- Section 1: Create Landing Page -->
+        <div class="row mb-5">
+            <div class="col-12 text-center py-4">
+                <div class="mb-3">
+                    <core:icon identifier="nr-landingpage-module" size="large" />
+                </div>
+                <h1 class="mb-2"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:module.title" /></h1>
+                <p class="lead text-body-secondary mb-4">
+                    <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:module.description" />
+                </p>
+                <button type="button"
+                        class="btn btn-primary btn-lg"
+                        id="nr-landingpage-launch-wizard"
+                        data-parent-page-id="{parentPageId}"
+                        data-regenerate-page-uid="{regeneratePageUid}"
+                        data-auto-start="{f:if(condition: autoStartWizard, then: '1', else: '0')}">
+                    <core:icon identifier="actions-plus" size="small" />
+                    <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:module.button.createLandingPage" />
+                </button>
             </div>
-            <div class="wizard-step-labels d-flex justify-content-between mt-1">
-                <span><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.step.template" default="Template" /></span>
-                <span><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.step.briefing" default="Briefing" /></span>
-                <span><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.step.pageFields" default="Page Fields" /></span>
-                <span><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.step.content" default="Content" /></span>
-                <span><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:wizard.step.placement" default="Placement" /></span>
+        </div>
+
+        <!-- Section 2: Templates -->
+        <div class="mb-5">
+            <h2 class="mb-3">
+                <core:icon identifier="actions-template" size="small" />
+                <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.heading" />
+            </h2>
+
+            <f:if condition="{templates}">
+                <f:then>
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                        <f:for each="{templates}" as="template">
+                            <div class="col">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{template.title}</h5>
+                                        <f:if condition="{template.description}">
+                                            <p class="card-text text-body-secondary small">{template.description}</p>
+                                        </f:if>
+                                        <div class="d-flex flex-wrap gap-1 mb-3">
+                                            <span class="badge bg-secondary">
+                                                <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.badge.briefing" />: {template.briefingMode}
+                                            </span>
+                                            <f:if condition="{template.ctypeCount}">
+                                                <span class="badge bg-info text-dark">
+                                                    {template.ctypeCount} <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.badge.ctypes" />
+                                                </span>
+                                            </f:if>
+                                            <f:if condition="{template.hasSystemPrompt}">
+                                                <span class="badge bg-success" title="{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.badge.promptConfigured')}">
+                                                    <core:icon identifier="actions-check" size="small" />
+                                                    <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.badge.prompt" />
+                                                </span>
+                                            </f:if>
+                                            <f:if condition="!{template.hasSystemPrompt}">
+                                                <span class="badge bg-warning text-dark" title="{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.badge.promptMissing')}">
+                                                    <core:icon identifier="actions-exclamation-triangle" size="small" />
+                                                    <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.badge.prompt" />
+                                                </span>
+                                            </f:if>
+                                            <f:if condition="{template.hasReferencePages}">
+                                                <span class="badge bg-info text-dark">
+                                                    <core:icon identifier="actions-page" size="small" />
+                                                    <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.badge.refPages" />
+                                                </span>
+                                            </f:if>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-transparent border-top-0 d-flex gap-2">
+                                        <button type="button"
+                                                class="btn btn-primary btn-sm nr-landingpage-create-from-template"
+                                                data-template="{template -> f:format.json() -> f:format.htmlspecialchars()}">
+                                            <core:icon identifier="actions-plus" size="small" />
+                                            <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.button.create" />
+                                        </button>
+                                        <a href="{template.editUrl}" class="btn btn-default btn-sm">
+                                            <core:icon identifier="actions-open" size="small" />
+                                            <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.button.edit" />
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </f:for>
+                    </div>
+                </f:then>
+                <f:else>
+                    <div class="callout callout-info">
+                        <div class="callout-body">
+                            <h4 class="callout-title">
+                                <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.empty.title" />
+                            </h4>
+                            <p class="mb-3">
+                                <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.empty.description" />
+                            </p>
+                            <a href="{createTemplateUrl}" class="btn btn-default">
+                                <core:icon identifier="actions-plus" size="small" />
+                                <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.templates.empty.button" />
+                            </a>
+                        </div>
+                    </div>
+                </f:else>
+            </f:if>
+        </div>
+
+        <!-- Section 3: Documentation -->
+        <div class="mb-4">
+            <h2 class="mb-3">
+                <core:icon identifier="actions-question" size="small" />
+                <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.heading" />
+            </h2>
+            <div class="row row-cols-1 row-cols-md-2 g-3">
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <core:icon identifier="actions-cog" size="small" />
+                                <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.configuration.title" />
+                            </h5>
+                            <dl class="small mb-0">
+                                <dt><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.configuration.systemPrompt" /></dt>
+                                <dd class="text-body-secondary"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.configuration.systemPromptDesc" /></dd>
+                                <dt><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.configuration.ctypes" /></dt>
+                                <dd class="text-body-secondary"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.configuration.ctypesDesc" /></dd>
+                                <dt><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.configuration.briefing" /></dt>
+                                <dd class="text-body-secondary"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.configuration.briefingDesc" /></dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <core:icon identifier="actions-play" size="small" />
+                                <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.usage.title" />
+                            </h5>
+                            <ol class="small mb-0 ps-3">
+                                <li><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.usage.step1" /></li>
+                                <li><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.usage.step2" /></li>
+                                <li><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.usage.step3" /></li>
+                                <li><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.usage.step4" /></li>
+                                <li><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:hub.docs.usage.step5" /></li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="wizard-content" role="tabpanel" aria-live="polite">
-        </div>
-        <div class="wizard-navigation mt-3">
-        </div>
+
     </div>
 </f:section>
 </html>

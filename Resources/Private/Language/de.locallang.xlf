@@ -1,463 +1,614 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
-    <file source-language="en" datatype="plaintext" original="messages" date="2026-03-06T00:00:00Z" product-name="nr_landingpage">
+    <file source-language="en" target-language="de" datatype="plaintext" original="messages" date="2026-03-06T00:00:00Z" product-name="nr_landingpage">
         <header/>
         <body>
             <trans-unit id="contextMenu.createLandingPage" resname="contextMenu.createLandingPage">
                 <source>Create Landing Page</source>
+                <target>Landing Page erstellen</target>
             </trans-unit>
             <trans-unit id="contextMenu.regenerateLandingPage" resname="contextMenu.regenerateLandingPage">
                 <source>Re-Generate Landing Page</source>
+                <target>Landing Page neu generieren</target>
             </trans-unit>
             <trans-unit id="module.title" resname="module.title">
                 <source>Landing Pages</source>
+                <target>Landing Pages</target>
             </trans-unit>
             <trans-unit id="module.description" resname="module.description">
                 <source>Create AI-powered landing pages using configurable templates. Select a template, answer briefing questions, and generate content — all in a guided wizard.</source>
+                <target>Erstellen Sie KI-gestützte Landing Pages mit konfigurierbaren Vorlagen. Wählen Sie eine Vorlage, beantworten Sie Briefing-Fragen und generieren Sie Inhalte — alles in einem geführten Assistenten.</target>
             </trans-unit>
             <trans-unit id="module.button.createLandingPage" resname="module.button.createLandingPage">
                 <source>Create Landing Page</source>
+                <target>Landing Page erstellen</target>
             </trans-unit>
             <trans-unit id="wizard.title" resname="wizard.title">
                 <source>Landing Page Wizard</source>
+                <target>Landing-Page-Assistent</target>
             </trans-unit>
             <trans-unit id="wizard.step.template" resname="wizard.step.template">
                 <source>Template</source>
+                <target>Vorlage</target>
             </trans-unit>
             <trans-unit id="wizard.step.briefing" resname="wizard.step.briefing">
                 <source>Briefing</source>
+                <target>Briefing</target>
             </trans-unit>
             <trans-unit id="wizard.step.pageFields" resname="wizard.step.pageFields">
                 <source>Page Fields</source>
+                <target>Seitenfelder</target>
             </trans-unit>
             <trans-unit id="wizard.step.content" resname="wizard.step.content">
                 <source>Content</source>
+                <target>Inhalt</target>
             </trans-unit>
             <trans-unit id="wizard.step.placement" resname="wizard.step.placement">
                 <source>Placement</source>
+                <target>Platzierung</target>
             </trans-unit>
             <trans-unit id="wizard.loading" resname="wizard.loading">
                 <source>Loading...</source>
+                <target>Laden...</target>
             </trans-unit>
             <trans-unit id="wizard.loading.templates" resname="wizard.loading.templates">
                 <source>Loading templates...</source>
+                <target>Vorlagen werden geladen...</target>
             </trans-unit>
             <trans-unit id="wizard.loading.briefing" resname="wizard.loading.briefing">
                 <source>Generating briefing questions...</source>
+                <target>Briefing-Fragen werden generiert...</target>
             </trans-unit>
             <trans-unit id="wizard.loading.pageFields" resname="wizard.loading.pageFields">
                 <source>Generating page fields...</source>
+                <target>Seitenfelder werden generiert...</target>
             </trans-unit>
             <trans-unit id="wizard.loading.content" resname="wizard.loading.content">
                 <source>Generating content sections...</source>
+                <target>Inhaltsbereiche werden generiert...</target>
             </trans-unit>
             <trans-unit id="wizard.loading.creating" resname="wizard.loading.creating">
                 <source>Creating landing page...</source>
+                <target>Landing Page wird erstellt...</target>
             </trans-unit>
             <trans-unit id="wizard.loading.regenerating" resname="wizard.loading.regenerating">
                 <source>Regenerating section...</source>
+                <target>Abschnitt wird neu generiert...</target>
             </trans-unit>
             <trans-unit id="wizard.template.select" resname="wizard.template.select">
                 <source>Select a Template</source>
+                <target>Vorlage auswählen</target>
             </trans-unit>
             <trans-unit id="wizard.template.none" resname="wizard.template.none">
                 <source>No templates available. Please configure at least one template.</source>
+                <target>Keine Vorlagen verfügbar. Bitte mindestens eine Vorlage konfigurieren.</target>
             </trans-unit>
             <trans-unit id="wizard.template.list" resname="wizard.template.list">
                 <source>Template list</source>
+                <target>Vorlagenliste</target>
             </trans-unit>
             <trans-unit id="wizard.template.briefingBadge" resname="wizard.template.briefingBadge">
                 <source>Briefing: %s</source>
+                <target>Briefing: %s</target>
             </trans-unit>
             <trans-unit id="wizard.briefing.heading" resname="wizard.briefing.heading">
                 <source>Briefing</source>
+                <target>Briefing</target>
             </trans-unit>
             <trans-unit id="wizard.briefing.description" resname="wizard.briefing.description">
                 <source>Answer the following questions to help generate your landing page content.</source>
+                <target>Beantworten Sie die folgenden Fragen, um den Inhalt Ihrer Landing Page zu generieren.</target>
             </trans-unit>
             <trans-unit id="wizard.briefing.form" resname="wizard.briefing.form">
                 <source>Briefing form</source>
+                <target>Briefing-Formular</target>
             </trans-unit>
             <trans-unit id="wizard.briefing.titleLabel" resname="wizard.briefing.titleLabel">
                 <source>Title / Topic</source>
+                <target>Titel / Thema</target>
             </trans-unit>
             <trans-unit id="wizard.briefing.titlePlaceholder" resname="wizard.briefing.titlePlaceholder">
                 <source>What is the main topic of this landing page?</source>
+                <target>Was ist das Hauptthema dieser Landing Page?</target>
             </trans-unit>
             <trans-unit id="wizard.pageFields.heading" resname="wizard.pageFields.heading">
                 <source>Page Fields</source>
+                <target>Seitenfelder</target>
             </trans-unit>
             <trans-unit id="wizard.pageFields.description" resname="wizard.pageFields.description">
                 <source>Review and edit the generated page fields. These will be used as page properties.</source>
+                <target>Prüfen und bearbeiten Sie die generierten Seitenfelder. Diese werden als Seiteneigenschaften verwendet.</target>
             </trans-unit>
             <trans-unit id="wizard.pageFields.form" resname="wizard.pageFields.form">
                 <source>Page fields form</source>
+                <target>Seitenfelder-Formular</target>
             </trans-unit>
             <trans-unit id="wizard.pageFields.pageTitle" resname="wizard.pageFields.pageTitle">
                 <source>Page Title</source>
+                <target>Seitentitel</target>
             </trans-unit>
             <trans-unit id="wizard.pageFields.urlSlug" resname="wizard.pageFields.urlSlug">
                 <source>URL Slug</source>
+                <target>URL-Pfad</target>
             </trans-unit>
             <trans-unit id="wizard.pageFields.seoTitle" resname="wizard.pageFields.seoTitle">
                 <source>SEO Title</source>
+                <target>SEO-Titel</target>
             </trans-unit>
             <trans-unit id="wizard.pageFields.metaDescription" resname="wizard.pageFields.metaDescription">
                 <source>Meta Description</source>
+                <target>Meta-Beschreibung</target>
             </trans-unit>
             <trans-unit id="wizard.pageFields.ogTitle" resname="wizard.pageFields.ogTitle">
                 <source>OG Title</source>
+                <target>OG-Titel</target>
             </trans-unit>
             <trans-unit id="wizard.pageFields.ogDescription" resname="wizard.pageFields.ogDescription">
                 <source>OG Description</source>
+                <target>OG-Beschreibung</target>
             </trans-unit>
             <trans-unit id="wizard.content.heading" resname="wizard.content.heading">
                 <source>Content Sections</source>
+                <target>Inhaltsbereiche</target>
             </trans-unit>
             <trans-unit id="wizard.content.description" resname="wizard.content.description">
                 <source>Review the generated content sections. You can regenerate individual sections.</source>
+                <target>Prüfen Sie die generierten Inhaltsbereiche. Einzelne Abschnitte können neu generiert werden.</target>
             </trans-unit>
             <trans-unit id="wizard.content.none" resname="wizard.content.none">
                 <source>No content sections were generated.</source>
+                <target>Es wurden keine Inhaltsbereiche generiert.</target>
             </trans-unit>
             <trans-unit id="wizard.content.sections" resname="wizard.content.sections">
                 <source>Content sections</source>
+                <target>Inhaltsbereiche</target>
             </trans-unit>
             <trans-unit id="wizard.content.sectionHeader" resname="wizard.content.sectionHeader">
                 <source>Section header</source>
+                <target>Abschnitts-Überschrift</target>
             </trans-unit>
             <trans-unit id="wizard.content.sectionSubheader" resname="wizard.content.sectionSubheader">
                 <source>Section subheader</source>
+                <target>Abschnitts-Unterüberschrift</target>
             </trans-unit>
             <trans-unit id="wizard.content.sectionBody" resname="wizard.content.sectionBody">
                 <source>Section body text</source>
+                <target>Abschnitts-Text</target>
             </trans-unit>
             <trans-unit id="wizard.content.imageSuggestions" resname="wizard.content.imageSuggestions">
                 <source>Select an image for this section:</source>
+                <target>Bild für diesen Abschnitt wählen:</target>
             </trans-unit>
             <trans-unit id="wizard.content.imageSearchPlaceholder" resname="wizard.content.imageSearchPlaceholder">
                 <source>Search images…</source>
+                <target>Bilder suchen…</target>
             </trans-unit>
             <trans-unit id="wizard.content.imageSearchButton" resname="wizard.content.imageSearchButton">
                 <source>Search</source>
+                <target>Suchen</target>
             </trans-unit>
             <trans-unit id="wizard.content.imageSearchEmpty" resname="wizard.content.imageSearchEmpty">
                 <source>No images found</source>
+                <target>Keine Bilder gefunden</target>
             </trans-unit>
             <trans-unit id="wizard.content.imageAutoSearchEmpty" resname="wizard.content.imageAutoSearchEmpty">
                 <source>No images found automatically for keywords: %s. Try refining the search below.</source>
+                <target>Keine Bilder automatisch gefunden für: %s. Versuchen Sie die Suche unten anzupassen.</target>
             </trans-unit>
             <trans-unit id="wizard.error.imageSearch" resname="wizard.error.imageSearch">
                 <source>Image search failed</source>
-            </trans-unit>
-            <trans-unit id="wizard.content.imageGenerateButton" resname="wizard.content.imageGenerateButton">
-                <source>Generate with AI</source>
-            </trans-unit>
-            <trans-unit id="wizard.content.imageGenerating" resname="wizard.content.imageGenerating">
-                <source>Generating…</source>
-            </trans-unit>
-            <trans-unit id="wizard.content.imageGenerated" resname="wizard.content.imageGenerated">
-                <source>Image generated successfully</source>
-            </trans-unit>
-            <trans-unit id="wizard.error.imageGenerate" resname="wizard.error.imageGenerate">
-                <source>Image generation failed</source>
+                <target>Bildsuche fehlgeschlagen</target>
             </trans-unit>
             <trans-unit id="wizard.content.imageGenerationError" resname="wizard.content.imageGenerationError">
                 <source>AI image generation failed:</source>
+                <target>KI-Bildgenerierung fehlgeschlagen:</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.imageGenerateButton" resname="wizard.content.imageGenerateButton">
+                <source>Generate with AI</source>
+                <target>Mit KI generieren</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.imageGenerating" resname="wizard.content.imageGenerating">
+                <source>Generating…</source>
+                <target>Wird generiert…</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.imageGenerated" resname="wizard.content.imageGenerated">
+                <source>Image generated successfully</source>
+                <target>Bild erfolgreich generiert</target>
+            </trans-unit>
+            <trans-unit id="wizard.error.imageGenerate" resname="wizard.error.imageGenerate">
+                <source>Image generation failed</source>
+                <target>Bildgenerierung fehlgeschlagen</target>
             </trans-unit>
             <trans-unit id="wizard.placement.heading" resname="wizard.placement.heading">
                 <source>Placement &amp; Save</source>
+                <target>Platzierung &amp; Speichern</target>
             </trans-unit>
             <trans-unit id="wizard.placement.description" resname="wizard.placement.description">
                 <source>Review your settings and create the landing page.</source>
+                <target>Prüfen Sie Ihre Einstellungen und erstellen Sie die Landing Page.</target>
             </trans-unit>
             <trans-unit id="wizard.placement.form" resname="wizard.placement.form">
                 <source>Placement form</source>
+                <target>Platzierungs-Formular</target>
             </trans-unit>
             <trans-unit id="wizard.placement.parentPageId" resname="wizard.placement.parentPageId">
                 <source>Parent Page ID</source>
+                <target>Übergeordnete Seiten-ID</target>
             </trans-unit>
             <trans-unit id="wizard.placement.parentPageIdPlaceholder" resname="wizard.placement.parentPageIdPlaceholder">
                 <source>Enter the UID of the parent page</source>
+                <target>UID der übergeordneten Seite eingeben</target>
             </trans-unit>
             <trans-unit id="wizard.summary" resname="wizard.summary">
                 <source>Summary</source>
+                <target>Zusammenfassung</target>
             </trans-unit>
             <trans-unit id="wizard.summary.fieldsConfigured" resname="wizard.summary.fieldsConfigured">
                 <source>%d field(s) configured</source>
+                <target>%d Feld(er) konfiguriert</target>
             </trans-unit>
             <trans-unit id="wizard.summary.sections" resname="wizard.summary.sections">
                 <source>%d section(s)</source>
+                <target>%d Abschnitt(e)</target>
             </trans-unit>
             <trans-unit id="wizard.summary.sectionNames" resname="wizard.summary.sectionNames">
                 <source>Sections</source>
+                <target>Abschnitte</target>
             </trans-unit>
             <trans-unit id="wizard.summary.untitled" resname="wizard.summary.untitled">
                 <source>Untitled</source>
+                <target>Ohne Titel</target>
             </trans-unit>
             <trans-unit id="wizard.confirm.title" resname="wizard.confirm.title">
                 <source>Create Landing Page</source>
+                <target>Landing Page erstellen</target>
             </trans-unit>
             <trans-unit id="wizard.confirm.message" resname="wizard.confirm.message">
                 <source>Do you want to create the landing page now? A new page will be added to the page tree.</source>
+                <target>Soll die Landing Page jetzt erstellt werden? Eine neue Seite wird im Seitenbaum angelegt.</target>
             </trans-unit>
             <trans-unit id="wizard.regenerate.info" resname="wizard.regenerate.info">
                 <source>Re-generating a landing page. The previous template and briefing answers have been pre-filled. A new draft page will be created alongside the original.</source>
+                <target>Neugenerierung einer Landing Page. Das vorherige Template und die Briefing-Antworten wurden vorausgefüllt. Eine neue Entwurfsseite wird neben dem Original erstellt.</target>
             </trans-unit>
             <trans-unit id="wizard.regenerate.templateDeleted" resname="wizard.regenerate.templateDeleted">
                 <source>The template used for the original page is no longer available. Please select a different template.</source>
+                <target>Das für die Originalseite verwendete Template ist nicht mehr verfügbar. Bitte wählen Sie ein anderes Template.</target>
             </trans-unit>
             <trans-unit id="wizard.confirm.regenerateTitle" resname="wizard.confirm.regenerateTitle">
                 <source>Re-Generate Landing Page</source>
+                <target>Landing Page neu generieren</target>
             </trans-unit>
             <trans-unit id="wizard.confirm.regenerateMessage" resname="wizard.confirm.regenerateMessage">
                 <source>A new draft page will be created alongside the original. The original page remains unchanged.</source>
+                <target>Eine neue Entwurfsseite wird neben dem Original erstellt. Die Originalseite bleibt unverändert.</target>
             </trans-unit>
             <trans-unit id="wizard.success.heading" resname="wizard.success.heading">
                 <source>Landing Page Created!</source>
+                <target>Landing Page erstellt!</target>
             </trans-unit>
             <trans-unit id="wizard.success.message" resname="wizard.success.message">
                 <source>The landing page "%s" has been successfully created.</source>
+                <target>Die Landing Page "%s" wurde erfolgreich erstellt.</target>
             </trans-unit>
             <trans-unit id="wizard.success.editPage" resname="wizard.success.editPage">
                 <source>Edit Page Properties</source>
+                <target>Seiteneigenschaften bearbeiten</target>
             </trans-unit>
             <trans-unit id="wizard.success.openPageModule" resname="wizard.success.openPageModule">
                 <source>Open in Page Module</source>
+                <target>Im Seitenmodul öffnen</target>
             </trans-unit>
             <trans-unit id="wizard.success.createAnother" resname="wizard.success.createAnother">
                 <source>Create Another</source>
+                <target>Weitere erstellen</target>
             </trans-unit>
             <trans-unit id="wizard.button.continue" resname="wizard.button.continue">
                 <source>Continue</source>
+                <target>Weiter</target>
             </trans-unit>
             <trans-unit id="wizard.button.skip" resname="wizard.button.skip">
                 <source>Skip</source>
+                <target>Überspringen</target>
             </trans-unit>
             <trans-unit id="wizard.button.back" resname="wizard.button.back">
                 <source>Back</source>
+                <target>Zurück</target>
             </trans-unit>
             <trans-unit id="wizard.button.retry" resname="wizard.button.retry">
                 <source>Retry</source>
+                <target>Erneut versuchen</target>
             </trans-unit>
             <trans-unit id="wizard.button.regenerate" resname="wizard.button.regenerate">
                 <source>Regenerate</source>
+                <target>Neu generieren</target>
             </trans-unit>
             <trans-unit id="wizard.button.generate" resname="wizard.button.generate">
                 <source>Generate Landing Page</source>
+                <target>Landing Page generieren</target>
             </trans-unit>
             <trans-unit id="wizard.button.backLabel" resname="wizard.button.backLabel">
                 <source>Go to previous step</source>
+                <target>Zum vorherigen Schritt</target>
             </trans-unit>
             <trans-unit id="wizard.button.skipLabel" resname="wizard.button.skipLabel">
                 <source>Skip this step</source>
+                <target>Diesen Schritt überspringen</target>
             </trans-unit>
             <trans-unit id="wizard.button.continueLabel" resname="wizard.button.continueLabel">
                 <source>Continue to next step</source>
+                <target>Weiter zum nächsten Schritt</target>
             </trans-unit>
             <trans-unit id="wizard.notification.titleRequired" resname="wizard.notification.titleRequired">
                 <source>Title required</source>
+                <target>Titel erforderlich</target>
             </trans-unit>
             <trans-unit id="wizard.notification.titleRequiredMessage" resname="wizard.notification.titleRequiredMessage">
                 <source>Please enter a title or topic.</source>
+                <target>Bitte geben Sie einen Titel oder ein Thema ein.</target>
             </trans-unit>
             <trans-unit id="wizard.notification.pageTitleRequired" resname="wizard.notification.pageTitleRequired">
                 <source>Please enter a page title.</source>
+                <target>Bitte geben Sie einen Seitentitel ein.</target>
             </trans-unit>
             <trans-unit id="wizard.notification.parentRequired" resname="wizard.notification.parentRequired">
                 <source>Parent page required</source>
+                <target>Übergeordnete Seite erforderlich</target>
             </trans-unit>
             <trans-unit id="wizard.notification.parentRequiredMessage" resname="wizard.notification.parentRequiredMessage">
                 <source>Please enter a valid parent page ID.</source>
+                <target>Bitte geben Sie eine gültige Seiten-ID ein.</target>
             </trans-unit>
             <trans-unit id="wizard.notification.created" resname="wizard.notification.created">
                 <source>Landing page created</source>
+                <target>Landing Page erstellt</target>
             </trans-unit>
             <trans-unit id="wizard.notification.createdMessage" resname="wizard.notification.createdMessage">
                 <source>The landing page "%s" has been created.</source>
+                <target>Die Landing Page „%s" wurde erstellt.</target>
             </trans-unit>
             <trans-unit id="wizard.notification.sectionRegenerated" resname="wizard.notification.sectionRegenerated">
                 <source>Section regenerated</source>
+                <target>Abschnitt neu generiert</target>
             </trans-unit>
             <trans-unit id="wizard.notification.sectionRegeneratedMessage" resname="wizard.notification.sectionRegeneratedMessage">
                 <source>Section %d has been regenerated.</source>
+                <target>Abschnitt %d wurde neu generiert.</target>
             </trans-unit>
             <trans-unit id="wizard.notification.regenerationFailed" resname="wizard.notification.regenerationFailed">
                 <source>Regeneration failed</source>
+                <target>Neugenerierung fehlgeschlagen</target>
             </trans-unit>
             <trans-unit id="wizard.error.templates" resname="wizard.error.templates">
                 <source>Failed to load templates: %s</source>
+                <target>Vorlagen konnten nicht geladen werden: %s</target>
             </trans-unit>
             <trans-unit id="wizard.error.briefing" resname="wizard.error.briefing">
                 <source>Failed to generate briefing: %s</source>
+                <target>Briefing konnte nicht generiert werden: %s</target>
             </trans-unit>
             <trans-unit id="wizard.error.pageFields" resname="wizard.error.pageFields">
                 <source>Failed to generate page fields: %s</source>
+                <target>Seitenfelder konnten nicht generiert werden: %s</target>
             </trans-unit>
             <trans-unit id="wizard.error.content" resname="wizard.error.content">
                 <source>Failed to generate content: %s</source>
+                <target>Inhalt konnte nicht generiert werden: %s</target>
             </trans-unit>
             <trans-unit id="wizard.error.save" resname="wizard.error.save">
                 <source>Failed to create landing page: %s</source>
+                <target>Landing Page konnte nicht erstellt werden: %s</target>
             </trans-unit>
             <trans-unit id="wizard.error.templateMissing" resname="wizard.error.templateMissing">
                 <source>Template data is missing. Please restart the wizard.</source>
+                <target>Vorlagendaten fehlen. Bitte starten Sie den Assistenten neu.</target>
             </trans-unit>
             <trans-unit id="wizard.briefing.skipped" resname="wizard.briefing.skipped">
                 <source>Briefing not required for this template. Continue to the next step.</source>
+                <target>Für diese Vorlage ist kein Briefing erforderlich. Fahren Sie mit dem nächsten Schritt fort.</target>
             </trans-unit>
             <trans-unit id="wizard.select.placeholder" resname="wizard.select.placeholder">
                 <source>Please select</source>
+                <target>Bitte wählen</target>
             </trans-unit>
             <!-- Field control: Test Generate -->
             <trans-unit id="fieldControl.testGenerate.saveFirst" resname="fieldControl.testGenerate.saveFirst">
                 <source>Please save the record first</source>
+                <target>Bitte speichern Sie den Datensatz zuerst</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.modal.title" resname="fieldControl.testGenerate.modal.title">
                 <source>Preview — Full Page Generation</source>
+                <target>Vorschau — Komplette Seitengenerierung</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.form.label" resname="fieldControl.testGenerate.form.label">
                 <source>Sample Title / Topic</source>
+                <target>Beispieltitel / Thema</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.form.placeholder" resname="fieldControl.testGenerate.form.placeholder">
                 <source>e.g. Summer Sale 2026</source>
+                <target>z. B. Sommerschlussverkauf 2026</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.form.helpText" resname="fieldControl.testGenerate.form.helpText">
                 <source>Enter a sample topic. The AI will generate a complete page preview with content sections and images based on your template settings.</source>
+                <target>Geben Sie ein Beispielthema ein. Die KI erstellt eine komplette Seitenvorschau mit Inhaltsbereichen und Bildern basierend auf Ihren Vorlageneinstellungen.</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.button.cancel" resname="fieldControl.testGenerate.button.cancel">
                 <source>Cancel</source>
+                <target>Abbrechen</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.button.generate" resname="fieldControl.testGenerate.button.generate">
                 <source>Generate Preview</source>
+                <target>Vorschau generieren</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.validation.titleRequired" resname="fieldControl.testGenerate.validation.titleRequired">
                 <source>Please enter a sample title</source>
+                <target>Bitte geben Sie einen Beispieltitel ein</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.loading" resname="fieldControl.testGenerate.loading">
                 <source>Generating content preview…</source>
+                <target>Inhaltsvorschau wird generiert…</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.error.failed" resname="fieldControl.testGenerate.error.failed">
                 <source>Generation failed:</source>
+                <target>Generierung fehlgeschlagen:</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.error.unknown" resname="fieldControl.testGenerate.error.unknown">
                 <source>Unknown error</source>
+                <target>Unbekannter Fehler</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.error.server" resname="fieldControl.testGenerate.error.server">
                 <source>Could not reach the server. Please check your LLM configuration.</source>
+                <target>Server nicht erreichbar. Bitte prüfen Sie Ihre LLM-Konfiguration.</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.badge.sectionsGenerated" resname="fieldControl.testGenerate.badge.sectionsGenerated">
                 <source> sections generated</source>
+                <target> Abschnitte generiert</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.badge.aiImages" resname="fieldControl.testGenerate.badge.aiImages">
                 <source>AI image generation available</source>
+                <target>KI-Bildgenerierung verfügbar</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.sampleTopic" resname="fieldControl.testGenerate.preview.sampleTopic">
                 <source>Sample topic: </source>
+                <target>Beispielthema: </target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.section" resname="fieldControl.testGenerate.preview.section">
                 <source>Section</source>
+                <target>Abschnitt</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.text" resname="fieldControl.testGenerate.preview.text">
                 <source>text</source>
+                <target>Text</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.imageKeywords" resname="fieldControl.testGenerate.preview.imageKeywords">
                 <source>Image keywords: </source>
+                <target>Bild-Schlagwörter: </target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.imagePrompt" resname="fieldControl.testGenerate.preview.imagePrompt">
                 <source>Image prompt: </source>
+                <target>Bild-Prompt: </target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.imagesFound" resname="fieldControl.testGenerate.preview.imagesFound">
                 <source>Images found:</source>
+                <target>Gefundene Bilder:</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.aiGenerated" resname="fieldControl.testGenerate.preview.aiGenerated">
                 <source>AI generated</source>
+                <target>KI-generiert</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.noImages" resname="fieldControl.testGenerate.preview.noImages">
                 <source>No FAL images found for this section.</source>
+                <target>Keine FAL-Bilder für diesen Abschnitt gefunden.</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.noSections" resname="fieldControl.testGenerate.preview.noSections">
                 <source>No sections were generated. Check your AI instructions and content type settings.</source>
+                <target>Es wurden keine Abschnitte generiert. Prüfen Sie Ihre KI-Anweisungen und Inhaltstyp-Einstellungen.</target>
             </trans-unit>
             <!-- Hub: Templates section -->
             <trans-unit id="hub.templates.heading" resname="hub.templates.heading">
                 <source>Templates</source>
+                <target>Vorlagen</target>
             </trans-unit>
             <trans-unit id="hub.templates.badge.briefing" resname="hub.templates.badge.briefing">
                 <source>Briefing</source>
+                <target>Briefing</target>
             </trans-unit>
             <trans-unit id="hub.templates.badge.ctypes" resname="hub.templates.badge.ctypes">
                 <source>CTypes</source>
+                <target>Inhaltstypen</target>
             </trans-unit>
             <trans-unit id="hub.templates.badge.prompt" resname="hub.templates.badge.prompt">
                 <source>Prompt</source>
+                <target>Prompt</target>
             </trans-unit>
             <trans-unit id="hub.templates.badge.promptConfigured" resname="hub.templates.badge.promptConfigured">
                 <source>System prompt is configured</source>
+                <target>System-Prompt ist konfiguriert</target>
             </trans-unit>
             <trans-unit id="hub.templates.badge.promptMissing" resname="hub.templates.badge.promptMissing">
                 <source>No system prompt configured</source>
+                <target>Kein System-Prompt konfiguriert</target>
             </trans-unit>
             <trans-unit id="hub.templates.badge.refPages" resname="hub.templates.badge.refPages">
                 <source>Ref. Pages</source>
+                <target>Ref.-Seiten</target>
             </trans-unit>
             <trans-unit id="hub.templates.button.create" resname="hub.templates.button.create">
                 <source>Create Landing Page</source>
+                <target>Landing Page erstellen</target>
             </trans-unit>
             <trans-unit id="hub.templates.button.edit" resname="hub.templates.button.edit">
                 <source>Edit Template</source>
+                <target>Vorlage bearbeiten</target>
             </trans-unit>
             <trans-unit id="hub.templates.empty.title" resname="hub.templates.empty.title">
                 <source>No Templates Yet</source>
+                <target>Noch keine Vorlagen</target>
             </trans-unit>
             <trans-unit id="hub.templates.empty.description" resname="hub.templates.empty.description">
                 <source>Templates define how landing pages are generated. Create your first template to configure the AI behaviour, allowed content types, and page fields.</source>
+                <target>Vorlagen definieren, wie Landing Pages generiert werden. Erstellen Sie Ihre erste Vorlage, um das KI-Verhalten, erlaubte Inhaltstypen und Seitenfelder zu konfigurieren.</target>
             </trans-unit>
             <trans-unit id="hub.templates.empty.button" resname="hub.templates.empty.button">
                 <source>Create First Template</source>
+                <target>Erste Vorlage erstellen</target>
             </trans-unit>
             <!-- Hub: Docs section -->
             <trans-unit id="hub.docs.heading" resname="hub.docs.heading">
                 <source>Quick Reference</source>
+                <target>Kurzreferenz</target>
             </trans-unit>
             <trans-unit id="hub.docs.configuration.title" resname="hub.docs.configuration.title">
                 <source>Configuration</source>
+                <target>Konfiguration</target>
             </trans-unit>
             <trans-unit id="hub.docs.configuration.systemPrompt" resname="hub.docs.configuration.systemPrompt">
                 <source>System Prompt</source>
+                <target>System-Prompt</target>
             </trans-unit>
             <trans-unit id="hub.docs.configuration.systemPromptDesc" resname="hub.docs.configuration.systemPromptDesc">
                 <source>Instructions for the AI defining tone, style, and constraints for content generation.</source>
+                <target>Anweisungen für die KI zu Tonalität, Stil und Vorgaben für die Inhaltserstellung.</target>
             </trans-unit>
             <trans-unit id="hub.docs.configuration.ctypes" resname="hub.docs.configuration.ctypes">
                 <source>Allowed CTypes</source>
+                <target>Erlaubte Inhaltstypen</target>
             </trans-unit>
             <trans-unit id="hub.docs.configuration.ctypesDesc" resname="hub.docs.configuration.ctypesDesc">
                 <source>Content element types the AI may produce (e.g. text, textmedia, header).</source>
+                <target>Inhaltselementtypen, die die KI erzeugen darf (z. B. Text, Text mit Medien, Überschrift).</target>
             </trans-unit>
             <trans-unit id="hub.docs.configuration.briefing" resname="hub.docs.configuration.briefing">
                 <source>Briefing Mode</source>
+                <target>Briefing-Modus</target>
             </trans-unit>
             <trans-unit id="hub.docs.configuration.briefingDesc" resname="hub.docs.configuration.briefingDesc">
                 <source>Controls whether editors answer questions before generation: required, optional, or none.</source>
+                <target>Bestimmt, ob Redakteure vor der Generierung Fragen beantworten: Pflicht, optional oder keins.</target>
             </trans-unit>
             <trans-unit id="hub.docs.usage.title" resname="hub.docs.usage.title">
                 <source>How to Use the Wizard</source>
+                <target>So verwenden Sie den Assistenten</target>
             </trans-unit>
             <trans-unit id="hub.docs.usage.step1" resname="hub.docs.usage.step1">
                 <source>Click "Create Landing Page" and select a template.</source>
+                <target>Klicken Sie auf „Landing Page erstellen" und wählen Sie eine Vorlage.</target>
             </trans-unit>
             <trans-unit id="hub.docs.usage.step2" resname="hub.docs.usage.step2">
                 <source>Answer the briefing questions (if required by the template).</source>
+                <target>Beantworten Sie die Briefing-Fragen (falls von der Vorlage gefordert).</target>
             </trans-unit>
             <trans-unit id="hub.docs.usage.step3" resname="hub.docs.usage.step3">
                 <source>Review and edit the generated page fields (title, SEO, OG tags).</source>
+                <target>Prüfen und bearbeiten Sie die generierten Seitenfelder (Titel, SEO, OG-Tags).</target>
             </trans-unit>
             <trans-unit id="hub.docs.usage.step4" resname="hub.docs.usage.step4">
                 <source>Review the generated content sections. Regenerate individual sections if needed.</source>
+                <target>Prüfen Sie die generierten Inhaltsbereiche. Einzelne Abschnitte können bei Bedarf neu generiert werden.</target>
             </trans-unit>
             <trans-unit id="hub.docs.usage.step5" resname="hub.docs.usage.step5">
                 <source>Choose the parent page and save to create the landing page.</source>
+                <target>Wählen Sie die übergeordnete Seite und speichern Sie, um die Landing Page zu erstellen.</target>
             </trans-unit>
         </body>
     </file>
