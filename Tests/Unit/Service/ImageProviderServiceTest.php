@@ -37,6 +37,8 @@ final class ImageProviderServiceTest extends UnitTestCase
         $this->connectionPool = $this->createMock(ConnectionPool::class);
         $this->storageRepository = $this->createMock(StorageRepository::class);
 
+        $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'] = 'gif,jpg,jpeg,tif,tiff,bmp,pcx,tga,png,pdf,ai,svg,webp,avif';
+
         $this->subject = new ImageProviderService(
             $this->imageSearchService,
             $this->connectionPool,
@@ -61,7 +63,7 @@ final class ImageProviderServiceTest extends UnitTestCase
     {
         return base64_decode(
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAB'
-            . 'Nl7BcQAAAABJRU5ErkJggg=='
+            . 'Nl7BcQAAAABJRU5ErkJggg==',
         );
     }
 

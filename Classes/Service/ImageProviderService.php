@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Service;
 
+use finfo;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Specialized\Image\ImageGenerationResult;
 use Psr\Log\LoggerAwareInterface;
@@ -12,6 +13,7 @@ use Throwable;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\File;
+use TYPO3\CMS\Core\Resource\MimeTypeDetector;
 use TYPO3\CMS\Core\Resource\StorageRepository;
 
 /**
@@ -255,14 +257,23 @@ class ImageProviderService implements LoggerAwareInterface
             return null;
         }
 
-        // Validate MIME type of AI-generated image content
-        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        // Validate MIME type against TYPO3's configured allowed image extensions
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
         $mimeType = $finfo->buffer($content);
-        $allowedMimeTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-        if ($mimeType === false || !in_array($mimeType, $allowedMimeTypes, true)) {
-            $this->logger?->error('AI-generated image has invalid MIME type', [
+        if ($mimeType === false || !str_starts_with($mimeType, 'image/')) {
+            $this->logger?->error('AI-generated content is not an image', [
                 'mimeType' => $mimeType,
                 'section' => $sectionHeader,
+            ]);
+            return null;
+        }
+
+        $ext = $this->resolveAllowedExtension($mimeType);
+        if ($ext === null) {
+            $this->logger?->error('AI-generated image type is not allowed by TYPO3 configuration', [
+                'mimeType' => $mimeType,
+                'section' => $sectionHeader,
+                'allowedImageExtensions' => $this->getAllowedImageExtensions(),
             ]);
             return null;
         }
@@ -280,9 +291,6 @@ class ImageProviderService implements LoggerAwareInterface
                 $storage->createFolder($folderPath);
             }
             $folder = $storage->getFolder($folderPath);
-
-            $extensionMap = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/gif' => 'gif', 'image/webp' => 'webp'];
-            $ext = $extensionMap[$mimeType] ?? 'png';
             $filename = 'lp-' . date('Ymd-His') . '-' . substr(md5($sectionHeader . uniqid()), 0, 8) . '.' . $ext;
 
             $tempFile = tempnam(sys_get_temp_dir(), 'lpimg_');
@@ -323,5 +331,44 @@ class ImageProviderService implements LoggerAwareInterface
             ]);
             return null;
         }
+    }
+
+    /**
+     * Resolve a file extension for the given MIME type, respecting TYPO3's
+     * configured allowed image extensions ($GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext']).
+     *
+     * Returns null if the MIME type does not map to any allowed extension.
+     */
+    private function resolveAllowedExtension(string $mimeType): ?string
+    {
+        $allowedExtensions = array_map(
+            'trim',
+            explode(',', $this->getAllowedImageExtensions()),
+        );
+        $allowedExtensions = array_filter($allowedExtensions, static fn(string $ext): bool => $ext !== '');
+
+        $mimeTypeDetector = new MimeTypeDetector();
+        $candidates = $mimeTypeDetector->getFileExtensionsForMimeType($mimeType);
+
+        foreach ($candidates as $candidate) {
+            if (in_array($candidate, $allowedExtensions, true)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Read the admin-configured list of allowed image file extensions.
+     */
+    private function getAllowedImageExtensions(): string
+    {
+        $conf = $GLOBALS['TYPO3_CONF_VARS'] ?? [];
+        $gfx = is_array($conf) ? ($conf['GFX'] ?? []) : [];
+
+        return is_array($gfx) && is_string($gfx['imagefile_ext'] ?? null)
+            ? $gfx['imagefile_ext']
+            : '';
     }
 }
