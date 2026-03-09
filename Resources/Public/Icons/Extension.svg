@@ -1,4 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-    <rect width="64" height="64" rx="8" fill="#ff8700"/>
-    <text x="32" y="42" font-family="sans-serif" font-size="28" font-weight="bold" fill="#fff" text-anchor="middle">LP</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="12" fill="#2F99A4"/><path fill="#FFF" d="M32 26v76a2 2 0 0 0 2 2h60a2 2 0 0 0 2-2V40l-16-16H34a2 2 0 0 0-2 2z"/><path fill="#2F99A4" d="M80 38v-14l16 16h-14a2 2 0 0 1-2-2z" opacity=".6"/><rect fill="#2F99A4" x="40" y="48" width="48" height="16" rx="2"/><path fill="#FFF" d="M40 48h48v16H40z" opacity=".3"/><rect fill="#2F99A4" x="40" y="68" width="22" height="12" rx="2"/><rect fill="#2F99A4" x="66" y="68" width="22" height="12" rx="2"/><rect fill="#2F99A4" x="40" y="84" width="48" height="4" rx="1" opacity=".5"/><rect fill="#2F99A4" x="40" y="92" width="32" height="4" rx="1" opacity=".5"/></svg>

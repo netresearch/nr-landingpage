@@ -29,5 +29,8 @@ services:
   Netresearch\NrLandingpage\Service\PageCreatorService:
     public: true
 
+  Netresearch\NrLandingpage\Service\LandingPageDetectionService:
+    public: true
+
   Netresearch\NrLandingpage\Service\PromptOptimizerService:
     public: true
