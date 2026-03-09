@@ -127,6 +127,26 @@ final class BackendLayoutServiceTest extends UnitTestCase
     }
 
     #[Test]
+    public function getColumnMapPassesPageIdToDataProvider(): void
+    {
+        $layout = $this->createMock(BackendLayout::class);
+        $layout->method('getUsedColumns')->willReturn([
+            0 => 'Main Content',
+            1 => 'Sidebar',
+        ]);
+        $this->dataProviderCollection->expects(self::once())
+            ->method('getBackendLayout')
+            ->with('pagets__2col', 42)
+            ->willReturn($layout);
+
+        $result = $this->subject->getColumnMap('pagets__2col', 42);
+
+        self::assertCount(2, $result);
+        self::assertSame('Main Content', $result[0]);
+        self::assertSame('Sidebar', $result[1]);
+    }
+
+    #[Test]
     public function formatColumnMapForPromptReturnsEmptyForSingleColumn(): void
     {
         $result = $this->subject->formatColumnMapForPrompt([0 => 'Main']);

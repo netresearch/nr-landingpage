@@ -68,12 +68,13 @@ final class ContentGeneratorService implements LoggerAwareInterface
      * Generate content sections for a landing page via LLM.
      *
      * @param array<string, string> $briefingAnswers
+     * @param int $parentPageId Page ID used to resolve TSconfig-based backend layouts
      * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string}>
      */
-    public function generateContent(Template $template, array $briefingAnswers, string $outputLanguage = ''): array
+    public function generateContent(Template $template, array $briefingAnswers, string $outputLanguage = '', int $parentPageId = 0): array
     {
         try {
-            $prompt = $this->buildContentPrompt($template, $briefingAnswers, $outputLanguage);
+            $prompt = $this->buildContentPrompt($template, $briefingAnswers, $outputLanguage, $parentPageId);
             $response = $this->completeJsonWithTemplate($template, $prompt);
         } catch (Throwable $e) {
             $this->logger?->error('Content generation failed', [
@@ -83,7 +84,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
             return [];
         }
 
-        $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout);
+        $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout, $parentPageId);
         $validColPositions = array_keys($columnMap);
 
         return $this->validateSections($response, $template->allowedCTypes, $validColPositions);
@@ -127,7 +128,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
     /**
      * @param array<string, string> $briefingAnswers
      */
-    private function buildContentPrompt(Template $template, array $briefingAnswers, string $outputLanguage = ''): string
+    private function buildContentPrompt(Template $template, array $briefingAnswers, string $outputLanguage = '', int $parentPageId = 0): string
     {
         $briefing = $this->formatBriefing($briefingAnswers);
         $cTypes = $template->allowedCTypes !== []
@@ -138,8 +139,9 @@ final class ContentGeneratorService implements LoggerAwareInterface
             : "Verwende gaengige Content-Typen wie: {$cTypes}";
 
         $cTypeMetadata = $this->buildCTypeMetadataBlock($template->allowedCTypes);
-        $columnBlock = $this->buildColumnBlock($template->backendLayout);
+        $columnBlock = $this->buildColumnBlock($template->backendLayout, $parentPageId);
         $languageBlock = $this->buildLanguageBlock($outputLanguage);
+        $jsonExample = $this->buildJsonExample($template->backendLayout, $cTypes, $parentPageId);
 
         return <<<PROMPT
             {$template->systemPrompt}
@@ -183,12 +185,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Beispiel: "Overhead view of a modern coworking space with diverse professionals collaborating around laptops, natural daylight, warm tones, shallow depth of field"
 
             Antworte ausschliesslich als JSON-Array:
-            [
-              {"section": "string", "ctype": "one of [{$cTypes}]", "colPos": 0,
-               "header": "string", "subheader": "string", "bodytext": "HTML string",
-               "imageKeywords": ["keyword1", "keyword2", "keyword3"],
-               "imagePrompt": "A detailed description of an image suitable for this section"}
-            ]
+            {$jsonExample}
             PROMPT;
     }
 
@@ -219,29 +216,31 @@ final class ContentGeneratorService implements LoggerAwareInterface
     /**
      * Build the column position block for the prompt.
      */
-    private function buildColumnBlock(string $backendLayout): string
+    private function buildColumnBlock(string $backendLayout, int $parentPageId = 0): string
     {
-        $columnMap = $this->backendLayoutService->getColumnMap($backendLayout);
-        $formatted = $this->backendLayoutService->formatColumnMapForPrompt($columnMap);
+        $columnMap = $this->backendLayoutService->getColumnMap($backendLayout, $parentPageId);
 
-        if ($formatted === '') {
+        if (count($columnMap) <= 1) {
             return '';
         }
 
         $columnCount = count($columnMap);
+        $formatted = $this->backendLayoutService->formatColumnMapForPrompt($columnMap);
 
         return <<<BLOCK
 
             --- VERFUEGBARE SPALTEN (Backend Layout) ---
-            Die Seite hat {$columnCount} Inhaltsbereiche (Spalten). Du MUSST fuer JEDE Spalte
-            mindestens ein passendes Content-Element erzeugen.
+            WICHTIG: Die Seite hat {$columnCount} Inhaltsbereiche (Spalten).
+            Du MUSST Content-Elemente auf ALLE {$columnCount} Spalten verteilen.
+            Keine Spalte darf leer bleiben!
 
             Verfuegbare Spalten:
             {$formatted}
 
             Regeln fuer die Spalten-Zuweisung:
             1. Setze "colPos" im JSON auf die Nummer der Spalte, in die der Inhalt gehoert.
-            2. Jede Spalte MUSS mindestens ein Content-Element erhalten — keine Spalte darf leer bleiben.
+               NICHT alle Elemente in colPos 0 — verteile sie sinnvoll auf alle Spalten!
+            2. Jede Spalte MUSS mindestens ein Content-Element erhalten.
             3. Leite den Zweck jeder Spalte aus ihrem Namen ab:
                - "Main", "Content", "Hauptinhalt" → umfangreicher Seiteninhalt (Hero, Features, Texte)
                - "Sidebar", "Seitenleiste", "Aside" → kompakte Zusatzinfos (Kontakt, Links, CTAs, Teaser)
@@ -252,7 +251,50 @@ final class ContentGeneratorService implements LoggerAwareInterface
             4. Verteile den Inhalt so, dass jede Spalte ihrem Zweck entsprechend gefuellt wird.
                Hauptinhalt-Spalten bekommen mehr und laengere Sections,
                Sidebar/Footer-Spalten bekommen kuerzere, fokussierte Sections.
+            5. Pruefe vor der Ausgabe: Kommt jeder colPos-Wert ({$this->formatColPosValues($columnMap)})
+               mindestens einmal im JSON-Array vor? Falls nicht, ergaenze fehlende Spalten!
             BLOCK;
+    }
+
+    /**
+     * Build a JSON example that reflects the actual column layout.
+     *
+     * When multiple columns exist, show examples with different colPos values
+     * to prevent the LLM from defaulting everything to colPos 0.
+     */
+    private function buildJsonExample(string $backendLayout, string $cTypes, int $parentPageId = 0): string
+    {
+        $columnMap = $this->backendLayoutService->getColumnMap($backendLayout, $parentPageId);
+
+        if (count($columnMap) <= 1) {
+            return <<<JSON
+            [
+              {"section": "string", "ctype": "one of [{$cTypes}]", "colPos": 0,
+               "header": "string", "subheader": "string", "bodytext": "HTML string",
+               "imageKeywords": ["keyword1", "keyword2", "keyword3"],
+               "imagePrompt": "A detailed description of an image suitable for this section"}
+            ]
+            JSON;
+        }
+
+        $examples = [];
+        foreach ($columnMap as $colPos => $name) {
+            $examples[] = '  {"section": "Inhalt fuer ' . $name . '", "ctype": "one of [' . $cTypes . ']", "colPos": ' . $colPos . ',' . "\n"
+                . '   "header": "string", "subheader": "string", "bodytext": "HTML string",' . "\n"
+                . '   "imageKeywords": ["keyword1", "keyword2"], "imagePrompt": "..."}';
+        }
+
+        return "[\n" . implode(",\n", $examples) . "\n]";
+    }
+
+    /**
+     * Format colPos values as comma-separated list for prompt instructions.
+     *
+     * @param array<int, string> $columnMap
+     */
+    private function formatColPosValues(array $columnMap): string
+    {
+        return implode(', ', array_keys($columnMap));
     }
 
     /**

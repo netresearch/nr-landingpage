@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Service;
 
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Backend\View\BackendLayout\BackendLayout;
 use TYPO3\CMS\Backend\View\BackendLayout\DataProviderCollection;
 use TYPO3\CMS\Backend\View\BackendLayoutView;
@@ -16,8 +18,9 @@ use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
  * Extracts colPos → name mappings from BackendLayout definitions
  * so the LLM can decide which column to place content elements in.
  */
-class BackendLayoutService
+class BackendLayoutService implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
     /**
      * BackendLayoutView is injected to ensure data providers are registered
      * in the shared DataProviderCollection singleton before we use it.
@@ -49,11 +52,18 @@ class BackendLayoutService
 
         $layout = $this->dataProviderCollection->getBackendLayout($backendLayoutIdentifier, $pageId);
         if (!$layout instanceof BackendLayout) {
+            $this->logger?->warning('Could not resolve backend layout, falling back to single column', [
+                'identifier' => $backendLayoutIdentifier,
+                'pageId' => $pageId,
+            ]);
             return [0 => 'Main'];
         }
 
         $columns = $layout->getUsedColumns();
         if ($columns === []) {
+            $this->logger?->info('Backend layout has no columns defined, falling back to single column', [
+                'identifier' => $backendLayoutIdentifier,
+            ]);
             return [0 => 'Main'];
         }
 

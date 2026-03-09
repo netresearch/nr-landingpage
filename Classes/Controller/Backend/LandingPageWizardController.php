@@ -187,7 +187,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
             $parentPageId = $this->extractIntFromBody($body, 'parentPageId');
             $outputLanguage = $this->resolveOutputLanguage($parentPageId);
 
-            $contentSections = $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage);
+            $contentSections = $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage, $parentPageId);
 
             $images = $this->imageProviderService->resolveImagesForSections($template, $contentSections);
             $imageErrors = $this->imageProviderService->getImageErrors();
@@ -233,7 +233,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
             // Regenerate ALL content and return only the section at the given index.
             // The LLM cannot regenerate just one section — we regenerate all and pick the one the user wanted refreshed.
-            $contentSections = $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage);
+            $contentSections = $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage, $parentPageId);
 
             if (!isset($contentSections[$sectionIndex])) {
                 return new JsonResponse(['success' => false, 'error' => 'Section index out of range'], 400);
