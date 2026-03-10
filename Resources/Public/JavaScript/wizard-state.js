@@ -23,6 +23,7 @@ class WizardState {
         this.imageErrors = [];
         this.hasImageTask = false;
         this.aiGenerationAvailable = false;
+        this.generationMode = 'structured';
     }
 
     setTemplate(template) {

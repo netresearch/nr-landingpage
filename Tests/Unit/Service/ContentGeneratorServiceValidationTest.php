@@ -57,6 +57,7 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
             $this->createMock(LlmConfigurationRepository::class),
             $this->createMock(CTypeMetadataService::class),
             $this->backendLayoutService,
+            new \Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer(),
         );
     }
 
@@ -187,5 +188,116 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
 
         self::assertStringContainsString('"colPos": 0', $result);
         self::assertStringNotContainsString('"colPos": 1', $result);
+    }
+
+    #[Test]
+    public function validateCreativeSectionsSetsCTypeToHtml(): void
+    {
+        $response = [
+            ['section' => 'Hero', 'colPos' => 0, 'header' => 'Welcome', 'bodytext' => '<style>.hero{}</style><section class="hero">Hi</section>'],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main']);
+
+        self::assertCount(1, $result);
+        self::assertSame('html', $result[0]['ctype']);
+        self::assertSame('Hero', $result[0]['section']);
+        self::assertSame('Welcome', $result[0]['header']);
+        self::assertSame(0, $result[0]['colPos']);
+    }
+
+    #[Test]
+    public function validateCreativeSectionsStripsScriptTags(): void
+    {
+        $response = [
+            ['section' => 'Hero', 'colPos' => 0, 'bodytext' => '<style>.x{}</style><script>alert("xss")</script><div>Safe</div>'],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main']);
+
+        self::assertCount(1, $result);
+        self::assertStringNotContainsString('<script>', $result[0]['bodytext']);
+        self::assertStringContainsString('<div>Safe</div>', $result[0]['bodytext']);
+        self::assertStringContainsString('<style>', $result[0]['bodytext']);
+    }
+
+    #[Test]
+    public function validateCreativeSectionsCoercesInvalidColPos(): void
+    {
+        $response = [
+            ['section' => 'Sidebar', 'colPos' => 99, 'bodytext' => '<p>Content</p>'],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main', 1 => 'Sidebar']);
+
+        self::assertSame(0, $result[0]['colPos']);
+    }
+
+    #[Test]
+    public function validateCreativeSectionsReturnsEmptyForNonArray(): void
+    {
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, 'not an array', [0 => 'Main']);
+
+        self::assertSame([], $result);
+    }
+
+    #[Test]
+    public function validateCreativeSectionsSkipsItemsWithoutSection(): void
+    {
+        $response = [
+            ['colPos' => 0, 'bodytext' => '<p>No section key</p>'],
+            ['section' => 'Valid', 'colPos' => 0, 'bodytext' => '<p>OK</p>'],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main']);
+
+        self::assertCount(1, $result);
+        self::assertSame('Valid', $result[0]['section']);
+    }
+
+    #[Test]
+    public function validateCreativeSectionsSetsEmptyImageFields(): void
+    {
+        $response = [
+            ['section' => 'Hero', 'colPos' => 0, 'bodytext' => '<p>Test</p>'],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main']);
+
+        self::assertSame([], $result[0]['imageKeywords']);
+        self::assertSame('', $result[0]['imagePrompt']);
+        self::assertSame('', $result[0]['subheader']);
+    }
+
+    #[Test]
+    public function buildCreativePromptContainsColumnInfo(): void
+    {
+        $layout = $this->createMock(BackendLayout::class);
+        $layout->method('getUsedColumns')->willReturn([0 => 'Main', 1 => 'Sidebar']);
+        $this->dataProviderCollection->method('getBackendLayout')->willReturn($layout);
+
+        $template = new \Netresearch\NrLandingpage\Domain\Model\Template(
+            uid: 1,
+            title: 'Creative Test',
+            identifier: 'creative-test',
+            systemPrompt: 'Be creative',
+            backendLayout: 'pagets__2col',
+            generationMode: 'creative',
+        );
+
+        $method = new ReflectionMethod($this->subject, 'buildCreativePrompt');
+        $result = $method->invoke($this->subject, $template, ['topic' => 'Test'], 'Deutsch', [0 => 'Main', 1 => 'Sidebar']);
+
+        self::assertStringContainsString('KREATIV-MODUS', $result);
+        self::assertStringContainsString('colPos 0: "Main"', $result);
+        self::assertStringContainsString('colPos 1: "Sidebar"', $result);
+        self::assertStringContainsString('KEIN JavaScript', $result);
+        self::assertStringContainsString('Deutsch', $result);
     }
 }

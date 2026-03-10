@@ -27,7 +27,11 @@ class LandingPageWizard {
      * @returns {string}
      */
     getAjaxUrl(key) {
-        return TYPO3.settings.NrLandingpage?.ajaxUrls?.[key] || '';
+        const url = TYPO3.settings.NrLandingpage?.ajaxUrls?.[key] || '';
+        if (!url) {
+            console.warn('[NrLandingpage] Missing AJAX URL for key:', key);
+        }
+        return url;
     }
 
     /**
@@ -81,6 +85,15 @@ class LandingPageWizard {
             clearTimeout(timeoutId);
         }
 
+        if (!response.ok) {
+            let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+            try {
+                const errorJson = await response.json();
+                if (errorJson.error) errorMsg = errorJson.error;
+            } catch (_) { /* non-JSON error response, use HTTP status */ }
+            throw new Error(errorMsg);
+        }
+
         let json;
         try {
             json = await response.json();
@@ -100,6 +113,7 @@ class LandingPageWizard {
      *
      * @param {number} parentPageId
      * @param {number} regeneratePageUid  Page UID to re-generate (0 = new page)
+     * @param {Object|null} preSelectTemplate  Template object to skip selection step
      */
     open(parentPageId = 0, regeneratePageUid = 0, preSelectTemplate = null) {
         WizardState.reset();
@@ -577,13 +591,20 @@ class LandingPageWizard {
             const hasImageTask = result.hasImageTask || false;
             const aiAvailable = result.aiGenerationAvailable || false;
 
+            const generationMode = result.generationMode || 'structured';
+
             WizardState.setContentSections(sections);
             WizardState.setImages(images);
             WizardState.imageErrors = imageErrors;
             WizardState.hasImageTask = hasImageTask;
             WizardState.aiGenerationAvailable = aiAvailable;
+            WizardState.generationMode = generationMode;
 
-            this.renderContentSections(container, sections, images);
+            if (generationMode === 'creative') {
+                this.renderCreativeContentSections(container, sections);
+            } else {
+                this.renderContentSections(container, sections, images);
+            }
             MultiStepWizard.unlockNextStep();
         } catch (error) {
             this.showSlideError(container, this.label('wizard.error.content', error.message));
@@ -813,6 +834,124 @@ class LandingPageWizard {
     }
 
     /**
+     * Render creative mode content sections with HTML preview and source editor.
+     *
+     * @param {HTMLElement} container
+     * @param {Array} sections
+     */
+    renderCreativeContentSections(container, sections) {
+        container.innerHTML = '';
+
+        const description = document.createElement('p');
+        description.className = 'text-body-secondary mb-3';
+        description.textContent = this.label('wizard.content.creativeDescription');
+        container.appendChild(description);
+
+        if (!sections || sections.length === 0) {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-info';
+            alert.setAttribute('role', 'alert');
+            alert.textContent = this.label('wizard.content.none');
+            container.appendChild(alert);
+            return;
+        }
+
+        sections.forEach((section, index) => {
+            const card = document.createElement('div');
+            card.className = 'card mb-3';
+            card.id = 'section-card-' + index;
+
+            const cardHeader = document.createElement('div');
+            cardHeader.className = 'card-header d-flex justify-content-between align-items-center';
+
+            const sectionTitle = document.createElement('span');
+            const strong = document.createElement('strong');
+            strong.textContent = section.section || 'Block ' + (index + 1);
+            sectionTitle.appendChild(strong);
+            const colBadge = document.createElement('span');
+            colBadge.className = 'badge bg-info ms-2';
+            colBadge.textContent = 'colPos ' + (section.colPos ?? 0);
+            sectionTitle.appendChild(document.createTextNode(' '));
+            sectionTitle.appendChild(colBadge);
+            const modeBadge = document.createElement('span');
+            modeBadge.className = 'badge bg-warning ms-1';
+            modeBadge.textContent = 'HTML';
+            sectionTitle.appendChild(document.createTextNode(' '));
+            sectionTitle.appendChild(modeBadge);
+
+            const btnGroup = document.createElement('div');
+            btnGroup.className = 'd-flex gap-1';
+
+            const toggleBtn = this.createButton(
+                this.label('wizard.content.creativeToggleSource'),
+                'btn btn-sm btn-outline-secondary',
+                () => {
+                    const preview = card.querySelector('.creative-preview');
+                    const source = card.querySelector('.creative-source');
+                    if (preview && source) {
+                        const showingSource = source.style.display !== 'none';
+                        preview.style.display = showingSource ? 'block' : 'none';
+                        source.style.display = showingSource ? 'none' : 'block';
+                    }
+                },
+            );
+
+            const regenerateBtn = this.createButton(
+                this.label('wizard.button.regenerate'),
+                'btn btn-sm btn-outline-primary',
+                async () => { await this.regenerateSection(container, index); },
+            );
+
+            btnGroup.appendChild(toggleBtn);
+            btnGroup.appendChild(regenerateBtn);
+            cardHeader.appendChild(sectionTitle);
+            cardHeader.appendChild(btnGroup);
+
+            const cardBody = document.createElement('div');
+            cardBody.className = 'card-body';
+
+            // HTML preview (sandboxed in iframe)
+            const preview = document.createElement('div');
+            preview.className = 'creative-preview border rounded p-0 mb-2';
+            const iframe = document.createElement('iframe');
+            // allow-same-origin needed for auto-resize via contentDocument; scripts blocked (no allow-scripts)
+            iframe.sandbox = 'allow-same-origin';
+            iframe.title = section.section || 'Block ' + (index + 1);
+            iframe.style.cssText = 'width:100%;border:none;min-height:200px;';
+            iframe.srcdoc = section.bodytext || '';
+            iframe.addEventListener('load', () => {
+                // Auto-resize iframe to content height
+                try {
+                    const docHeight = iframe.contentDocument?.documentElement?.scrollHeight;
+                    if (docHeight) iframe.style.height = docHeight + 'px';
+                } catch (_) { /* cross-origin fallback */ }
+            });
+            preview.appendChild(iframe);
+            cardBody.appendChild(preview);
+
+            // Source code editor (hidden by default)
+            const source = document.createElement('div');
+            source.className = 'creative-source';
+            source.style.display = 'none';
+            const textarea = document.createElement('textarea');
+            textarea.className = 'form-control font-monospace';
+            textarea.rows = 12;
+            textarea.value = section.bodytext || '';
+            textarea.setAttribute('aria-label', this.label('wizard.content.creativeSourceLabel'));
+            textarea.addEventListener('input', () => {
+                WizardState.getContentSections()[index].bodytext = textarea.value;
+                iframe.srcdoc = textarea.value;
+            });
+            source.appendChild(textarea);
+            cardBody.appendChild(source);
+
+            card.appendChild(cardHeader);
+            card.appendChild(cardBody);
+            container.appendChild(card);
+        });
+    }
+
+    /**
      * Render selectable image cards into a container.
      * Merges new images with any already shown (avoids duplicates).
      *
@@ -918,6 +1057,19 @@ class LandingPageWizard {
     }
 
     /**
+     * Re-render content sections using the appropriate renderer for the current generation mode.
+     *
+     * @param {HTMLElement} container
+     */
+    rerenderContentSlide(container) {
+        if (WizardState.generationMode === 'creative') {
+            this.renderCreativeContentSections(container, WizardState.getContentSections());
+        } else {
+            this.renderContentSections(container, WizardState.getContentSections(), WizardState.getImages());
+        }
+    }
+
+    /**
      * Regenerate a single content section via AJAX.
      *
      * @param {HTMLElement} container
@@ -955,10 +1107,10 @@ class LandingPageWizard {
                 this.label('wizard.notification.sectionRegeneratedMessage', index + 1),
             );
 
-            this.renderContentSections(container, WizardState.getContentSections(), WizardState.getImages());
+            this.rerenderContentSlide(container);
         } catch (error) {
             Notification.error(this.label('wizard.notification.regenerationFailed'), error.message);
-            this.renderContentSections(container, WizardState.getContentSections(), WizardState.getImages());
+            this.rerenderContentSlide(container);
         } finally {
             this._busy = false;
         }
@@ -1318,6 +1470,7 @@ class LandingPageWizard {
         Icons.getIcon(iconIdentifier, Icons.sizes.small).then((iconMarkup) => {
             const span = document.createElement('span');
             span.className = 'me-1';
+            // iconMarkup is from TYPO3 Icons API (trusted backend source), safe for innerHTML
             span.innerHTML = iconMarkup;
             button.textContent = '';
             button.appendChild(span);
