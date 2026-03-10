@@ -57,14 +57,23 @@ class PromptOptimizerService implements LoggerAwareInterface
     {
         try {
             $structuralContext = $this->buildStructuralContext($template);
-            $metaPrompt = $template->promptOptimizerMetaPrompt !== ''
-                ? $template->promptOptimizerMetaPrompt
-                : self::DEFAULT_META_PROMPT;
-            $additionalContext = $template->promptOptimizerContext;
 
-            $prompt = $metaPrompt . "\n\n--- TEMPLATE STRUCTURE ---\n" . $structuralContext;
-            if ($additionalContext !== '') {
-                $prompt .= "\n\n--- ADDITIONAL CONTEXT ---\n" . $additionalContext;
+            $prompt = self::DEFAULT_META_PROMPT . "\n\n--- TEMPLATE STRUCTURE ---\n" . $structuralContext;
+
+            if ($template->promptOptimizerMetaPrompt !== '') {
+                $prompt .= "\n\n--- EDITOR STYLE HINTS ---\n"
+                    . "The editor provided these style/tone preferences. "
+                    . "Incorporate them into the system prompt you write, "
+                    . "but do NOT generate actual content:\n"
+                    . $template->promptOptimizerMetaPrompt;
+            }
+
+            if ($template->promptOptimizerContext !== '') {
+                $prompt .= "\n\n--- ADDITIONAL CONTEXT ---\n"
+                    . "Background context about the brand/company. "
+                    . "Use this to inform the system prompt's tone and awareness, "
+                    . "but keep the prompt topic-neutral:\n"
+                    . $template->promptOptimizerContext;
             }
 
             return $this->completeTextWithTemplate($template, $prompt);

@@ -248,14 +248,15 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     }
 
     #[Test]
-    public function generateOptimizedPromptUsesCustomMetaPrompt(): void
+    public function generateOptimizedPromptIncludesStyleHintsWithDefaultMetaPrompt(): void
     {
         $completionService = $this->createMock(CompletionService::class);
         $completionService->expects(self::once())
             ->method('complete')
             ->with(self::callback(
                 fn(string $p): bool => str_contains($p, 'Generate a German prompt')
-                    && !str_contains($p, 'expert prompt engineer'),
+                    && str_contains($p, 'expert prompt engineer')
+                    && str_contains($p, 'EDITOR STYLE HINTS'),
             ))
             ->willReturn($this->createCompletionResponse('Custom result'));
 
