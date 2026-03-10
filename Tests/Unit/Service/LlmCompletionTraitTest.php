@@ -129,6 +129,28 @@ final class LlmCompletionTraitTest extends UnitTestCase
     }
 
     #[Test]
+    public function throwsDescriptiveErrorWhenResponseTruncated(): void
+    {
+        $template = $this->createTemplate(5);
+        $config = $this->createMock(LlmConfiguration::class);
+        $config->method('getMaxTokens')->willReturn(1000);
+        $this->configurationRepository->method('findByUid')->willReturn($config);
+
+        $response = new CompletionResponse(
+            content: '[{"section": "Hero", "header": "Test",',
+            model: 'gpt-4',
+            usage: new UsageStatistics(10, 1000, 1010),
+            finishReason: 'length',
+        );
+        $this->llmServiceManager->method('chatWithConfiguration')->willReturn($response);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/1000 Tokens abgeschnitten/');
+
+        $this->subject->callComplete($template, 'test');
+    }
+
+    #[Test]
     public function parsesValidJsonResponseWithConfiguration(): void
     {
         $template = $this->createTemplate(5);
@@ -146,5 +168,92 @@ final class LlmCompletionTraitTest extends UnitTestCase
 
         self::assertSame('test', $result['name']);
         self::assertSame(3, $result['count']);
+    }
+
+    #[Test]
+    public function sanitizesControlCharactersInJsonStrings(): void
+    {
+        $template = $this->createTemplate(5);
+        $config = $this->createMock(LlmConfiguration::class);
+        $this->configurationRepository->method('findByUid')->willReturn($config);
+
+        // Simulate LLM returning raw newlines/tabs inside JSON string values
+        $rawJson = "{\"header\": \"Hello\nWorld\", \"body\": \"Line1\r\nLine2\tIndented\"}";
+        $response = new CompletionResponse(
+            content: $rawJson,
+            model: 'gpt-4',
+            usage: new UsageStatistics(10, 20, 30),
+        );
+        $this->llmServiceManager->method('chatWithConfiguration')->willReturn($response);
+
+        $result = $this->subject->callComplete($template, 'test');
+
+        self::assertSame("Hello\nWorld", $result['header']);
+        self::assertSame("Line1\r\nLine2\tIndented", $result['body']);
+    }
+
+    #[Test]
+    public function sanitizesFormFeedAndOtherControlCharsInJsonStrings(): void
+    {
+        $template = $this->createTemplate(5);
+        $config = $this->createMock(LlmConfiguration::class);
+        $this->configurationRepository->method('findByUid')->willReturn($config);
+
+        // Form feed (\x0C), vertical tab (\x0B), backspace (\x08) inside a string
+        $rawJson = "{\"text\": \"before\x0Cafter\x0Bend\"}";
+        $response = new CompletionResponse(
+            content: $rawJson,
+            model: 'gpt-4',
+            usage: new UsageStatistics(10, 20, 30),
+        );
+        $this->llmServiceManager->method('chatWithConfiguration')->willReturn($response);
+
+        $result = $this->subject->callComplete($template, 'test');
+
+        self::assertArrayHasKey('text', $result);
+    }
+
+    #[Test]
+    public function preservesValidJsonWithoutSanitization(): void
+    {
+        $template = $this->createTemplate(5);
+        $config = $this->createMock(LlmConfiguration::class);
+        $this->configurationRepository->method('findByUid')->willReturn($config);
+
+        // Already-valid JSON with proper escapes
+        $validJson = '{"header": "Hello\\nWorld", "escaped": "tab\\there"}';
+        $response = new CompletionResponse(
+            content: $validJson,
+            model: 'gpt-4',
+            usage: new UsageStatistics(10, 20, 30),
+        );
+        $this->llmServiceManager->method('chatWithConfiguration')->willReturn($response);
+
+        $result = $this->subject->callComplete($template, 'test');
+
+        self::assertSame("Hello\nWorld", $result['header']);
+        self::assertSame("tab\there", $result['escaped']);
+    }
+
+    #[Test]
+    public function preservesNewlinesBetweenJsonKeys(): void
+    {
+        $template = $this->createTemplate(5);
+        $config = $this->createMock(LlmConfiguration::class);
+        $this->configurationRepository->method('findByUid')->willReturn($config);
+
+        // Pretty-printed JSON with newlines between keys (valid JSON)
+        $prettyJson = "{\n  \"header\": \"Test\",\n  \"count\": 1\n}";
+        $response = new CompletionResponse(
+            content: $prettyJson,
+            model: 'gpt-4',
+            usage: new UsageStatistics(10, 20, 30),
+        );
+        $this->llmServiceManager->method('chatWithConfiguration')->willReturn($response);
+
+        $result = $this->subject->callComplete($template, 'test');
+
+        self::assertSame('Test', $result['header']);
+        self::assertSame(1, $result['count']);
     }
 }
