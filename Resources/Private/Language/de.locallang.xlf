@@ -219,6 +219,18 @@
                 <source>Image generation failed</source>
                 <target>Bildgenerierung fehlgeschlagen</target>
             </trans-unit>
+            <trans-unit id="wizard.content.creativeDescription" resname="wizard.content.creativeDescription">
+                <source>The AI generated creative HTML blocks for your landing page. Preview each block below. Toggle "Source" to edit the HTML directly.</source>
+                <target>Die KI hat kreative HTML-Blöcke für Ihre Landing Page generiert. Vorschau der einzelnen Blöcke unten. Klicken Sie auf „Quelltext", um den HTML-Code direkt zu bearbeiten.</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.creativeToggleSource" resname="wizard.content.creativeToggleSource">
+                <source>Source</source>
+                <target>Quelltext</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.creativeSourceLabel" resname="wizard.content.creativeSourceLabel">
+                <source>HTML source code for this block</source>
+                <target>HTML-Quellcode für diesen Block</target>
+            </trans-unit>
             <trans-unit id="wizard.placement.heading" resname="wizard.placement.heading">
                 <source>Placement &amp; Save</source>
                 <target>Platzierung &amp; Speichern</target>

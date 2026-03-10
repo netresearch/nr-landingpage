@@ -1,5 +1,6 @@
 import DocumentService from '@typo3/core/document-service.js';
 import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
+import Icons from '@typo3/backend/icons.js';
 import Notification from '@typo3/backend/notification.js';
 import Modal from '@typo3/backend/modal.js';
 
@@ -53,10 +54,29 @@ class OptimizePrompt {
 
   callOptimizer(templateUid) {
     this.controlElement.classList.add('disabled');
+
+    // Replace button icon with spinner
+    const icon = this.controlElement.querySelector('.icon');
+    const originalIconHtml = icon ? icon.outerHTML : '';
+    if (icon) {
+      Icons.getIcon('spinner-circle', Icons.sizes.small).then((spinnerHtml) => {
+        const currentIcon = this.controlElement.querySelector('.icon');
+        if (currentIcon) {
+          currentIcon.outerHTML = spinnerHtml;
+        }
+      });
+    }
+
+    // Add loading state to textarea
+    if (this.textareaElement) {
+      this.textareaElement.style.opacity = '0.5';
+      this.textareaElement.setAttribute('readonly', 'readonly');
+    }
+
     Notification.info(
       TYPO3.lang['fieldControl.optimizePrompt.running'] || 'Optimizing instructions…',
-      '',
-      2
+      TYPO3.lang['fieldControl.optimizePrompt.running.detail'] || 'The AI is analyzing your template — this may take a moment.',
+      0
     );
 
     new AjaxRequest(TYPO3.settings.ajaxUrls.nr_landingpage_optimize_prompt)
@@ -80,14 +100,38 @@ class OptimizePrompt {
           );
         }
       })
-      .catch(() => {
+      .catch(async (error) => {
+        let detail = 'Could not reach the server';
+        try {
+          const data = await error.response?.resolve();
+          if (data?.error) {
+            detail = data.error;
+          }
+        } catch {
+          // response not parseable, keep default message
+        }
         Notification.error(
           TYPO3.lang['fieldControl.optimizePrompt.error'] || 'Optimization failed',
-          'Could not reach the server'
+          detail
         );
       })
       .finally(() => {
         this.controlElement.classList.remove('disabled');
+
+        // Restore original icon
+        const spinner = this.controlElement.querySelector('.icon');
+        if (spinner && originalIconHtml) {
+          spinner.outerHTML = originalIconHtml;
+        }
+
+        // Remove textarea loading state
+        if (this.textareaElement) {
+          this.textareaElement.style.opacity = '';
+          this.textareaElement.removeAttribute('readonly');
+        }
+
+        // Dismiss persistent info notifications
+        document.querySelectorAll('typo3-notification-message[notification-severity="info"]').forEach((el) => el.clear());
       });
   }
 }

@@ -165,6 +165,15 @@
             <trans-unit id="wizard.content.imageGenerationError" resname="wizard.content.imageGenerationError">
                 <source>AI image generation failed:</source>
             </trans-unit>
+            <trans-unit id="wizard.content.creativeDescription" resname="wizard.content.creativeDescription">
+                <source>The AI generated creative HTML blocks for your landing page. Preview each block below. Toggle "Source" to edit the HTML directly.</source>
+            </trans-unit>
+            <trans-unit id="wizard.content.creativeToggleSource" resname="wizard.content.creativeToggleSource">
+                <source>Source</source>
+            </trans-unit>
+            <trans-unit id="wizard.content.creativeSourceLabel" resname="wizard.content.creativeSourceLabel">
+                <source>HTML source code for this block</source>
+            </trans-unit>
             <trans-unit id="wizard.placement.heading" resname="wizard.placement.heading">
                 <source>Placement &amp; Save</source>
             </trans-unit>
