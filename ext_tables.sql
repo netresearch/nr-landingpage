@@ -15,10 +15,10 @@ CREATE TABLE tx_nrlandingpage_domain_model_template (
     prompt_optimizer_meta_prompt text,
     image_task int(11) unsigned NOT NULL DEFAULT 0,
     generation_mode varchar(20) NOT NULL DEFAULT 'structured',
-    color_primary varchar(7) NOT NULL DEFAULT '#0062a3',
-    color_secondary varchar(7) NOT NULL DEFAULT '#ff8700',
-    color_background varchar(7) NOT NULL DEFAULT '#ffffff',
-    color_text varchar(7) NOT NULL DEFAULT '#333333'
+    color_primary varchar(7) NOT NULL DEFAULT '',
+    color_secondary varchar(7) NOT NULL DEFAULT '',
+    color_background varchar(7) NOT NULL DEFAULT '',
+    color_text varchar(7) NOT NULL DEFAULT ''
 );
 
 CREATE TABLE pages (

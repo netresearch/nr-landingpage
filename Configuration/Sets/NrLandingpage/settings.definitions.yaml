@@ -1,0 +1,43 @@
+categories:
+  nr_landingpage:
+    label: 'Landing Page Generator'
+  nr_landingpage.colors:
+    label: 'Default Color Scheme'
+    parent: nr_landingpage
+
+settings:
+  nr_landingpage.colorPrimary:
+    label: 'Primary Color'
+    description: >
+      Main brand color used for buttons, links, and call-to-action
+      elements. Templates inherit this color unless overridden.
+    type: color
+    default: '#0062a3'
+    category: nr_landingpage.colors
+
+  nr_landingpage.colorSecondary:
+    label: 'Secondary Color'
+    description: >
+      Accent color for highlights, hover states, and decorative
+      elements. Templates inherit this color unless overridden.
+    type: color
+    default: '#ff8700'
+    category: nr_landingpage.colors
+
+  nr_landingpage.colorBackground:
+    label: 'Background Color'
+    description: >
+      Default page and section background color. Templates inherit
+      this color unless overridden.
+    type: color
+    default: '#ffffff'
+    category: nr_landingpage.colors
+
+  nr_landingpage.colorText:
+    label: 'Text Color'
+    description: >
+      Default color for body text and paragraphs. Templates inherit
+      this color unless overridden.
+    type: color
+    default: '#333333'
+    category: nr_landingpage.colors

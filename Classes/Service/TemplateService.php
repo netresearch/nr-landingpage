@@ -559,10 +559,10 @@ final readonly class TemplateService
             generationMode: is_string($row['generation_mode'] ?? null) && in_array($row['generation_mode'], ['structured', 'creative'], true)
                 ? $row['generation_mode']
                 : 'structured',
-            colorPrimary: is_string($row['color_primary'] ?? null) && $row['color_primary'] !== '' ? $row['color_primary'] : '#0062a3',
-            colorSecondary: is_string($row['color_secondary'] ?? null) && $row['color_secondary'] !== '' ? $row['color_secondary'] : '#ff8700',
-            colorBackground: is_string($row['color_background'] ?? null) && $row['color_background'] !== '' ? $row['color_background'] : '#ffffff',
-            colorText: is_string($row['color_text'] ?? null) && $row['color_text'] !== '' ? $row['color_text'] : '#333333',
+            colorPrimary: is_string($row['color_primary'] ?? null) ? $row['color_primary'] : '',
+            colorSecondary: is_string($row['color_secondary'] ?? null) ? $row['color_secondary'] : '',
+            colorBackground: is_string($row['color_background'] ?? null) ? $row['color_background'] : '',
+            colorText: is_string($row['color_text'] ?? null) ? $row['color_text'] : '',
         );
     }
 

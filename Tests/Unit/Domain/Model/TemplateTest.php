@@ -171,13 +171,13 @@ final class TemplateTest extends UnitTestCase
     }
 
     #[Test]
-    public function colorPropertiesHaveSensibleDefaults(): void
+    public function colorPropertiesDefaultToEmpty(): void
     {
         $template = new Template(uid: 1, title: 'T', identifier: 't');
-        self::assertSame('#0062a3', $template->colorPrimary);
-        self::assertSame('#ff8700', $template->colorSecondary);
-        self::assertSame('#ffffff', $template->colorBackground);
-        self::assertSame('#333333', $template->colorText);
+        self::assertSame('', $template->colorPrimary);
+        self::assertSame('', $template->colorSecondary);
+        self::assertSame('', $template->colorBackground);
+        self::assertSame('', $template->colorText);
     }
 
     #[Test]
@@ -196,5 +196,45 @@ final class TemplateTest extends UnitTestCase
         self::assertSame('#00ff00', $template->colorSecondary);
         self::assertSame('#000000', $template->colorBackground);
         self::assertSame('#ffffff', $template->colorText);
+    }
+
+    #[Test]
+    public function withResolvedColorsInheritsFromDefaults(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't');
+        $resolved = $template->withResolvedColors([
+            'colorPrimary' => '#aaaaaa',
+            'colorSecondary' => '#bbbbbb',
+        ]);
+
+        self::assertSame('#aaaaaa', $resolved->colorPrimary);
+        self::assertSame('#bbbbbb', $resolved->colorSecondary);
+        self::assertSame('#ffffff', $resolved->colorBackground);
+        self::assertSame('#333333', $resolved->colorText);
+    }
+
+    #[Test]
+    public function withResolvedColorsPreservesTemplateOverrides(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', colorPrimary: '#ff0000');
+        $resolved = $template->withResolvedColors([
+            'colorPrimary' => '#aaaaaa',
+            'colorSecondary' => '#bbbbbb',
+        ]);
+
+        self::assertSame('#ff0000', $resolved->colorPrimary);
+        self::assertSame('#bbbbbb', $resolved->colorSecondary);
+    }
+
+    #[Test]
+    public function withResolvedColorsUsesHardcodedFallbacks(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't');
+        $resolved = $template->withResolvedColors([]);
+
+        self::assertSame('#0062a3', $resolved->colorPrimary);
+        self::assertSame('#ff8700', $resolved->colorSecondary);
+        self::assertSame('#ffffff', $resolved->colorBackground);
+        self::assertSame('#333333', $resolved->colorText);
     }
 }

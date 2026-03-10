@@ -30,11 +30,43 @@ final readonly class Template
         public string $promptOptimizerMetaPrompt = '',
         public int $imageTask = 0,
         public string $generationMode = 'structured',
-        public string $colorPrimary = '#0062a3',
-        public string $colorSecondary = '#ff8700',
-        public string $colorBackground = '#ffffff',
-        public string $colorText = '#333333',
+        public string $colorPrimary = '',
+        public string $colorSecondary = '',
+        public string $colorBackground = '',
+        public string $colorText = '',
     ) {}
+
+    /**
+     * Return a copy with empty color fields filled from the given defaults.
+     *
+     * @param array{colorPrimary?: string, colorSecondary?: string, colorBackground?: string, colorText?: string} $defaults
+     */
+    public function withResolvedColors(array $defaults): self
+    {
+        return new self(
+            uid: $this->uid,
+            title: $this->title,
+            identifier: $this->identifier,
+            description: $this->description,
+            llmConfiguration: $this->llmConfiguration,
+            systemPrompt: $this->systemPrompt,
+            allowedCTypes: $this->allowedCTypes,
+            pageFields: $this->pageFields,
+            referencePages: $this->referencePages,
+            briefingMode: $this->briefingMode,
+            publishMode: $this->publishMode,
+            beGroups: $this->beGroups,
+            backendLayout: $this->backendLayout,
+            promptOptimizerContext: $this->promptOptimizerContext,
+            promptOptimizerMetaPrompt: $this->promptOptimizerMetaPrompt,
+            imageTask: $this->imageTask,
+            generationMode: $this->generationMode,
+            colorPrimary: $this->colorPrimary !== '' ? $this->colorPrimary : ($defaults['colorPrimary'] ?? '#0062a3'),
+            colorSecondary: $this->colorSecondary !== '' ? $this->colorSecondary : ($defaults['colorSecondary'] ?? '#ff8700'),
+            colorBackground: $this->colorBackground !== '' ? $this->colorBackground : ($defaults['colorBackground'] ?? '#ffffff'),
+            colorText: $this->colorText !== '' ? $this->colorText : ($defaults['colorText'] ?? '#333333'),
+        );
+    }
 
     public function isCreativeMode(): bool
     {

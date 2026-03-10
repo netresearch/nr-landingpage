@@ -188,6 +188,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
             $parentPageId = $this->extractIntFromBody($body, 'parentPageId');
             $outputLanguage = $this->resolveOutputLanguage($parentPageId);
+            $template = $template->withResolvedColors($this->resolveColorDefaults($parentPageId));
 
             $contentSections = $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage, $parentPageId);
 
@@ -233,6 +234,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
             $parentPageId = $this->extractIntFromBody($body, 'parentPageId');
             $outputLanguage = $this->resolveOutputLanguage($parentPageId);
+            $template = $template->withResolvedColors($this->resolveColorDefaults($parentPageId));
 
             // Regenerate ALL content and return only the section at the given index.
             // The LLM cannot regenerate just one section — we regenerate all and pick the one the user wanted refreshed.
@@ -414,7 +416,9 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 return new JsonResponse(['success' => false, 'error' => 'Prompt optimizer service not available'], 500);
             }
 
-            $optimizedPrompt = $this->promptOptimizerService->generateOptimizedPrompt($template);
+            $optimizedPrompt = $this->promptOptimizerService->generateOptimizedPrompt(
+                $template->withResolvedColors([]),
+            );
 
             return new JsonResponse(['success' => true, 'data' => ['prompt' => $optimizedPrompt]]);
         } catch (Throwable $e) {
@@ -447,6 +451,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 return new JsonResponse(['success' => false, 'error' => 'Template not found'], 400);
             }
 
+            $template = $template->withResolvedColors([]);
             $briefingAnswers = ['title' => $sampleTitle];
             $contentSections = $this->contentGeneratorService->generateContent($template, $briefingAnswers);
             $images = $this->imageProviderService->resolveImagesForSections($template, $contentSections);
@@ -638,6 +643,46 @@ final class LandingPageWizardController implements LoggerAwareInterface
             return $defaultLanguage->getLocale()->getName();
         } catch (Throwable) {
             return '';
+        }
+    }
+
+    /**
+     * Read color defaults from site settings for a given page.
+     *
+     * @return array{colorPrimary?: string, colorSecondary?: string, colorBackground?: string, colorText?: string}
+     */
+    private function resolveColorDefaults(int $parentPageId): array
+    {
+        if ($parentPageId <= 0) {
+            return [];
+        }
+
+        try {
+            $site = $this->siteFinder->getSiteByPageId($parentPageId);
+            $settings = $site->getSettings();
+            if ($settings->isEmpty()) {
+                return [];
+            }
+
+            $defaults = [];
+            $map = [
+                'colorPrimary' => 'nr_landingpage.colorPrimary',
+                'colorSecondary' => 'nr_landingpage.colorSecondary',
+                'colorBackground' => 'nr_landingpage.colorBackground',
+                'colorText' => 'nr_landingpage.colorText',
+            ];
+            foreach ($map as $key => $settingKey) {
+                if ($settings->has($settingKey)) {
+                    $value = (string) $settings->get($settingKey);
+                    if ($value !== '') {
+                        $defaults[$key] = $value;
+                    }
+                }
+            }
+
+            return $defaults;
+        } catch (Throwable) {
+            return [];
         }
     }
 

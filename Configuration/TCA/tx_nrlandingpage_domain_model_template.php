@@ -245,7 +245,8 @@ return [
             'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_primary.description',
             'config' => [
                 'type' => 'color',
-                'default' => '#0062a3',
+                'default' => '',
+                'placeholder' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color.placeholder',
             ],
         ],
         'color_secondary' => [
@@ -253,7 +254,8 @@ return [
             'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_secondary.description',
             'config' => [
                 'type' => 'color',
-                'default' => '#ff8700',
+                'default' => '',
+                'placeholder' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color.placeholder',
             ],
         ],
         'color_background' => [
@@ -261,7 +263,8 @@ return [
             'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_background.description',
             'config' => [
                 'type' => 'color',
-                'default' => '#ffffff',
+                'default' => '',
+                'placeholder' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color.placeholder',
             ],
         ],
         'color_text' => [
@@ -269,7 +272,8 @@ return [
             'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_text.description',
             'config' => [
                 'type' => 'color',
-                'default' => '#333333',
+                'default' => '',
+                'placeholder' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color.placeholder',
             ],
         ],
         'backend_layout' => [
