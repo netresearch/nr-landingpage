@@ -49,6 +49,22 @@ Alternatively, use the TYPO3 Install Tool:
     Database Structure`
 2.  Apply all suggested changes for the ``nr_landingpage`` extension
 
+Site Set Activation
+===================
+
+The extension provides a Site Set for global color settings. Add it
+to your site configuration:
+
+.. code-block:: yaml
+   :caption: config/sites/<site>/config.yaml
+
+   dependencies:
+     - netresearch/nr-landingpage
+
+Or add it via :guilabel:`Site Management > Sites` in the backend.
+See :ref:`Site Set and Color Defaults <color-inheritance>` for
+details.
+
 Quick Start
 ===========
 
@@ -59,18 +75,22 @@ page:
     :guilabel:`System > LLM Configurations` and create a
     configuration with your API credentials (e.g. OpenAI API key)
 
-2.  **Create a template** — Go to :guilabel:`List` module on the root
+2.  **Set brand colors** — Navigate to
+    :guilabel:`Site Management > Settings` and configure the
+    default color scheme under **Landing Page Generator**
+
+3.  **Create a template** — Go to :guilabel:`List` module on the root
     page (PID 0), create a new :guilabel:`Landing Page Template`
     record. Fill in at minimum:
 
     -  Template name (e.g. "Product Landing Page")
     -  System prompt (use the Auto-optimize button to generate one)
 
-3.  **Generate a landing page** — Navigate to
+4.  **Generate a landing page** — Navigate to
     :guilabel:`Web > Landing Page`, click
     :guilabel:`Create Landing Page`, and follow the wizard
 
-4.  **Review the result** — The generated page appears in the page
+5.  **Review the result** — The generated page appears in the page
     tree. Open it in the :guilabel:`Page` module to review and
     enable it.
 

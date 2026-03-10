@@ -4,10 +4,15 @@
 Configuration
 =============
 
-The extension is configured entirely through **template records** in the
-TYPO3 backend. There are no global extension settings. Each template
-defines how landing pages are generated — from the AI model and prompt
-to allowed content types and page layout.
+The extension uses two levels of configuration:
+
+1.  **Site settings** — global defaults per TYPO3 site (e.g. brand
+    colors), configured via :guilabel:`Site Management > Settings`
+2.  **Template records** — per-template configuration for AI model,
+    content types, layout, and optional color overrides
+
+Templates inherit site-level defaults and can override them
+individually.
 
 .. contents:: On this page
    :local:
@@ -28,6 +33,110 @@ installed and at least one LLM configuration exists:
 
    You need at least one working LLM configuration before the Landing
    Page Generator can produce any content.
+
+Site Set and Color Defaults
+===========================
+
+The extension provides a TYPO3 **Site Set**
+(``netresearch/nr-landingpage``) that defines global color defaults.
+These colors are passed to the AI so it uses your brand palette in
+generated content.
+
+Activating the Site Set
+-----------------------
+
+Add the set as a dependency in your site configuration:
+
+.. code-block:: yaml
+   :caption: config/sites/<site>/config.yaml
+
+   dependencies:
+     - netresearch/nr-landingpage
+
+Alternatively, add it via :guilabel:`Site Management > Sites` in
+the backend.
+
+After adding the dependency, flush all caches:
+
+.. code-block:: bash
+   :caption: Flush caches
+
+   vendor/bin/typo3 cache:flush
+
+Configuring Global Colors
+-------------------------
+
+Navigate to :guilabel:`Site Management > Settings`. Under the
+category **Landing Page Generator > Default Color Scheme** you
+will find four color pickers:
+
+.. confval:: Primary Color
+
+   :type: color
+   :default: #0062a3
+
+   Main brand color for buttons, links, and call-to-action elements.
+
+.. confval:: Secondary Color
+
+   :type: color
+   :default: #ff8700
+
+   Accent color for highlights, hover states, and decorative
+   elements.
+
+.. confval:: Background Color
+
+   :type: color
+   :default: #ffffff
+
+   Default page and section background color.
+
+.. confval:: Text Color
+
+   :type: color
+   :default: #333333
+
+   Default body text color.
+
+These values serve as **defaults for all templates** on this site.
+Each template can override individual colors in its own record
+(see :ref:`color-scheme-palette`).
+
+.. _color-inheritance:
+
+Color Inheritance Cascade
+-------------------------
+
+Colors are resolved in this order:
+
+1.  **Template record** — if a color is set on the template, it is
+    used
+2.  **Site settings** — if the template field is empty, the
+    site-level default is used
+3.  **Hardcoded fallback** — if neither is set, the built-in
+    defaults apply (primary ``#0062a3``, secondary ``#ff8700``,
+    background ``#ffffff``, text ``#333333``)
+
+.. tip::
+
+   Set your brand colors once in the site settings. Only override
+   per template when a specific template needs a different palette
+   (e.g. a seasonal campaign with different accent colors).
+
+.. _csp-color-picker:
+
+Content Security Policy Note
+-----------------------------
+
+The TYPO3 native color picker uses a Web Worker loaded from a
+``blob:`` URL. This is blocked by the default backend Content
+Security Policy. The extension automatically adds the required
+``worker-src blob:`` directive.
+
+If you see a CSP error about ``blob:`` workers in the browser
+console, ensure the extension is properly loaded and flush all
+caches.
 
 Creating a Template
 ===================
@@ -268,6 +377,46 @@ Content & Layout Tab
       (CTAs, contact info, links)
    -  **Footer** columns receive closing elements (CTA, contact)
    -  **Header/Banner** columns receive hero elements
+
+.. _color-scheme-palette:
+
+Color Scheme Palette
+~~~~~~~~~~~~~~~~~~~~
+
+Below the layout fields, the **Color Scheme** palette provides
+four color pickers. Leave a field empty to inherit the color
+from :ref:`site settings <color-inheritance>`.
+
+.. confval:: Primary Color (template)
+
+   :type: color
+   :default: (inherited from site settings)
+
+   Overrides the site-level primary color for this template only.
+   Used for buttons, links, and CTAs in generated content.
+
+.. confval:: Secondary Color (template)
+
+   :type: color
+   :default: (inherited from site settings)
+
+   Overrides the site-level secondary color. Used for accents
+   and hover states.
+
+.. confval:: Background Color (template)
+
+   :type: color
+   :default: (inherited from site settings)
+
+   Overrides the site-level background color for generated
+   sections.
+
+.. confval:: Text Color (template)
+
+   :type: color
+   :default: (inherited from site settings)
+
+   Overrides the site-level text color for body text.
 
 Wizard Tab
 ----------
