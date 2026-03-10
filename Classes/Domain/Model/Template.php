@@ -30,6 +30,10 @@ final readonly class Template
         public string $promptOptimizerMetaPrompt = '',
         public int $imageTask = 0,
         public string $generationMode = 'structured',
+        public string $colorPrimary = '#0062a3',
+        public string $colorSecondary = '#ff8700',
+        public string $colorBackground = '#ffffff',
+        public string $colorText = '#333333',
     ) {}
 
     public function isCreativeMode(): bool

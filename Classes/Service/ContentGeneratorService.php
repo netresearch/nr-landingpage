@@ -146,6 +146,19 @@ final class ContentGeneratorService implements LoggerAwareInterface
         return implode("\n", $lines);
     }
 
+    private function buildColorBlock(Template $template): string
+    {
+        return <<<COLORS
+
+            --- FARBSCHEMA ---
+            Verwende folgendes Farbschema fuer die generierten Inhalte:
+            - Primaerfarbe (Buttons, Links, CTAs): {$template->colorPrimary}
+            - Sekundaerfarbe (Akzente, Hover-States): {$template->colorSecondary}
+            - Hintergrundfarbe: {$template->colorBackground}
+            - Textfarbe: {$template->colorText}
+            COLORS;
+    }
+
     /**
      * @param array<string, string> $briefingAnswers
      */
@@ -163,6 +176,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $columnBlock = $this->buildColumnBlock($template->backendLayout, $parentPageId);
         $languageBlock = $this->buildLanguageBlock($outputLanguage);
         $jsonExample = $this->buildJsonExample($template->backendLayout, $cTypes, $parentPageId);
+        $colorBlock = $this->buildColorBlock($template);
 
         return <<<PROMPT
             {$template->systemPrompt}
@@ -171,6 +185,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
             {$briefing}
             {$cTypeMetadata}
             {$columnBlock}
+            {$colorBlock}
             --- ANWEISUNGEN ZUR AUSGABE ---
             {$languageBlock}
             Erstelle Inhalte fuer eine Landing Page basierend auf dem obigen Kontext.
@@ -440,6 +455,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
     {
         $briefing = $this->formatBriefing($briefingAnswers);
         $languageBlock = $this->buildLanguageBlock($outputLanguage);
+        $colorBlock = $this->buildColorBlock($template);
 
         $columnDescriptions = [];
         foreach ($columnMap as $colPos => $name) {
@@ -452,6 +468,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
             Briefing:
             {$briefing}
+            {$colorBlock}
 
             --- KREATIV-MODUS: HTML + CSS + INLINE-SVG ---
             {$languageBlock}

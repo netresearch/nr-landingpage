@@ -104,6 +104,10 @@ class PromptOptimizerService implements LoggerAwareInterface
         }
 
         $lines[] = 'Briefing Mode: ' . $template->briefingMode;
+        $lines[] = 'Color Scheme: Primary=' . $template->colorPrimary
+            . ', Secondary=' . $template->colorSecondary
+            . ', Background=' . $template->colorBackground
+            . ', Text=' . $template->colorText;
 
         if ($template->hasReferencePages()) {
             $lines[] = 'Reference Pages: ' . implode(', ', $template->referencePages);

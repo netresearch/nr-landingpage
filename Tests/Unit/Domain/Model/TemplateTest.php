@@ -169,4 +169,32 @@ final class TemplateTest extends UnitTestCase
 
         self::assertNotSame($a->getConfigHash(), $b->getConfigHash());
     }
+
+    #[Test]
+    public function colorPropertiesHaveSensibleDefaults(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't');
+        self::assertSame('#0062a3', $template->colorPrimary);
+        self::assertSame('#ff8700', $template->colorSecondary);
+        self::assertSame('#ffffff', $template->colorBackground);
+        self::assertSame('#333333', $template->colorText);
+    }
+
+    #[Test]
+    public function colorPropertiesAcceptCustomValues(): void
+    {
+        $template = new Template(
+            uid: 1,
+            title: 'T',
+            identifier: 't',
+            colorPrimary: '#ff0000',
+            colorSecondary: '#00ff00',
+            colorBackground: '#000000',
+            colorText: '#ffffff',
+        );
+        self::assertSame('#ff0000', $template->colorPrimary);
+        self::assertSame('#00ff00', $template->colorSecondary);
+        self::assertSame('#000000', $template->colorBackground);
+        self::assertSame('#ffffff', $template->colorText);
+    }
 }

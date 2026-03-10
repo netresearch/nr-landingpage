@@ -28,6 +28,7 @@ return [
                 '--palette--;;prompt_optimizer',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.content_layout',
                 'generation_mode,allowed_ctypes,page_fields,reference_pages,backend_layout',
+                '--palette--;;color_scheme',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.wizard',
                 'briefing_mode,publish_mode',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.access',
@@ -41,6 +42,10 @@ return [
         'prompt_optimizer' => [
             'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:palette.prompt_optimizer',
             'showitem' => 'prompt_optimizer_context,--linebreak--,prompt_optimizer_meta_prompt',
+        ],
+        'color_scheme' => [
+            'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:palette.color_scheme',
+            'showitem' => 'color_primary,color_secondary,--linebreak--,color_background,color_text',
         ],
     ],
     'columns' => [
@@ -233,6 +238,38 @@ return [
                     ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.generation_mode.creative', 'value' => 'creative'],
                 ],
                 'default' => 'structured',
+            ],
+        ],
+        'color_primary' => [
+            'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_primary',
+            'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_primary.description',
+            'config' => [
+                'type' => 'color',
+                'default' => '#0062a3',
+            ],
+        ],
+        'color_secondary' => [
+            'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_secondary',
+            'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_secondary.description',
+            'config' => [
+                'type' => 'color',
+                'default' => '#ff8700',
+            ],
+        ],
+        'color_background' => [
+            'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_background',
+            'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_background.description',
+            'config' => [
+                'type' => 'color',
+                'default' => '#ffffff',
+            ],
+        ],
+        'color_text' => [
+            'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_text',
+            'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color_text.description',
+            'config' => [
+                'type' => 'color',
+                'default' => '#333333',
             ],
         ],
         'backend_layout' => [

@@ -195,6 +195,42 @@
                 <source>Prompt Optimization</source>
                 <target>Prompt-Optimierung</target>
             </trans-unit>
+            <trans-unit id="palette.color_scheme" resname="palette.color_scheme">
+                <source>Color Scheme</source>
+                <target>Farbschema</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.color_primary" resname="tx_nrlandingpage_domain_model_template.color_primary">
+                <source>Primary Color</source>
+                <target>Primärfarbe</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.color_primary.description" resname="tx_nrlandingpage_domain_model_template.color_primary.description">
+                <source>Main brand color used for buttons, links, and call-to-action elements.</source>
+                <target>Hauptfarbe der Marke für Buttons, Links und Call-to-Action-Elemente.</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.color_secondary" resname="tx_nrlandingpage_domain_model_template.color_secondary">
+                <source>Secondary Color</source>
+                <target>Sekundärfarbe</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.color_secondary.description" resname="tx_nrlandingpage_domain_model_template.color_secondary.description">
+                <source>Accent color for highlights, hover states, and decorative elements.</source>
+                <target>Akzentfarbe für Hervorhebungen, Hover-Effekte und dekorative Elemente.</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.color_background" resname="tx_nrlandingpage_domain_model_template.color_background">
+                <source>Background Color</source>
+                <target>Hintergrundfarbe</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.color_background.description" resname="tx_nrlandingpage_domain_model_template.color_background.description">
+                <source>Default page and section background color.</source>
+                <target>Standard-Hintergrundfarbe für Seiten und Abschnitte.</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.color_text" resname="tx_nrlandingpage_domain_model_template.color_text">
+                <source>Text Color</source>
+                <target>Textfarbe</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.color_text.description" resname="tx_nrlandingpage_domain_model_template.color_text.description">
+                <source>Default color for body text and paragraphs.</source>
+                <target>Standardfarbe für Fließtext und Absätze.</target>
+            </trans-unit>
             <trans-unit id="fieldInformation.generatedPageCount" resname="fieldInformation.generatedPageCount">
                 <source>%d page(s) generated with this template</source>
                 <target>%d Seite(n) mit diesem Template generiert</target>
