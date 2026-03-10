@@ -30,7 +30,8 @@ nr_landingpage/
 │   └── Service/                   # Business logic
 │       ├── BackendLayoutService   # Column map resolution
 │       ├── BriefingService        # Briefing question generation
-│       ├── ContentGeneratorService # LLM content generation
+│       ├── ContentGeneratorService # LLM content generation (structured + creative)
+│       ├── CreativeHtmlSanitizer  # HTML sanitizer for creative mode
 │       ├── CTypeMetadataService   # Content type metadata
 │       ├── ImageProviderService   # FAL search + AI image orchestration
 │       ├── ImageSearchService     # FAL metadata search
@@ -140,9 +141,30 @@ the original page.
 (see [t3x-nr-llm#107](https://github.com/netresearch/t3x-nr-llm/issues/107)).
 Once implemented, nr-landingpage will simplify to: trigger task → FAL search.
 
+## Generation Modes
+
+Templates support two generation modes via the `generation_mode` field:
+
+**Structured** (default): AI generates standard TYPO3 content elements (text,
+textmedia, etc.). Each section becomes a separate `tt_content` record.
+
+**Creative HTML**: AI generates self-contained HTML+CSS+SVG per layout column.
+Content is stored as `html` CType elements. Key constraints:
+- CSS-only (no JavaScript, no `<script>` tags)
+- Inline SVG only (no external images)
+- CSS `url()` blocked (no external resources)
+- `CreativeHtmlSanitizer` enforces all security rules
+
+When creative mode is selected, `allowed_ctypes` and `image_task` TCA fields
+are hidden via `displayCond`.
+
 ## Security Considerations
 
 - LLM responses are treated as untrusted — HTML is sanitized server-side
+- **Structured mode**: `TYPO3\HtmlSanitizer` with whitelist (p, ul, ol, li, strong, em, a, h2-h4)
+- **Creative mode**: `CreativeHtmlSanitizer` strips `<script>`, event handlers,
+  `javascript:` protocols, `data:` URIs, CSS `url()`, and dangerous tags
+  (`<iframe>`, `<object>`, `<embed>`, `<form>`)
 - Image generation errors return generic messages, details are logged only
 - MIME type validation on AI-generated images before FAL storage
 - TCA fieldInformation uses only TYPO3-allowed HTML tags (architecture test enforced)

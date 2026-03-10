@@ -83,6 +83,10 @@ Step 4: Content Preview
 -----------------------
 
 The AI generates content sections based on your template settings.
+The preview depends on the template's **generation mode**:
+
+**Structured mode** (default):
+
 Each section is displayed as a card showing:
 
 -  **Section name** and **content type** (badge)
@@ -100,6 +104,19 @@ You can:
 -  **Generate AI images** (if configured) using the image generation
    button
 -  **Edit** section content inline
+
+**Creative HTML mode:**
+
+Each layout block is displayed with:
+
+-  **Live HTML preview** — rendered in a sandboxed iframe
+-  **Source editor** — toggle the "Source" button to edit the raw
+   HTML, CSS, and SVG code directly
+-  **colPos badge** — shows which layout column the block belongs to
+
+The AI generates self-contained HTML fragments with embedded
+``<style>`` blocks and inline SVG graphics. No images from the media
+library are used in creative mode.
 
 Step 5: Placement & Save
 -------------------------

@@ -166,6 +166,40 @@ AI Configuration Tab
 Content & Layout Tab
 --------------------
 
+.. confval:: Generation Mode
+
+   :type: select
+   :default: Structured
+
+   Controls how the AI creates page content:
+
+   ``Structured``
+      Uses standard TYPO3 content elements (text, textmedia, header,
+      etc.). Each section becomes a separate ``tt_content`` record.
+      This is the default mode and works with all TYPO3 themes.
+
+   ``Creative HTML``
+      Gives the AI full design freedom. Each layout column receives
+      a self-contained HTML fragment with embedded ``<style>`` blocks
+      and optional inline SVG graphics. Content is stored as ``html``
+      CType elements.
+
+      **Design rules in creative mode:**
+
+      -  CSS-only animations and transitions (no JavaScript)
+      -  Inline SVG for graphics (no external image URLs)
+      -  Scoped CSS classes per section to avoid conflicts
+      -  Responsive design with relative units and media queries
+      -  Semantic HTML for accessibility
+
+      **Security:** All generated HTML is sanitized. ``<script>`` tags,
+      event handlers, ``javascript:`` protocols, ``data:`` URIs, and
+      CSS ``url()`` are removed automatically.
+
+   When creative mode is selected, the :confval:`Allowed Content Types`
+   and :confval:`Image Task` fields are hidden since they only apply to
+   structured mode.
+
 .. confval:: Allowed Content Types
 
    :type: select (checkboxes)
