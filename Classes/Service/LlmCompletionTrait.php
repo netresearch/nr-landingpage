@@ -46,7 +46,6 @@ trait LlmCompletionTrait
                     $content = preg_replace('/^```(?:json)?\s*/i', '', $content) ?? $content;
                     $content = preg_replace('/\s*```\s*$/', '', $content) ?? $content;
                 }
-                /** @var array<string, mixed>|null $decoded */
                 $decoded = json_decode($content, true);
                 if (!is_array($decoded)) {
                     $firstError = json_last_error_msg();
@@ -88,6 +87,7 @@ trait LlmCompletionTrait
                     ]);
                     throw new RuntimeException('LLM returned invalid JSON: ' . $jsonError);
                 }
+                /** @var array<string, mixed> $decoded */
                 return $decoded;
             }
         }

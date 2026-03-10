@@ -673,7 +673,8 @@ final class LandingPageWizardController implements LoggerAwareInterface
             ];
             foreach ($map as $key => $settingKey) {
                 if ($settings->has($settingKey)) {
-                    $value = (string) $settings->get($settingKey);
+                    /** @var string $value */
+                    $value = $settings->get($settingKey);
                     if ($value !== '') {
                         $defaults[$key] = $value;
                     }
