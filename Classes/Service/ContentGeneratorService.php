@@ -29,6 +29,11 @@ final class ContentGeneratorService implements LoggerAwareInterface
         return $this->getSanitizer()->sanitize($html);
     }
 
+    private function sanitizeCreativeHtml(string $html): string
+    {
+        return $this->creativeHtmlSanitizer->sanitize($html);
+    }
+
     private function getSanitizer(): Sanitizer
     {
         if ($this->sanitizer === null) {
@@ -62,6 +67,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         private readonly LlmConfigurationRepository $configurationRepository,
         private readonly CTypeMetadataService $cTypeMetadataService,
         private readonly BackendLayoutService $backendLayoutService,
+        private readonly CreativeHtmlSanitizer $creativeHtmlSanitizer,
     ) {}
 
     /**
@@ -73,21 +79,36 @@ final class ContentGeneratorService implements LoggerAwareInterface
      */
     public function generateContent(Template $template, array $briefingAnswers, string $outputLanguage = '', int $parentPageId = 0): array
     {
-        try {
-            $prompt = $this->buildContentPrompt($template, $briefingAnswers, $outputLanguage, $parentPageId);
-            $response = $this->completeJsonWithTemplate($template, $prompt);
-        } catch (Throwable $e) {
-            $this->logger?->error('Content generation failed', [
-                'template' => $template->identifier,
-                'error' => $e->getMessage(),
-            ]);
-            return [];
+        if ($template->isCreativeMode()) {
+            return $this->generateCreativeContent($template, $briefingAnswers, $outputLanguage, $parentPageId);
         }
+
+        $prompt = $this->buildContentPrompt($template, $briefingAnswers, $outputLanguage, $parentPageId);
+        $response = $this->completeJsonWithTemplate($template, $prompt);
 
         $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout, $parentPageId);
         $validColPositions = array_keys($columnMap);
 
         return $this->validateSections($response, $template->allowedCTypes, $validColPositions);
+    }
+
+    /**
+     * Generate creative HTML content for each layout column.
+     *
+     * @param array<string, string> $briefingAnswers
+     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string}>
+     */
+    private function generateCreativeContent(Template $template, array $briefingAnswers, string $outputLanguage, int $parentPageId): array
+    {
+        $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout, $parentPageId);
+        if ($columnMap === []) {
+            $columnMap = [0 => 'Main'];
+        }
+
+        $prompt = $this->buildCreativePrompt($template, $briefingAnswers, $outputLanguage, $columnMap);
+        $response = $this->completeJsonWithTemplate($template, $prompt);
+
+        return $this->validateCreativeSections($response, $columnMap);
     }
 
     /**
@@ -403,6 +424,114 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 'bodytext' => $this->sanitizeHtml($bodytext),
                 'imageKeywords' => $imageKeywords,
                 'imagePrompt' => is_string($item['imagePrompt'] ?? null) ? $item['imagePrompt'] : '',
+            ];
+        }
+
+        return $validated;
+    }
+
+    /**
+     * Build the LLM prompt for creative HTML mode.
+     *
+     * @param array<string, string> $briefingAnswers
+     * @param array<int, string> $columnMap
+     */
+    private function buildCreativePrompt(Template $template, array $briefingAnswers, string $outputLanguage, array $columnMap): string
+    {
+        $briefing = $this->formatBriefing($briefingAnswers);
+        $languageBlock = $this->buildLanguageBlock($outputLanguage);
+
+        $columnDescriptions = [];
+        foreach ($columnMap as $colPos => $name) {
+            $columnDescriptions[] = "- colPos {$colPos}: \"{$name}\"";
+        }
+        $columnsBlock = implode("\n", $columnDescriptions);
+
+        return <<<PROMPT
+            {$template->systemPrompt}
+
+            Briefing:
+            {$briefing}
+
+            --- KREATIV-MODUS: HTML + CSS + INLINE-SVG ---
+            {$languageBlock}
+            Du bist ein Webdesigner. Erstelle fuer jeden Inhaltsbereich ein eigenstaendiges
+            HTML-Fragment mit eingebettetem CSS (<style>) und optionalen Inline-SVGs.
+
+            Verfuegbare Inhaltsbereiche (Spalten):
+            {$columnsBlock}
+
+            DESIGN-REGELN:
+            1. Jedes Fragment ist ein in sich geschlossenes HTML-Stueck mit eigenem <style>-Block.
+            2. Verwende CSS-Klassen mit einem eindeutigen Praefix pro Section (z.B. .hero-*, .sidebar-*),
+               um Konflikte zwischen Sections zu vermeiden.
+            3. Nutze moderne CSS-Techniken: Flexbox, Grid, Gradients, Transitions, Animationen.
+            4. Erstelle Bilder als Inline-SVG mit sinnvollen, dekorativen Grafiken.
+               KEINE externen Bild-URLs, KEINE <img>-Tags mit src-Attribut.
+            5. KEIN JavaScript, KEINE <script>-Tags, KEINE Event-Handler (onclick etc.).
+            6. KEIN CSS url() — keine externen Ressourcen in Stylesheets.
+            7. Barrierefrei: Semantisches HTML, ausreichende Kontraste, aria-Labels.
+            8. Responsive: Relative Einheiten (rem, em, %, vw) und Media Queries.
+            9. Das umgebende Theme-CSS kommt vom TYPO3-Template — erstelle NUR den Inhalt.
+
+            TOKEN-BUDGET BEACHTEN:
+            - Halte CSS kompakt: Shorthand-Properties, keine redundanten Regeln.
+            - SVGs klein halten: Einfache, dekorative Grafiken, keine komplexen Pfade.
+            - Pro Section max. 150 Zeilen HTML+CSS. Qualitaet vor Quantitaet.
+            - Sidebar/Footer-Spalten besonders kompakt (max. 50 Zeilen).
+
+            Antworte ausschliesslich als JSON-Array:
+            [
+              {"section": "Name", "colPos": 0, "header": "Titel",
+               "bodytext": "<style>.hero { ... }</style><section class='hero'>...</section>"}
+            ]
+
+            Das bodytext-Feld enthaelt das komplette HTML inkl. <style>-Block.
+            Erstelle fuer JEDEN colPos ({$this->formatColPosValues($columnMap)}) genau ein Element.
+            PROMPT;
+    }
+
+    /**
+     * Validate and sanitize creative mode LLM response.
+     *
+     * @param array<int, string> $columnMap
+     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string}>
+     */
+    private function validateCreativeSections(mixed $response, array $columnMap): array
+    {
+        if (!is_array($response)) {
+            return [];
+        }
+
+        $validColPositions = array_keys($columnMap);
+        $validated = [];
+
+        foreach ($response as $item) {
+            if (!is_array($item) || !isset($item['section'])) {
+                continue;
+            }
+            if (!is_string($item['section'])) {
+                continue;
+            }
+
+            $bodytext = is_string($item['bodytext'] ?? null) ? $item['bodytext'] : '';
+            $bodytext = $this->sanitizeCreativeHtml($bodytext);
+
+            $rawColPos = $item['colPos'] ?? 0;
+            $colPos = is_int($rawColPos) ? $rawColPos : (is_numeric($rawColPos) ? (int) $rawColPos : 0);
+            if ($validColPositions !== [] && !in_array($colPos, $validColPositions, true)) {
+                $colPos = $validColPositions[0];
+            }
+
+            $validated[] = [
+                'section' => $item['section'],
+                'ctype' => 'html',
+                'colPos' => $colPos,
+                'header' => is_string($item['header'] ?? null) ? $item['header'] : '',
+                'subheader' => '',
+                'bodytext' => $bodytext,
+                'imageKeywords' => [],
+                'imagePrompt' => '',
             ];
         }
 

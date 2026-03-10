@@ -7,6 +7,7 @@ namespace Netresearch\NrLandingpage\Controller\Backend;
 use Netresearch\NrLandingpage\Domain\Model\GenerationContext;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
+use Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer;
 use Netresearch\NrLandingpage\Service\ImageProviderService;
 use Netresearch\NrLandingpage\Service\ImageSearchService;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
@@ -43,6 +44,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
         private readonly PageCreatorService $pageCreatorService,
         private readonly ConnectionPool $connectionPool,
         private readonly SiteFinder $siteFinder,
+        private readonly CreativeHtmlSanitizer $creativeHtmlSanitizer,
         private readonly ?PromptOptimizerService $promptOptimizerService = null,
     ) {}
 
@@ -198,6 +200,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 'imageErrors' => $imageErrors,
                 'hasImageTask' => $template->hasImageTask(),
                 'aiGenerationAvailable' => $this->imageProviderService->isAiGenerationAvailable(),
+                'generationMode' => $template->generationMode,
             ]]);
         } catch (Throwable $e) {
             return $this->errorResponse($e);
@@ -340,7 +343,8 @@ final class LandingPageWizardController implements LoggerAwareInterface
                     continue;
                 }
                 $ctype = is_string($section['ctype'] ?? null) ? $section['ctype'] : '';
-                if ($allowedCTypes !== [] && $ctype !== '' && !in_array($ctype, $allowedCTypes, true)) {
+                // Creative mode always uses CType "html" — skip allowlist enforcement
+                if (!$template->isCreativeMode() && $allowedCTypes !== [] && $ctype !== '' && !in_array($ctype, $allowedCTypes, true)) {
                     $ctype = 'text';
                 }
                 $rawImageUid = $section['imageUid'] ?? 0;
@@ -349,12 +353,18 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 $rawColPos = $section['colPos'] ?? 0;
                 $colPos = is_numeric($rawColPos) ? (int) $rawColPos : 0;
 
+                $bodytext = is_string($section['bodytext'] ?? null) ? $section['bodytext'] : '';
+                // Re-sanitize creative mode content at save time (editors can edit source in wizard)
+                if ($template->isCreativeMode()) {
+                    $bodytext = $this->creativeHtmlSanitizer->sanitize($bodytext);
+                }
+
                 $typedSections[] = [
                     'section' => is_string($section['section'] ?? null) ? $section['section'] : '',
                     'ctype' => $ctype,
                     'header' => is_string($section['header'] ?? null) ? $section['header'] : '',
                     'subheader' => is_string($section['subheader'] ?? null) ? $section['subheader'] : '',
-                    'bodytext' => is_string($section['bodytext'] ?? null) ? $section['bodytext'] : '',
+                    'bodytext' => $bodytext,
                     'imageUid' => $imageUid,
                     'colPos' => $colPos,
                 ];
@@ -447,6 +457,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 'images' => $images,
                 'imageErrors' => $imageErrors,
                 'aiGenerationAvailable' => $this->imageProviderService->isAiGenerationAvailable(),
+                'generationMode' => $template->generationMode,
             ]]);
         } catch (Throwable $e) {
             return $this->errorResponse($e);
@@ -639,7 +650,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
         return new JsonResponse([
             'success' => false,
-            'error' => 'An internal error occurred. Please try again.',
+            'error' => $e->getMessage() ?: 'An internal error occurred. Please try again.',
         ], 500);
     }
 }

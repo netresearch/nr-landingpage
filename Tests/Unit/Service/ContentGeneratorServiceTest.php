@@ -7,6 +7,7 @@ namespace Netresearch\NrLandingpage\Tests\Unit\Service;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Service\BackendLayoutService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
+use Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer;
 use Netresearch\NrLandingpage\Service\CTypeMetadataService;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Service\Feature\CompletionService;
@@ -35,6 +36,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             $this->createMock(LlmConfigurationRepository::class),
             $cTypeMetadataService,
             $backendLayoutService,
+            new CreativeHtmlSanitizer(),
         );
     }
 
@@ -189,33 +191,16 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     }
 
     #[Test]
-    public function generateContentReturnsEmptyOnException(): void
+    public function generateContentThrowsOnLlmException(): void
     {
         $completionService = $this->createMock(CompletionService::class);
         $completionService->method('completeJson')
             ->willThrowException(new RuntimeException('LLM failed'));
 
         $service = $this->createService($completionService);
-        self::assertSame([], $service->generateContent($this->createTemplate(), []));
-    }
 
-    #[Test]
-    public function generateContentLogsOnError(): void
-    {
-        $completionService = $this->createMock(CompletionService::class);
-        $completionService->method('completeJson')
-            ->willThrowException(new RuntimeException('LLM exploded'));
-
-        $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects(self::once())
-            ->method('error')
-            ->with('Content generation failed', self::callback(
-                fn(array $context): bool => $context['template'] === 't'
-                    && $context['error'] === 'LLM exploded',
-            ));
-
-        $service = $this->createService($completionService);
-        $service->setLogger($logger);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('LLM failed');
         $service->generateContent($this->createTemplate(), []);
     }
 
@@ -548,6 +533,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             $this->createMock(LlmConfigurationRepository::class),
             $cTypeMetadataService,
             $backendLayoutService,
+            new CreativeHtmlSanitizer(),
         );
 
         $result = $service->generateContent($this->createTemplate(), []);
@@ -579,6 +565,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             $this->createMock(LlmConfigurationRepository::class),
             $cTypeMetadataService,
             $backendLayoutService,
+            new CreativeHtmlSanitizer(),
         );
 
         $result = $service->generateContent($this->createTemplate(), []);
@@ -625,6 +612,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             $this->createMock(LlmConfigurationRepository::class),
             $cTypeMetadataService,
             $backendLayoutService,
+            new CreativeHtmlSanitizer(),
         );
 
         $result = $service->generateContent($this->createTemplate(), []);

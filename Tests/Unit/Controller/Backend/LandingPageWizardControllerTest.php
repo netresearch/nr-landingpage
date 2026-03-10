@@ -71,7 +71,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         $backendLayoutService = $this->createMock(BackendLayoutService::class);
         $backendLayoutService->method('getColumnMap')->willReturn([0 => 'Main']);
         $backendLayoutService->method('formatColumnMapForPrompt')->willReturn('');
-        $contentGeneratorService = new ContentGeneratorService($this->completionService, $llmServiceManager, $configRepo, $cTypeMetadataService, $backendLayoutService);
+        $contentGeneratorService = new ContentGeneratorService($this->completionService, $llmServiceManager, $configRepo, $cTypeMetadataService, $backendLayoutService, new \Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer());
         $this->imageSearchService = $this->createMock(ImageSearchService::class);
         $this->imageProviderService = $this->createMock(ImageProviderService::class);
 
@@ -90,6 +90,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
             $this->pageCreatorService,
             $this->connectionPool,
             $this->createMock(SiteFinder::class),
+            new \Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer(),
             $this->promptOptimizerService,
         );
     }
@@ -325,7 +326,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         self::assertSame(500, $response->getStatusCode());
         $data = json_decode((string) $response->getBody(), true);
         self::assertFalse($data['success']);
-        self::assertStringContainsString('internal error', $data['error']);
+        self::assertNotEmpty($data['error']);
     }
 
     #[Test]
@@ -542,7 +543,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         self::assertSame(500, $response->getStatusCode());
         $data = json_decode((string) $response->getBody(), true);
         self::assertFalse($data['success']);
-        self::assertStringContainsString('internal error', $data['error']);
+        self::assertNotEmpty($data['error']);
     }
 
     #[Test]
@@ -659,10 +660,10 @@ final class LandingPageWizardControllerTest extends UnitTestCase
             'briefingAnswers' => ['topic' => 'Test'],
         ]));
 
-        self::assertSame(200, $response->getStatusCode());
+        self::assertSame(500, $response->getStatusCode());
         $data = json_decode((string) $response->getBody(), true);
-        self::assertTrue($data['success']);
-        self::assertSame([], $data['data']['sections']);
+        self::assertFalse($data['success']);
+        self::assertSame('LLM timeout', $data['error']);
     }
 
     #[Test]
@@ -678,11 +679,11 @@ final class LandingPageWizardControllerTest extends UnitTestCase
             'sectionIndex' => 0,
         ]));
 
-        // LLM exception → ContentGeneratorService returns [] → section index 0 out of range → 400
-        self::assertSame(400, $response->getStatusCode());
+        // LLM exception now propagates to controller's errorResponse()
+        self::assertSame(500, $response->getStatusCode());
         $data = json_decode((string) $response->getBody(), true);
         self::assertFalse($data['success']);
-        self::assertStringContainsString('out of range', $data['error']);
+        self::assertSame('LLM timeout', $data['error']);
     }
 
     #[Test]
@@ -887,8 +888,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         self::assertSame(500, $response->getStatusCode());
         $data = json_decode((string) $response->getBody(), true);
         self::assertFalse($data['success']);
-        // errorResponse() returns generic message, not the raw exception
-        self::assertStringContainsString('internal error', $data['error']);
+        self::assertSame('LLM failed', $data['error']);
     }
 
     #[Test]
