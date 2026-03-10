@@ -159,6 +159,22 @@
                 <source>Advanced: Override how the AI optimizes your instructions. Leave empty to use the built-in strategy. Only change this if the default optimization doesn't fit your needs.</source>
                 <target>Erweitert: Überschreibt, wie die KI Ihre Anweisungen optimiert. Leer lassen für die eingebaute Strategie. Nur ändern, wenn die Standard-Optimierung nicht passt.</target>
             </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.generation_mode" resname="tx_nrlandingpage_domain_model_template.generation_mode">
+                <source>Generation Mode</source>
+                <target>Generierungsmodus</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.generation_mode.description" resname="tx_nrlandingpage_domain_model_template.generation_mode.description">
+                <source>How the AI creates page content. "Structured" uses TYPO3 content elements (text, image, etc.). "Creative HTML" gives the AI full design freedom with HTML and CSS per layout block — ideal for visually rich, unique landing pages.</source>
+                <target>Wie die KI Seiteninhalte erstellt. „Strukturiert" nutzt TYPO3-Inhaltselemente (Text, Bild etc.). „Kreatives HTML" gibt der KI volle Gestaltungsfreiheit mit HTML und CSS pro Layout-Block — ideal für visuell ansprechende, einzigartige Landing Pages.</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.generation_mode.structured" resname="tx_nrlandingpage_domain_model_template.generation_mode.structured">
+                <source>Structured — TYPO3 content elements</source>
+                <target>Strukturiert — TYPO3-Inhaltselemente</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.generation_mode.creative" resname="tx_nrlandingpage_domain_model_template.generation_mode.creative">
+                <source>Creative HTML — free design with HTML, CSS &amp; inline SVG</source>
+                <target>Kreatives HTML — freies Design mit HTML, CSS &amp; Inline-SVG</target>
+            </trans-unit>
             <trans-unit id="tabs.ai" resname="tabs.ai">
                 <source>AI Configuration</source>
                 <target>KI-Konfiguration</target>

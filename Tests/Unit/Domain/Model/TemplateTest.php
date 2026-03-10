@@ -138,4 +138,35 @@ final class TemplateTest extends UnitTestCase
 
         self::assertSame($a->getConfigHash(), $b->getConfigHash());
     }
+
+    #[Test]
+    public function isCreativeModeReturnsTrueForCreative(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', generationMode: 'creative');
+        self::assertTrue($template->isCreativeMode());
+    }
+
+    #[Test]
+    public function isCreativeModeReturnsFalseForStructured(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', generationMode: 'structured');
+        self::assertFalse($template->isCreativeMode());
+    }
+
+    #[Test]
+    public function generationModeDefaultsToStructured(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't');
+        self::assertSame('structured', $template->generationMode);
+        self::assertFalse($template->isCreativeMode());
+    }
+
+    #[Test]
+    public function getConfigHashChangesWhenGenerationModeChanges(): void
+    {
+        $a = new Template(uid: 1, title: 'T', identifier: 't', systemPrompt: 'prompt', generationMode: 'structured');
+        $b = new Template(uid: 1, title: 'T', identifier: 't', systemPrompt: 'prompt', generationMode: 'creative');
+
+        self::assertNotSame($a->getConfigHash(), $b->getConfigHash());
+    }
 }

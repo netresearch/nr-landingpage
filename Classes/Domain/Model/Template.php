@@ -29,7 +29,13 @@ final readonly class Template
         public string $promptOptimizerContext = '',
         public string $promptOptimizerMetaPrompt = '',
         public int $imageTask = 0,
+        public string $generationMode = 'structured',
     ) {}
+
+    public function isCreativeMode(): bool
+    {
+        return $this->generationMode === 'creative';
+    }
 
     public function isBriefingRequired(): bool
     {
@@ -80,6 +86,7 @@ final readonly class Template
             $this->briefingMode,
             (string) $this->llmConfiguration,
             (string) $this->imageTask,
+            $this->generationMode,
         ]);
 
         return hash('sha256', $data);

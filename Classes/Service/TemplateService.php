@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
+use Throwable;
 use TYPO3\CMS\Backend\View\BackendLayoutView;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\Connection;
@@ -18,6 +19,27 @@ final readonly class TemplateService
 
     /** Individual CTypes excluded even if their group is allowed. */
     private const EXCLUDED_CTYPES = ['html', 'div', 'shortcut', 'uploads'];
+
+    /**
+     * Well-known page fields that may not appear in TCA but exist as DB columns.
+     *
+     * In TYPO3 v14, EXT:seo no longer registers seo_title, og_title, etc. in
+     * $GLOBALS['TCA']['pages']['columns']. They still exist as DB columns and
+     * are writable via DataHandler. We offer them explicitly so editors can
+     * select them for LLM generation.
+     *
+     * @var array<string, string> field name → human-readable label
+     */
+    private const WELL_KNOWN_PAGE_FIELDS = [
+        'seo_title' => 'SEO Title',
+        'og_title' => 'Open Graph Title',
+        'og_description' => 'Open Graph Description',
+        'no_index' => 'No Index',
+        'no_follow' => 'No Follow',
+        'canonical_link' => 'Canonical Link',
+        'twitter_title' => 'Twitter Title',
+        'twitter_description' => 'Twitter Description',
+    ];
 
     /**
      * Page fields excluded from template selection.
@@ -146,6 +168,34 @@ final readonly class TemplateService
                 'label' => $resolvedLabel,
                 'value' => $fieldName,
             ];
+        }
+
+        // TYPO3 v14 compatibility: Add well-known page fields that exist as DB
+        // columns but are no longer registered in TCA (e.g. EXT:seo fields).
+        $knownInGroups = [];
+        foreach ($groups as $fields) {
+            foreach ($fields as $field) {
+                $knownInGroups[$field['value']] = true;
+            }
+        }
+        $wellKnownToAdd = [];
+        foreach (self::WELL_KNOWN_PAGE_FIELDS as $fieldName => $label) {
+            if (isset($knownInGroups[$fieldName])) {
+                continue;
+            }
+            if (!$this->dbColumnExists('pages', $fieldName)) {
+                continue;
+            }
+            $wellKnownToAdd[] = [
+                'label' => $label,
+                'value' => $fieldName,
+            ];
+        }
+        if ($wellKnownToAdd !== []) {
+            $groups['SEO / Social Media'] = array_merge(
+                $groups['SEO / Social Media'] ?? [],
+                $wellKnownToAdd,
+            );
         }
 
         // Output groups in the order they appear in showitem
@@ -506,6 +556,9 @@ final readonly class TemplateService
             promptOptimizerContext: is_string($row['prompt_optimizer_context'] ?? null) ? $row['prompt_optimizer_context'] : '',
             promptOptimizerMetaPrompt: is_string($row['prompt_optimizer_meta_prompt'] ?? null) ? $row['prompt_optimizer_meta_prompt'] : '',
             imageTask: self::toInt($row['image_task'] ?? 0),
+            generationMode: is_string($row['generation_mode'] ?? null) && in_array($row['generation_mode'], ['structured', 'creative'], true)
+                ? $row['generation_mode']
+                : 'structured',
         );
     }
 
@@ -556,6 +609,25 @@ final readonly class TemplateService
         $tca = $GLOBALS['TCA'] ?? [];
 
         return $tca[$table] ?? [];
+    }
+
+    /**
+     * Check whether a column exists in the database table.
+     *
+     * Used for TYPO3 v14 compatibility where some fields (e.g. from EXT:seo)
+     * exist as DB columns but are no longer registered in TCA.
+     */
+    private function dbColumnExists(string $table, string $column): bool
+    {
+        try {
+            $connection = $this->connectionPool->getConnectionForTable($table);
+            $schemaManager = $connection->createSchemaManager();
+            $tableColumns = $schemaManager->listTableColumns($table);
+
+            return isset($tableColumns[$column]);
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     private static function toInt(mixed $value): int

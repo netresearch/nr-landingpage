@@ -11,6 +11,7 @@ use PHPUnit\Framework\Attributes\Test;
 use stdClass;
 use TYPO3\CMS\Backend\View\BackendLayoutView;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
@@ -687,6 +688,7 @@ final class TemplateServiceTest extends UnitTestCase
             'backend_layout' => '',
             'prompt_optimizer_context' => '',
             'prompt_optimizer_meta_prompt' => '',
+            'generation_mode' => 'structured',
         ], $overrides);
     }
 
@@ -809,6 +811,43 @@ final class TemplateServiceTest extends UnitTestCase
 
         self::assertNotNull($template);
         self::assertSame('', $template->backendLayout);
+    }
+
+    #[Test]
+    public function hydrateTemplateReadsGenerationMode(): void
+    {
+        $row = $this->createTemplateRow(['generation_mode' => 'creative']);
+        $service = new TemplateService($this->createMockConnectionPool($row));
+
+        $template = $service->loadByUid(1);
+
+        self::assertNotNull($template);
+        self::assertSame('creative', $template->generationMode);
+    }
+
+    #[Test]
+    public function hydrateTemplateDefaultsGenerationModeToStructured(): void
+    {
+        $row = $this->createTemplateRow();
+        unset($row['generation_mode']);
+        $service = new TemplateService($this->createMockConnectionPool($row));
+
+        $template = $service->loadByUid(1);
+
+        self::assertNotNull($template);
+        self::assertSame('structured', $template->generationMode);
+    }
+
+    #[Test]
+    public function hydrateTemplateRejectsInvalidGenerationMode(): void
+    {
+        $row = $this->createTemplateRow(['generation_mode' => 'invalid_mode']);
+        $service = new TemplateService($this->createMockConnectionPool($row));
+
+        $template = $service->loadByUid(1);
+
+        self::assertNotNull($template);
+        self::assertSame('structured', $template->generationMode);
     }
 
     #[Test]
@@ -992,5 +1031,128 @@ final class TemplateServiceTest extends UnitTestCase
         $service->getAvailableBackendLayouts($params);
 
         self::assertSame([], $params['items']);
+    }
+
+    #[Test]
+    public function getAvailablePageFieldsIncludesWellKnownFieldsFromDatabase(): void
+    {
+        // TCA has no seo_title, but it exists as DB column
+        $this->setPagesTca(
+            columns: [
+                'description' => ['label' => 'Description', 'config' => ['type' => 'text']],
+            ],
+            showitem: '--div--;General,description',
+        );
+
+        $connectionPool = $this->createConnectionPoolWithColumns(['seo_title', 'og_title', 'og_description']);
+
+        $service = new TemplateService($connectionPool);
+        $params = ['items' => []];
+        $service->getAvailablePageFields($params);
+
+        $fieldValues = array_column($params['items'], 'value');
+        self::assertContains('seo_title', $fieldValues);
+        self::assertContains('og_title', $fieldValues);
+        self::assertContains('og_description', $fieldValues);
+    }
+
+    #[Test]
+    public function getAvailablePageFieldsSkipsWellKnownFieldsAlreadyInTca(): void
+    {
+        // seo_title is already in TCA — should not be duplicated
+        $this->setPagesTca(
+            columns: [
+                'seo_title' => ['label' => 'SEO Title', 'config' => ['type' => 'input']],
+            ],
+            showitem: '--div--;SEO,seo_title',
+        );
+
+        $connectionPool = $this->createConnectionPoolWithColumns(['seo_title']);
+
+        $service = new TemplateService($connectionPool);
+        $params = ['items' => []];
+        $service->getAvailablePageFields($params);
+
+        $seoTitleCount = count(array_filter(
+            $params['items'],
+            static fn(array $item): bool => $item['value'] === 'seo_title',
+        ));
+        self::assertSame(1, $seoTitleCount, 'seo_title must appear exactly once');
+    }
+
+    #[Test]
+    public function getAvailablePageFieldsSkipsWellKnownFieldsNotInDatabase(): void
+    {
+        $this->setPagesTca(
+            columns: [
+                'description' => ['label' => 'Description', 'config' => ['type' => 'text']],
+            ],
+            showitem: '--div--;General,description',
+        );
+
+        // DB has no seo columns
+        $connectionPool = $this->createConnectionPoolWithColumns([]);
+
+        $service = new TemplateService($connectionPool);
+        $params = ['items' => []];
+        $service->getAvailablePageFields($params);
+
+        $fieldValues = array_column($params['items'], 'value');
+        self::assertNotContains('seo_title', $fieldValues);
+        self::assertNotContains('og_title', $fieldValues);
+    }
+
+    #[Test]
+    public function getAvailablePageFieldsGroupsWellKnownFieldsUnderSeoSocialMedia(): void
+    {
+        $this->setPagesTca(
+            columns: [
+                'description' => ['label' => 'Description', 'config' => ['type' => 'text']],
+            ],
+            showitem: '--div--;General,description',
+        );
+
+        $connectionPool = $this->createConnectionPoolWithColumns(['seo_title']);
+
+        $service = new TemplateService($connectionPool);
+        $params = ['items' => []];
+        $service->getAvailablePageFields($params);
+
+        // Find the group divider before seo_title
+        $seoGroupIdx = null;
+        foreach ($params['items'] as $idx => $item) {
+            if ($item['value'] === '--div--' && $item['label'] === 'SEO / Social Media') {
+                $seoGroupIdx = $idx;
+            }
+        }
+        self::assertNotNull($seoGroupIdx, 'SEO / Social Media group divider must exist');
+    }
+
+    /**
+     * Create a ConnectionPool mock that reports specific columns as existing.
+     *
+     * @param list<string> $existingColumns
+     */
+    private function createConnectionPoolWithColumns(array $existingColumns): ConnectionPool
+    {
+        $columnObjects = [];
+        foreach ($existingColumns as $name) {
+            $col = $this->createMock(\Doctrine\DBAL\Schema\Column::class);
+            $columnObjects[$name] = $col;
+        }
+
+        $schemaManager = $this->createMock(\Doctrine\DBAL\Schema\AbstractSchemaManager::class);
+        $schemaManager->method('listTableColumns')
+            ->willReturn($columnObjects);
+
+        $connection = $this->createMock(Connection::class);
+        $connection->method('createSchemaManager')
+            ->willReturn($schemaManager);
+
+        $connectionPool = $this->createMock(ConnectionPool::class);
+        $connectionPool->method('getConnectionForTable')
+            ->willReturn($connection);
+
+        return $connectionPool;
     }
 }

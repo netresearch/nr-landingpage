@@ -27,7 +27,7 @@ return [
                 'llm_configuration,image_task,system_prompt',
                 '--palette--;;prompt_optimizer',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.content_layout',
-                'allowed_ctypes,page_fields,reference_pages,backend_layout',
+                'generation_mode,allowed_ctypes,page_fields,reference_pages,backend_layout',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.wizard',
                 'briefing_mode,publish_mode',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.access',
@@ -124,6 +124,7 @@ return [
         'allowed_ctypes' => [
             'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.allowed_ctypes',
             'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.allowed_ctypes.description',
+            'displayCond' => 'FIELD:generation_mode:=:structured',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectCheckBox',
@@ -209,6 +210,7 @@ return [
         'image_task' => [
             'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_task',
             'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_task.description',
+            'displayCond' => 'FIELD:generation_mode:=:structured',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
@@ -218,6 +220,19 @@ return [
                     ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_task.none', 'value' => 0],
                 ],
                 'default' => 0,
+            ],
+        ],
+        'generation_mode' => [
+            'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.generation_mode',
+            'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.generation_mode.description',
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'items' => [
+                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.generation_mode.structured', 'value' => 'structured'],
+                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.generation_mode.creative', 'value' => 'creative'],
+                ],
+                'default' => 'structured',
             ],
         ],
         'backend_layout' => [

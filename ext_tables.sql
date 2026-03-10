@@ -13,7 +13,8 @@ CREATE TABLE tx_nrlandingpage_domain_model_template (
     backend_layout varchar(255) NOT NULL DEFAULT '',
     prompt_optimizer_context text,
     prompt_optimizer_meta_prompt text,
-    image_task int(11) unsigned NOT NULL DEFAULT 0
+    image_task int(11) unsigned NOT NULL DEFAULT 0,
+    generation_mode varchar(20) NOT NULL DEFAULT 'structured'
 );
 
 CREATE TABLE pages (
