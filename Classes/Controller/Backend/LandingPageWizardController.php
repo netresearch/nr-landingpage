@@ -514,6 +514,44 @@ final class LandingPageWizardController implements LoggerAwareInterface
             $sourcePageUid = $row['tx_nrlandingpage_source_page_uid'] ?? 0;
             $parentPageId = $row['pid'] ?? 0;
 
+            // Follow source_page_uid chain to find briefing data from ancestor pages
+            // (covers pages created before briefing_data storage was implemented)
+            if ($briefingAnswers === [] && is_numeric($sourcePageUid) && (int) $sourcePageUid > 0) {
+                $ancestorUid = (int) $sourcePageUid;
+                $visited = [$pageUid];
+                while ($ancestorUid > 0 && !in_array($ancestorUid, $visited, true)) {
+                    $visited[] = $ancestorUid;
+                    $ancestorQb = $this->connectionPool->getQueryBuilderForTable('pages');
+                    $ancestorQb->getRestrictions()->removeByType(
+                        \TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction::class,
+                    );
+                    $ancestorRow = $ancestorQb
+                        ->select('tx_nrlandingpage_briefing_data', 'tx_nrlandingpage_source_page_uid')
+                        ->from('pages')
+                        ->where($ancestorQb->expr()->eq('uid', $ancestorQb->createNamedParameter($ancestorUid, \Doctrine\DBAL\ParameterType::INTEGER)))
+                        ->executeQuery()
+                        ->fetchAssociative();
+
+                    if ($ancestorRow === false) {
+                        break;
+                    }
+
+                    $ancestorBriefing = is_string($ancestorRow['tx_nrlandingpage_briefing_data'] ?? null)
+                        ? $ancestorRow['tx_nrlandingpage_briefing_data']
+                        : '';
+                    if ($ancestorBriefing !== '') {
+                        $briefingAnswers = json_decode($ancestorBriefing, true, 512, JSON_THROW_ON_ERROR);
+                        if (is_array($briefingAnswers) && $briefingAnswers !== []) {
+                            break;
+                        }
+                        $briefingAnswers = [];
+                    }
+
+                    $nextUid = $ancestorRow['tx_nrlandingpage_source_page_uid'] ?? 0;
+                    $ancestorUid = is_numeric($nextUid) ? (int) $nextUid : 0;
+                }
+            }
+
             return new JsonResponse(['success' => true, 'data' => [
                 'templateUid' => is_numeric($templateUid) ? (int) $templateUid : 0,
                 'briefingAnswers' => is_array($briefingAnswers) ? $briefingAnswers : [],
