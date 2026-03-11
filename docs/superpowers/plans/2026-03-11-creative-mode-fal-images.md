@@ -68,7 +68,7 @@ Expected: PASS (current sanitizer does not strip `<img>` tags at all, so placeho
 
 - [ ] **Step 3: Write the failing test — `blocksImgWithSrcAttribute`**
 
-Update the existing `sanitizePreservesImgWithHttpSrc` test (lines 431-437) to expect **removal**:
+**Delete** the existing `sanitizePreservesImgWithHttpSrc` test (lines 430-437) and replace it with:
 
 ```php
 #[Test]
@@ -149,7 +149,7 @@ git commit -m "feat: sanitizer blocks <img src>, allows <img data-image-slot> pl
 
 In `Tests/Unit/Service/ContentGeneratorServiceValidationTest.php`:
 
-Replace `validateCreativeSectionsSetsEmptyImageFields` (lines 264-276) with:
+**Delete** `validateCreativeSectionsSetsEmptyImageFields` (lines 263-276, including the `#[Test]` attribute) and replace with:
 
 ```php
 #[Test]
