@@ -279,6 +279,7 @@ return [
         ],
         'animation_enabled' => [
             'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.animation_enabled',
+            'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.animation_enabled.description',
             'config' => [
                 'type' => 'check',
                 'default' => 1,
