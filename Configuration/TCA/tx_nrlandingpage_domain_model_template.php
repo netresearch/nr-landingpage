@@ -29,6 +29,7 @@ return [
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.content_layout',
                 'generation_mode,allowed_ctypes,page_fields,reference_pages,backend_layout',
                 '--palette--;;color_scheme',
+                'animation_enabled',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.wizard',
                 'briefing_mode,publish_mode',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.access',
@@ -274,6 +275,16 @@ return [
                 'type' => 'color',
                 'default' => '',
                 'placeholder' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.color.placeholder',
+            ],
+        ],
+        'animation_enabled' => [
+            'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.animation_enabled',
+            'config' => [
+                'type' => 'check',
+                'default' => 1,
+                'items' => [
+                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.animation_enabled.label'],
+                ],
             ],
         ],
         'backend_layout' => [
