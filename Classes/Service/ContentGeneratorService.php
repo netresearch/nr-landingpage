@@ -540,6 +540,15 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 $colPos = $validColPositions[0];
             }
 
+            $imageKeywords = [];
+            if (is_array($item['imageKeywords'] ?? null)) {
+                foreach ($item['imageKeywords'] as $kw) {
+                    if (is_string($kw) && trim($kw) !== '') {
+                        $imageKeywords[] = trim($kw);
+                    }
+                }
+            }
+
             $validated[] = [
                 'section' => $item['section'],
                 'ctype' => 'html',
@@ -547,8 +556,8 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 'header' => is_string($item['header'] ?? null) ? $item['header'] : '',
                 'subheader' => '',
                 'bodytext' => $bodytext,
-                'imageKeywords' => [],
-                'imagePrompt' => '',
+                'imageKeywords' => $imageKeywords,
+                'imagePrompt' => is_string($item['imagePrompt'] ?? null) ? $item['imagePrompt'] : '',
             ];
         }
 

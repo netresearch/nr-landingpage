@@ -261,7 +261,7 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     }
 
     #[Test]
-    public function validateCreativeSectionsSetsEmptyImageFields(): void
+    public function validateCreativeSectionsDefaultsEmptyImageFields(): void
     {
         $response = [
             ['section' => 'Hero', 'colPos' => 0, 'bodytext' => '<p>Test</p>'],
@@ -272,7 +272,45 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
 
         self::assertSame([], $result[0]['imageKeywords']);
         self::assertSame('', $result[0]['imagePrompt']);
-        self::assertSame('', $result[0]['subheader']);
+    }
+
+    #[Test]
+    public function validateCreativeSectionsReadsImageKeywords(): void
+    {
+        $response = [
+            [
+                'section' => 'Hero',
+                'colPos' => 0,
+                'bodytext' => '<p>Test</p>',
+                'imageKeywords' => ['team', 'office', 'modern'],
+                'imagePrompt' => 'A modern office team working together',
+            ],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main']);
+
+        self::assertSame(['team', 'office', 'modern'], $result[0]['imageKeywords']);
+        self::assertSame('A modern office team working together', $result[0]['imagePrompt']);
+    }
+
+    #[Test]
+    public function validateCreativeSectionsFiltersInvalidKeywords(): void
+    {
+        $response = [
+            [
+                'section' => 'Hero',
+                'colPos' => 0,
+                'bodytext' => '<p>Test</p>',
+                'imageKeywords' => ['valid', '', 42, '  trimmed  '],
+                'imagePrompt' => 'Prompt text',
+            ],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main']);
+
+        self::assertSame(['valid', 'trimmed'], $result[0]['imageKeywords']);
     }
 
     #[Test]
