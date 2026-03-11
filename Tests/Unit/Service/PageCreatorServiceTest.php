@@ -922,6 +922,55 @@ final class PageCreatorServiceTest extends UnitTestCase
     }
 
     #[Test]
+    public function resolveImagePlaceholdersAddsAltWhenMissing(): void
+    {
+        $file = $this->createMock(File::class);
+        $file->method('getPublicUrl')->willReturn('/fileadmin/hero.jpg');
+
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->with(1)->willReturn($file);
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1]);
+        $subject = $this->createService($dh, resourceFactory: $resourceFactory);
+
+        $method = new ReflectionMethod(PageCreatorService::class, 'resolveImagePlaceholders');
+        $result = $method->invoke(
+            $subject,
+            '<img data-image-slot="0">',
+            1,
+        );
+
+        // Must have alt attribute for WCAG 1.1.1 compliance
+        self::assertStringContainsString('alt=""', $result);
+        self::assertStringContainsString('src="/fileadmin/hero.jpg"', $result);
+    }
+
+    #[Test]
+    public function resolveImagePlaceholdersDoesNotDoubleEncodeAlt(): void
+    {
+        $file = $this->createMock(File::class);
+        $file->method('getPublicUrl')->willReturn('/fileadmin/hero.jpg');
+
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->with(1)->willReturn($file);
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1]);
+        $subject = $this->createService($dh, resourceFactory: $resourceFactory);
+
+        $method = new ReflectionMethod(PageCreatorService::class, 'resolveImagePlaceholders');
+        // LLM already produced escaped entity
+        $result = $method->invoke(
+            $subject,
+            '<img data-image-slot="0" alt="Tom &amp; Jerry">',
+            1,
+        );
+
+        // Should not double-encode to &amp;amp;
+        self::assertStringContainsString('alt="Tom &amp; Jerry"', $result);
+        self::assertStringNotContainsString('&amp;amp;', $result);
+    }
+
+    #[Test]
     public function htmlCtypeWithImageButNoPlaceholderSkipsSysFileReference(): void
     {
         $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);

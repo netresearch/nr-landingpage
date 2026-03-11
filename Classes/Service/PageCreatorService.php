@@ -315,12 +315,21 @@ class PageCreatorService implements LoggerAwareInterface
                     $resolved,
                 ) ?? $resolved;
 
-                // Escape alt attribute value for XSS safety
+                // Escape alt attribute value for XSS safety (double_encode=false prevents &amp;amp;)
                 $resolved = preg_replace_callback(
                     '/\balt="([^"]*)"/',
-                    static fn(array $m): string => 'alt="' . htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8') . '"',
+                    static fn(array $m): string => 'alt="' . htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8', false) . '"',
                     $resolved,
                 ) ?? $resolved;
+
+                // Ensure alt attribute exists (WCAG 1.1.1)
+                if (!preg_match('/\balt\s*=/', $resolved)) {
+                    $resolved = preg_replace(
+                        '/<img\b/',
+                        '<img alt=""',
+                        $resolved,
+                    ) ?? $resolved;
+                }
 
                 return $resolved;
             },

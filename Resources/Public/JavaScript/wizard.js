@@ -725,6 +725,8 @@ class LandingPageWizard {
 
                 const imageList = document.createElement('div');
                 imageList.className = 'd-flex gap-2 flex-wrap mb-2';
+                imageList.setAttribute('role', 'group');
+                imageList.setAttribute('aria-label', this.label('wizard.content.imageSuggestions'));
 
                 const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
                 this.renderImageCards(imageList, sectionImages, index);
@@ -735,6 +737,8 @@ class LandingPageWizard {
                     const emptyInfo = document.createElement('div');
                     emptyInfo.className = 'alert alert-info py-2 px-3 mb-2';
                     emptyInfo.style.fontSize = '0.85em';
+                    emptyInfo.setAttribute('role', 'status');
+                    emptyInfo.setAttribute('aria-live', 'polite');
                     emptyInfo.textContent = this.label('wizard.content.imageAutoSearchEmpty', keywords.join(', '));
                     imageSection.appendChild(emptyInfo);
                 }
@@ -749,6 +753,7 @@ class LandingPageWizard {
                 searchInput.type = 'text';
                 searchInput.className = 'form-control form-control-sm';
                 searchInput.placeholder = this.label('wizard.content.imageSearchPlaceholder');
+                searchInput.setAttribute('aria-label', this.label('wizard.content.imageSearchPlaceholder'));
                 searchInput.style.maxWidth = '250px';
                 if (keywords.length > 0) {
                     searchInput.value = keywords.join(' ');
@@ -893,9 +898,11 @@ class LandingPageWizard {
                         const showingSource = source.style.display !== 'none';
                         preview.style.display = showingSource ? 'block' : 'none';
                         source.style.display = showingSource ? 'none' : 'block';
+                        toggleBtn.setAttribute('aria-expanded', showingSource ? 'false' : 'true');
                     }
                 },
             );
+            toggleBtn.setAttribute('aria-expanded', 'false');
 
             const regenerateBtn = this.createButton(
                 this.label('wizard.button.regenerate'),
@@ -959,6 +966,8 @@ class LandingPageWizard {
 
                 const imageList = document.createElement('div');
                 imageList.className = 'd-flex gap-2 flex-wrap mb-2';
+                imageList.setAttribute('role', 'group');
+                imageList.setAttribute('aria-label', this.label('wizard.content.imageSuggestions'));
 
                 if (hasKeywords) {
                     const images = WizardState.getImages();
@@ -970,6 +979,8 @@ class LandingPageWizard {
                         const emptyInfo = document.createElement('div');
                         emptyInfo.className = 'alert alert-info py-2 px-3 mb-2';
                         emptyInfo.style.fontSize = '0.85em';
+                        emptyInfo.setAttribute('role', 'status');
+                        emptyInfo.setAttribute('aria-live', 'polite');
                         emptyInfo.textContent = this.label('wizard.content.imageAutoSearchEmpty', keywords.join(', '));
                         imageSection.appendChild(emptyInfo);
                     }
@@ -985,6 +996,7 @@ class LandingPageWizard {
                 searchInput.type = 'text';
                 searchInput.className = 'form-control form-control-sm';
                 searchInput.placeholder = this.label('wizard.content.imageSearchPlaceholder');
+                searchInput.setAttribute('aria-label', this.label('wizard.content.imageSearchPlaceholder'));
                 searchInput.style.maxWidth = '250px';
                 if (hasKeywords) {
                     searchInput.value = keywords.join(' ');
@@ -1116,6 +1128,7 @@ class LandingPageWizard {
             imgCard.setAttribute('tabindex', '0');
             imgCard.setAttribute('aria-label', img.title || img.name || 'Image');
             imgCard.dataset.imageUid = String(img.uid);
+            imgCard.style.position = 'relative';
 
             // Auto-select recommended image when no image is selected yet
             const isRecommended = img.recommended === true;
@@ -1124,8 +1137,11 @@ class LandingPageWizard {
                 sections[sectionIndex].imageUid = img.uid;
             }
 
-            if (sections[sectionIndex].imageUid === img.uid) {
-                imgCard.classList.add('border-primary', 'shadow-sm');
+            const isSelected = sections[sectionIndex].imageUid === img.uid;
+            imgCard.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+            if (isSelected) {
+                imgCard.classList.add('border-primary', 'border-2', 'shadow-sm');
+                this._addCheckOverlay(imgCard);
             }
 
             // Thumbnail or placeholder
@@ -1153,7 +1169,7 @@ class LandingPageWizard {
                 badge.className = img.generated
                     ? 'badge bg-warning text-dark mb-1'
                     : 'badge bg-success text-white mb-1';
-                badge.style.fontSize = '0.65rem';
+                badge.style.fontSize = '0.75rem';
                 badge.textContent = img.generated ? 'AI' : '\u2605 Best';
                 imgBody.appendChild(badge);
             }
@@ -1167,16 +1183,21 @@ class LandingPageWizard {
 
             const selectImage = () => {
                 const secs = WizardState.getContentSections();
-                const isSelected = secs[sectionIndex].imageUid === img.uid;
+                const wasSelected = secs[sectionIndex].imageUid === img.uid;
 
-                secs[sectionIndex].imageUid = isSelected ? 0 : img.uid;
+                secs[sectionIndex].imageUid = wasSelected ? 0 : img.uid;
 
-                // Update visual state for all cards in this section's image list
+                // Update visual + ARIA state for all cards in this section's image list
                 imageList.querySelectorAll('.card').forEach((c) => {
-                    c.classList.remove('border-primary', 'shadow-sm');
+                    c.classList.remove('border-primary', 'border-2', 'shadow-sm');
+                    c.setAttribute('aria-pressed', 'false');
+                    const check = c.querySelector('.image-check-overlay');
+                    if (check) check.remove();
                 });
-                if (!isSelected) {
-                    imgCard.classList.add('border-primary', 'shadow-sm');
+                if (!wasSelected) {
+                    imgCard.classList.add('border-primary', 'border-2', 'shadow-sm');
+                    imgCard.setAttribute('aria-pressed', 'true');
+                    this._addCheckOverlay(imgCard);
                 }
             };
 
@@ -1190,6 +1211,23 @@ class LandingPageWizard {
 
             imageList.appendChild(imgCard);
         });
+    }
+
+    /**
+     * Add a checkmark overlay to an image card to visually indicate selection.
+     * Provides a non-color visual indicator (WCAG 1.4.1).
+     *
+     * @param {HTMLElement} card
+     */
+    _addCheckOverlay(card) {
+        const check = document.createElement('span');
+        check.className = 'image-check-overlay';
+        check.setAttribute('aria-hidden', 'true');
+        check.textContent = '\u2713';
+        check.style.cssText = 'position:absolute;top:4px;right:4px;background:#0d6efd;color:#fff;'
+            + 'border-radius:50%;width:20px;height:20px;display:flex;align-items:center;'
+            + 'justify-content:center;font-size:12px;font-weight:bold;line-height:1;';
+        card.appendChild(check);
     }
 
     /**
