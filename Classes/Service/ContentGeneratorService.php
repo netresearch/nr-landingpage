@@ -494,22 +494,46 @@ final class ContentGeneratorService implements LoggerAwareInterface
             8. Responsive: Relative Einheiten (rem, em, %, vw) und Media Queries.
             9. Das umgebende Theme-CSS kommt vom TYPO3-Template — erstelle NUR den Inhalt.
 
-            DESIGN-TOOLKIT (nutze diese Techniken kreativ — nicht alle auf einmal, aber
-            waehle passend zum Inhalt fuer ein modernes, lebendiges Ergebnis):
-            - @keyframes-Animationen: fade-in beim Laden, slide-in von links/rechts, sanfte
-              Puls-Effekte fuer CTAs, dezente Float-Animationen fuer SVG-Dekorationen
-            - Animierte Zahlen/Statistiken: @property mit syntax "<integer>" + @keyframes +
-              counter() fuer hochzaehlende Kennzahlen (z.B. "500+ Projekte", "99% Zufriedenheit")
-            - border-radius: Abgerundete Ecken fuer Karten, Bilder und Buttons (8px-24px)
-            - box-shadow / backdrop-filter: Tiefe und Glasmorphismus-Effekte
-            - clip-path: Wellenfoermige Sektionstrennungen, ausgefallene Bildmasken
-            - Gradient-Hintergruende: Mehrstufige linear-gradient/radial-gradient als Sektionshinterlauf
-            - :hover-Transitions: transform scale, box-shadow, Farbwechsel auf interaktive Elemente
-            - SVG-Animationen: SMIL <animate>/<animateTransform> fuer dezente Icon-Bewegungen
-            - CSS Custom Properties: --primary, --secondary etc. fuer konsistentes Farbschema
-            - Dekorative Elemente: Geometrische SVG-Muster, Kreise, Linien als visuelle Akzente
-            - Grid/Flexbox-Layouts: Asymmetrische Raster, Overlap-Effekte, gestaffelte Karten
-            - Typografie: font-size clamp() fuer fluide Groessen, letter-spacing fuer Eleganz
+            DESIGN-PHILOSOPHIE:
+            Orientiere dich an modernen CSS-Frameworks (Bootstrap 5, Tailwind) — nicht als
+            Dependency, sondern als Designsprache: grosszuegige Abstaende, abgerundete Ecken,
+            weiche Schatten, sanfte Uebergaenge. Vermeide kantige, blockhafte Layouts.
+            Sektionen sollen fliessend ineinander uebergehen, nicht wie gestapelte Kaesten wirken.
+            Nutze weiche Hintergruende: sanfte Gradients statt harter Farbflaechen, leichte
+            Tonabtoenungen zwischen Sections, wellenfoermige oder diagonale Sektionstrennungen
+            per clip-path oder SVG statt gerader Kanten.
+
+            DESIGN-TOOLKIT (waehle passend zum Inhalt — nicht alles auf einmal):
+            - @keyframes: fade-in, slide-in, Puls-Effekte, dezente Float-Animationen
+            - Animierte Zahlen: @property + @keyframes + counter() fuer Kennzahlen
+            - border-radius: 8px-24px auf Karten, Bildern, Buttons — nie kantig
+            - box-shadow / backdrop-filter: Tiefe, Glasmorphismus, weiche Schatten
+            - clip-path / SVG-Wellen: Organische Sektionstrennungen statt gerader Linien
+            - Gradients: Sanfte linear-gradient/radial-gradient als Hintergruende
+            - :hover-Transitions: scale, shadow, Farbwechsel auf interaktive Elemente
+            - SVG-Animationen: SMIL <animate> fuer dezente Icon-Bewegungen
+            - CSS Custom Properties: --primary, --secondary fuer Farbkonsistenz
+            - clamp() Typografie: Fluide Schriftgroessen, letter-spacing
+            - Grid/Flexbox: Asymmetrische Raster, gestaffelte Karten, Overlap-Effekte
+
+            BEISPIEL (zeigt den gewuenschten Stil — nicht kopieren, als Inspiration nutzen):
+            <style>
+            .stats-x{display:flex;gap:2rem;justify-content:center;padding:3rem 1.5rem;
+            background:linear-gradient(135deg,var(--primary,#0062a3) 0%,#004a7c 100%);
+            border-radius:24px;color:#fff}
+            .stats-x .card{background:rgba(255,255,255,.1);backdrop-filter:blur(8px);
+            border-radius:16px;padding:2rem;text-align:center;flex:1;max-width:220px}
+            @property --n{syntax:"<integer>";initial-value:0;inherits:false}
+            .stats-x .num{font-size:clamp(2rem,5vw,3rem);font-weight:700;
+            animation:countUp 2s ease-out forwards}
+            .stats-x .num::after{content:counter(n);counter-reset:n var(--n)}
+            .stats-x .num.n500{--n:0}
+            @keyframes countUp{to{--n:500}}
+            .stats-x .label{font-size:.9rem;opacity:.85;margin-top:.5rem}
+            </style>
+            <section class="stats-x">
+            <div class="card"><div class="num n500"></div><div class="label">Projekte</div></div>
+            </section>
 
             TOKEN-BUDGET BEACHTEN:
             - Halte CSS kompakt: Shorthand-Properties, keine redundanten Regeln.
