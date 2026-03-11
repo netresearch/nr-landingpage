@@ -107,9 +107,10 @@ final class CreativeHtmlSanitizerTest extends UnitTestCase
         $html = '<img src="missing.png" onerror="alert(1)" alt="image">';
         $result = $this->subject->sanitize($html);
 
+        // The <img> is removed entirely because it has a src attribute
         self::assertStringNotContainsString('onerror', $result);
         self::assertStringNotContainsString('alert(1)', $result);
-        self::assertStringContainsString('src="missing.png"', $result);
+        self::assertStringNotContainsString('<img', $result);
     }
 
     /**
@@ -428,12 +429,41 @@ final class CreativeHtmlSanitizerTest extends UnitTestCase
     }
 
     #[Test]
-    public function sanitizePreservesImgWithHttpSrc(): void
+    public function sanitizeBlocksImgWithSrcAttribute(): void
     {
         $html = '<img src="https://example.com/photo.jpg" alt="Photo">';
         $result = $this->subject->sanitize($html);
 
-        self::assertStringContainsString('src="https://example.com/photo.jpg"', $result);
+        self::assertStringNotContainsString('<img', $result);
+    }
+
+    #[Test]
+    public function sanitizeBlocksImgWithDataUriSrc(): void
+    {
+        $html = '<img src="data:image/png;base64,abc123" alt="Inline">';
+        $result = $this->subject->sanitize($html);
+
+        self::assertStringNotContainsString('<img', $result);
+    }
+
+    #[Test]
+    public function sanitizeAllowsImagePlaceholderWithoutSrc(): void
+    {
+        $html = '<img data-image-slot="0" alt="Team photo">';
+        $result = $this->subject->sanitize($html);
+
+        self::assertStringContainsString('data-image-slot="0"', $result);
+        self::assertStringContainsString('alt="Team photo"', $result);
+    }
+
+    #[Test]
+    public function sanitizeAllowsImagePlaceholderWithReorderedAttributes(): void
+    {
+        $html = '<img alt="Hero" data-image-slot="0" class="hero-img">';
+        $result = $this->subject->sanitize($html);
+
+        self::assertStringContainsString('data-image-slot="0"', $result);
+        self::assertStringContainsString('alt="Hero"', $result);
     }
 
     #[Test]

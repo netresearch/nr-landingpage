@@ -41,6 +41,10 @@ final class CreativeHtmlSanitizer
         // 5. Remove <iframe>, <object>, <embed>, <form>, <input>, <textarea>, <button> tags
         $html = preg_replace('#<(iframe|object|embed|form|input|textarea|button)\b[^>]*(?:/>|>(?:.*?</\1>)?)#is', '', $html) ?? $html;
 
+        // 6. Remove <img> tags that have a src attribute (external images).
+        //    Allow <img data-image-slot="0"> placeholders (no src) for FAL image slots.
+        $html = preg_replace('#<img\b[^>]*\bsrc\s*=[^>]*>#is', '', $html) ?? $html;
+
         return trim($html);
     }
 

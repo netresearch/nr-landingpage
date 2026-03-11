@@ -12,9 +12,12 @@ use Netresearch\NrLandingpage\Service\PageCreatorService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use ReflectionMethod;
 use RuntimeException;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
+use TYPO3\CMS\Core\Resource\File;
+use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 
 #[CoversClass(PageCreatorService::class)]
@@ -33,17 +36,23 @@ final class PageCreatorServiceTest extends UnitTestCase
         return $dh;
     }
 
-    private function createService(DataHandler $dataHandler, ?EventDispatcherInterface $eventDispatcher = null, int $workspaceId = 0): PageCreatorService
-    {
+    private function createService(
+        DataHandler $dataHandler,
+        ?EventDispatcherInterface $eventDispatcher = null,
+        int $workspaceId = 0,
+        ?ResourceFactory $resourceFactory = null,
+    ): PageCreatorService {
         $dispatcher = $eventDispatcher ?? $this->createPassthroughDispatcher();
+        $factory = $resourceFactory ?? $this->createMock(ResourceFactory::class);
 
-        return new class ($dispatcher, $dataHandler, $workspaceId) extends PageCreatorService {
+        return new class ($dispatcher, $factory, $dataHandler, $workspaceId) extends PageCreatorService {
             public function __construct(
                 EventDispatcherInterface $eventDispatcher,
+                ResourceFactory $resourceFactory,
                 private readonly DataHandler $mockDataHandler,
                 private readonly int $mockWorkspaceId,
             ) {
-                parent::__construct($eventDispatcher);
+                parent::__construct($eventDispatcher, $resourceFactory);
             }
 
             protected function createDataHandler(): DataHandler
@@ -350,12 +359,14 @@ final class PageCreatorServiceTest extends UnitTestCase
         $dispatcher = $this->createPassthroughDispatcher();
 
         // Use real PageCreatorService (not the test subclass) to test getCurrentWorkspaceId
-        $service = new class ($dispatcher, $dh) extends PageCreatorService {
+        $factory = $this->createMock(ResourceFactory::class);
+        $service = new class ($dispatcher, $factory, $dh) extends PageCreatorService {
             public function __construct(
                 EventDispatcherInterface $eventDispatcher,
+                ResourceFactory $resourceFactory,
                 private readonly DataHandler $mockDataHandler,
             ) {
-                parent::__construct($eventDispatcher);
+                parent::__construct($eventDispatcher, $resourceFactory);
             }
 
             protected function createDataHandler(): DataHandler
@@ -382,12 +393,14 @@ final class PageCreatorServiceTest extends UnitTestCase
         $dh = $this->createMockDataHandler(['NEW_page' => 1]);
         $dispatcher = $this->createPassthroughDispatcher();
 
-        $service = new class ($dispatcher, $dh) extends PageCreatorService {
+        $factory = $this->createMock(ResourceFactory::class);
+        $service = new class ($dispatcher, $factory, $dh) extends PageCreatorService {
             public function __construct(
                 EventDispatcherInterface $eventDispatcher,
+                ResourceFactory $resourceFactory,
                 private readonly DataHandler $mockDataHandler,
             ) {
-                parent::__construct($eventDispatcher);
+                parent::__construct($eventDispatcher, $resourceFactory);
             }
 
             protected function createDataHandler(): DataHandler
@@ -707,5 +720,149 @@ final class PageCreatorServiceTest extends UnitTestCase
 
         $service = $this->createService($dh);
         $service->createLandingPage($template, 10, 'T', '/t', [], [], $context);
+    }
+
+    #[Test]
+    public function resolveImagePlaceholdersReplacesWithUrl(): void
+    {
+        $file = $this->createMock(File::class);
+        $file->method('getPublicUrl')->willReturn('/fileadmin/team-photo.jpg');
+
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->with(42)->willReturn($file);
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
+        $subject = $this->createService($dh, resourceFactory: $resourceFactory);
+
+        $method = new ReflectionMethod(PageCreatorService::class, 'resolveImagePlaceholders');
+        $result = $method->invoke(
+            $subject,
+            '<section><img data-image-slot="0" alt="Team"></section>',
+            42,
+        );
+
+        self::assertStringContainsString('src="/fileadmin/team-photo.jpg"', $result);
+        self::assertStringContainsString('alt="Team"', $result);
+        self::assertStringNotContainsString('data-image-slot', $result);
+    }
+
+    #[Test]
+    public function resolveImagePlaceholdersRemovesWhenNoImage(): void
+    {
+        $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
+        $subject = $this->createService($dh);
+
+        $method = new ReflectionMethod(PageCreatorService::class, 'resolveImagePlaceholders');
+        $result = $method->invoke(
+            $subject,
+            '<section><img data-image-slot="0" alt="Team"><p>Text</p></section>',
+            0,
+        );
+
+        self::assertStringNotContainsString('<img', $result);
+        self::assertStringContainsString('<p>Text</p>', $result);
+    }
+
+    #[Test]
+    public function resolveImagePlaceholdersHandlesReorderedAttributes(): void
+    {
+        $file = $this->createMock(File::class);
+        $file->method('getPublicUrl')->willReturn('/fileadmin/hero.jpg');
+
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->with(7)->willReturn($file);
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
+        $subject = $this->createService($dh, resourceFactory: $resourceFactory);
+
+        $method = new ReflectionMethod(PageCreatorService::class, 'resolveImagePlaceholders');
+        $result = $method->invoke(
+            $subject,
+            '<img alt="Hero" data-image-slot="0" class="hero-img">',
+            7,
+        );
+
+        self::assertStringContainsString('src="/fileadmin/hero.jpg"', $result);
+        self::assertStringContainsString('alt="Hero"', $result);
+        self::assertStringNotContainsString('data-image-slot', $result);
+    }
+
+    #[Test]
+    public function resolveImagePlaceholdersFallsBackOnInvalidFile(): void
+    {
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->willThrowException(new \InvalidArgumentException('File not found'));
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
+        $subject = $this->createService($dh, resourceFactory: $resourceFactory);
+
+        $method = new ReflectionMethod(PageCreatorService::class, 'resolveImagePlaceholders');
+        $result = $method->invoke(
+            $subject,
+            '<section><img data-image-slot="0" alt="X"><p>Text</p></section>',
+            999,
+        );
+
+        self::assertStringNotContainsString('<img', $result);
+        self::assertStringContainsString('<p>Text</p>', $result);
+    }
+
+    #[Test]
+    public function htmlCtypeResolvesImageIntoBodytextInsteadOfSysFileReference(): void
+    {
+        $file = $this->createMock(File::class);
+        $file->method('getPublicUrl')->willReturn('/fileadmin/hero.jpg');
+
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->with(42)->willReturn($file);
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
+        $dh->expects(self::once())->method('start')
+            ->with(self::callback(function (array $dataMap): bool {
+                $element = $dataMap['tt_content']['NEW_content_0'] ?? [];
+                // CType stays html (not upgraded to textpic)
+                if (($element['CType'] ?? '') !== 'html') {
+                    return false;
+                }
+                // bodytext contains resolved src URL
+                if (!str_contains($element['bodytext'] ?? '', 'src="/fileadmin/hero.jpg"')) {
+                    return false;
+                }
+                // No data-image-slot placeholder remaining
+                if (str_contains($element['bodytext'] ?? '', 'data-image-slot')) {
+                    return false;
+                }
+                // No sys_file_reference created
+                return !isset($dataMap['sys_file_reference']);
+            }), []);
+
+        $service = $this->createService($dh, resourceFactory: $resourceFactory);
+        $service->createLandingPage($this->createTemplate(), 1, 'T', '/t', [], [
+            ['section' => 'Hero', 'ctype' => 'html', 'header' => 'H', 'subheader' => '',
+             'bodytext' => '<section><img data-image-slot="0" alt="Hero shot"></section>', 'imageUid' => 42],
+        ]);
+    }
+
+    #[Test]
+    public function htmlCtypeRemovesPlaceholderWhenNoImageSelected(): void
+    {
+        $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
+        $dh->expects(self::once())->method('start')
+            ->with(self::callback(function (array $dataMap): bool {
+                $element = $dataMap['tt_content']['NEW_content_0'] ?? [];
+                // CType stays html
+                if (($element['CType'] ?? '') !== 'html') {
+                    return false;
+                }
+                // Placeholder removed, text preserved
+                $body = $element['bodytext'] ?? '';
+                return !str_contains($body, '<img') && str_contains($body, '<p>Text</p>');
+            }), []);
+
+        $service = $this->createService($dh);
+        $service->createLandingPage($this->createTemplate(), 1, 'T', '/t', [], [
+            ['section' => 'Hero', 'ctype' => 'html', 'header' => 'H', 'subheader' => '',
+             'bodytext' => '<section><img data-image-slot="0" alt="Hero"><p>Text</p></section>', 'imageUid' => 0],
+        ]);
     }
 }

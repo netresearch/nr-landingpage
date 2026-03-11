@@ -483,8 +483,11 @@ final class ContentGeneratorService implements LoggerAwareInterface
             2. Verwende CSS-Klassen mit einem eindeutigen Praefix pro Section (z.B. .hero-*, .sidebar-*),
                um Konflikte zwischen Sections zu vermeiden.
             3. Nutze moderne CSS-Techniken: Flexbox, Grid, Gradients, Transitions, Animationen.
-            4. Erstelle Bilder als Inline-SVG mit sinnvollen, dekorativen Grafiken.
-               KEINE externen Bild-URLs, KEINE <img>-Tags mit src-Attribut.
+            4. Fuer dekorative Grafiken (Icons, Muster, abstrakte Formen) verwende Inline-SVG.
+               Wenn ein Foto den Inhalt visuell bereichert (Hero-Bild, Teaser, Team-Portrait,
+               Referenz-Foto), setze genau EIN <img data-image-slot="0" alt="Beschreibung">
+               pro Section. Kein src-Attribut — das Bild wird spaeter aus der Mediathek zugeordnet.
+               Nicht jede Section braucht ein Foto — verwende es nur wo es den Inhalt staerkt.
             5. KEIN JavaScript, KEINE <script>-Tags, KEINE Event-Handler (onclick etc.).
             6. KEIN CSS url() — keine externen Ressourcen in Stylesheets.
             7. Barrierefrei: Semantisches HTML, ausreichende Kontraste, aria-Labels.
@@ -500,10 +503,15 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Antworte ausschliesslich als JSON-Array:
             [
               {"section": "Name", "colPos": 0, "header": "Titel",
-               "bodytext": "<style>.hero { ... }</style><section class='hero'>...</section>"}
+               "bodytext": "<style>.hero { ... }</style><section class='hero'>...<img data-image-slot=\"0\" alt=\"...\">...</section>",
+               "imageKeywords": ["keyword1", "keyword2"],
+               "imagePrompt": "Detailed English image description"}
             ]
 
             Das bodytext-Feld enthaelt das komplette HTML inkl. <style>-Block.
+            Wenn du einen <img data-image-slot="0"> Platzhalter setzt, liefere imageKeywords
+            (3-5 englische Suchbegriffe fuer die Mediathek) und imagePrompt (detaillierter
+            englischer Bild-Prompt). Ohne Platzhalter: leeres Array / leerer String.
             Erstelle fuer JEDEN colPos ({$this->formatColPosValues($columnMap)}) genau ein Element.
             PROMPT;
     }
@@ -540,6 +548,15 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 $colPos = $validColPositions[0];
             }
 
+            $imageKeywords = [];
+            if (is_array($item['imageKeywords'] ?? null)) {
+                foreach ($item['imageKeywords'] as $kw) {
+                    if (is_string($kw) && trim($kw) !== '') {
+                        $imageKeywords[] = trim($kw);
+                    }
+                }
+            }
+
             $validated[] = [
                 'section' => $item['section'],
                 'ctype' => 'html',
@@ -547,8 +564,8 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 'header' => is_string($item['header'] ?? null) ? $item['header'] : '',
                 'subheader' => '',
                 'bodytext' => $bodytext,
-                'imageKeywords' => [],
-                'imagePrompt' => '',
+                'imageKeywords' => $imageKeywords,
+                'imagePrompt' => is_string($item['imagePrompt'] ?? null) ? $item['imagePrompt'] : '',
             ];
         }
 
