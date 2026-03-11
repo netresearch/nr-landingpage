@@ -478,62 +478,27 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Verfuegbare Inhaltsbereiche (Spalten):
             {$columnsBlock}
 
-            DESIGN-REGELN:
-            1. Jedes Fragment ist ein in sich geschlossenes HTML-Stueck mit eigenem <style>-Block.
-            2. Verwende CSS-Klassen mit einem eindeutigen Praefix pro Section (z.B. .hero-*, .sidebar-*),
-               um Konflikte zwischen Sections zu vermeiden.
-            3. Nutze moderne CSS-Techniken: Flexbox, Grid, Gradients, Transitions, Animationen.
-            4. Fuer dekorative Grafiken (Icons, Muster, abstrakte Formen) verwende Inline-SVG.
-               Wenn ein Foto den Inhalt visuell bereichert (Hero-Bild, Teaser, Team-Portrait,
-               Referenz-Foto), setze genau EIN <img data-image-slot="0" alt="Beschreibung">
-               pro Section. Kein src-Attribut — das Bild wird spaeter aus der Mediathek zugeordnet.
-               Nicht jede Section braucht ein Foto — verwende es nur wo es den Inhalt staerkt.
-            5. KEIN JavaScript, KEINE <script>-Tags, KEINE Event-Handler (onclick etc.).
-            6. KEIN CSS url() — keine externen Ressourcen in Stylesheets.
-            7. Barrierefrei: Semantisches HTML, ausreichende Kontraste, aria-Labels.
-            8. Responsive: Relative Einheiten (rem, em, %, vw) und Media Queries.
-            9. Das umgebende Theme-CSS kommt vom TYPO3-Template — erstelle NUR den Inhalt.
+            ROLLE:
+            Du bist ein erfahrener Webdesigner der Landingpages auf dem Niveau von
+            Stripe, Linear, Vercel oder Apple gestaltet. Jede Section ist ein
+            eigenstaendiges HTML-Fragment mit eigenem <style>-Block.
 
-            DESIGN-PHILOSOPHIE:
-            Orientiere dich an modernen CSS-Frameworks (Bootstrap 5, Tailwind) — nicht als
-            Dependency, sondern als Designsprache: grosszuegige Abstaende, abgerundete Ecken,
-            weiche Schatten, sanfte Uebergaenge. Vermeide kantige, blockhafte Layouts.
-            Sektionen sollen fliessend ineinander uebergehen, nicht wie gestapelte Kaesten wirken.
-            Nutze weiche Hintergruende: sanfte Gradients statt harter Farbflaechen, leichte
-            Tonabtoenungen zwischen Sections, wellenfoermige oder diagonale Sektionstrennungen
-            per clip-path oder SVG statt gerader Kanten.
+            QUALITAETSANSPRUCH:
+            Erstelle Designs die wie Premium-SaaS-Landingpages wirken — mit allem was
+            modernes CSS-only Design hergibt: Animationen, weiche Uebergaenge, organische
+            Formen, Tiefeneffekte, lebendige Typografie. Sektionen sollen fliessend
+            ineinander uebergehen, nie wie gestapelte Kaesten wirken.
 
-            DESIGN-TOOLKIT (waehle passend zum Inhalt — nicht alles auf einmal):
-            - @keyframes: fade-in, slide-in, Puls-Effekte, dezente Float-Animationen
-            - Animierte Zahlen: @property + @keyframes + counter() fuer Kennzahlen
-            - border-radius: 8px-24px auf Karten, Bildern, Buttons — nie kantig
-            - box-shadow / backdrop-filter: Tiefe, Glasmorphismus, weiche Schatten
-            - clip-path / SVG-Wellen: Organische Sektionstrennungen statt gerader Linien
-            - Gradients: Sanfte linear-gradient/radial-gradient als Hintergruende
-            - :hover-Transitions: scale, shadow, Farbwechsel auf interaktive Elemente
-            - SVG-Animationen: SMIL <animate> fuer dezente Icon-Bewegungen
-            - CSS Custom Properties: --primary, --secondary fuer Farbkonsistenz
-            - clamp() Typografie: Fluide Schriftgroessen, letter-spacing
-            - Grid/Flexbox: Asymmetrische Raster, gestaffelte Karten, Overlap-Effekte
-
-            BEISPIEL (zeigt den gewuenschten Stil — nicht kopieren, als Inspiration nutzen):
-            <style>
-            .stats-x{display:flex;gap:2rem;justify-content:center;padding:3rem 1.5rem;
-            background:linear-gradient(135deg,var(--primary,#0062a3) 0%,#004a7c 100%);
-            border-radius:24px;color:#fff}
-            .stats-x .card{background:rgba(255,255,255,.1);backdrop-filter:blur(8px);
-            border-radius:16px;padding:2rem;text-align:center;flex:1;max-width:220px}
-            @property --n{syntax:"<integer>";initial-value:0;inherits:false}
-            .stats-x .num{font-size:clamp(2rem,5vw,3rem);font-weight:700;
-            animation:countUp 2s ease-out forwards}
-            .stats-x .num::after{content:counter(n);counter-reset:n var(--n)}
-            .stats-x .num.n500{--n:0}
-            @keyframes countUp{to{--n:500}}
-            .stats-x .label{font-size:.9rem;opacity:.85;margin-top:.5rem}
-            </style>
-            <section class="stats-x">
-            <div class="card"><div class="num n500"></div><div class="label">Projekte</div></div>
-            </section>
+            TECHNISCHE REGELN:
+            1. Verwende CSS-Klassen mit eindeutigem Praefix pro Section (z.B. .hero-*, .feat-*).
+            2. Fuer dekorative Grafiken verwende Inline-SVG.
+               Wenn ein Foto den Inhalt bereichert (Hero, Teaser, Portrait), setze genau
+               EIN <img data-image-slot="0" alt="Beschreibung"> pro Section — kein src-Attribut.
+               Nicht jede Section braucht ein Foto.
+            3. KEIN JavaScript, KEINE <script>-Tags, KEINE Event-Handler.
+            4. KEIN CSS url() — keine externen Ressourcen.
+            5. Barrierefrei und responsive.
+            6. Nutze CSS Custom Properties (--primary, --secondary) aus dem Farbschema.
 
             TOKEN-BUDGET BEACHTEN:
             - Halte CSS kompakt: Shorthand-Properties, keine redundanten Regeln.
