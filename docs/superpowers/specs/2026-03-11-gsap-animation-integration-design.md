@@ -127,14 +127,10 @@ version directory. Scripts use `defer` to avoid blocking page rendering.
 
 ### GSAP Version Storage
 
-A new dedicated column stores the exact GSAP version per page:
-
-```sql
-tx_nrlandingpage_gsap_version varchar(20) NOT NULL DEFAULT ''
-```
-
-This is added to the `pages` table alongside the existing generation
-metadata fields. Registered as a passthrough column in TCA.
+No dedicated column. The GSAP major version is implicit in the
+`<script src>` paths of the loader element's bodytext (e.g.
+`.../vendor/gsap/3/gsap.min.js`). For rare queries like "which pages
+use GSAP 3.x", a `LIKE '%/gsap/3/%'` on `tt_content.bodytext` suffices.
 
 ## 4. Creative Mode
 
@@ -402,7 +398,7 @@ For sites without frontend CSP (common in TYPO3), no action needed.
 - Two-pass: animation script contains correct `#c{uid}` selectors
 - Two-pass: sections without animation are skipped in script
 - Two-pass: pass-2 failure is non-fatal (page saved, error logged)
-- GSAP version stored in `tx_nrlandingpage_gsap_version` on page
+- GSAP version implicit in loader element's script src paths
 
 **ContentGeneratorService:**
 - `animation` object in LLM response validated (optional, correct structure)

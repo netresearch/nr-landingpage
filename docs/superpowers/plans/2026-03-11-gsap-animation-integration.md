@@ -40,44 +40,7 @@ git add ext_tables.sql
 git commit -m "feat: add animation_enabled column to template table"
 ```
 
-### Task 2: Add `tx_nrlandingpage_gsap_version` column to pages table
-
-**Files:**
-- Modify: `ext_tables.sql:24-32`
-- Modify: `Configuration/TCA/Overrides/pages.php:14-40`
-
-- [ ] **Step 1: Add column to SQL schema**
-
-In `ext_tables.sql`, add after `tx_nrlandingpage_source_page_uid` (line 29):
-
-```sql
-    tx_nrlandingpage_gsap_version varchar(20) NOT NULL DEFAULT '',
-```
-
-- [ ] **Step 2: Add TCA passthrough column**
-
-In `Configuration/TCA/Overrides/pages.php`, add to the `addTCAcolumns` array:
-
-```php
-'tx_nrlandingpage_gsap_version' => [
-    'label' => 'GSAP Version',
-    'config' => [
-        'type' => 'passthrough',
-    ],
-],
-```
-
-- [ ] **Step 3: Run tests**
-
-Run: `php .Build/bin/phpunit -c phpunit.xml --testsuite unit --no-progress`
-Expected: PASS
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add ext_tables.sql Configuration/TCA/Overrides/pages.php
-git commit -m "feat: add gsap_version passthrough column to pages table"
-```
+### ~~Task 2: REMOVED~~ — `gsap_version` column dropped (version is implicit in HTML paths)
 
 ### Task 3: Add `animation_enabled` to Template model
 
@@ -717,11 +680,6 @@ private function createGsapElements(int $pageUid, array $animationMap): void
                     'sorting' => 1,
                     'colPos' => 0,
                     'bodytext' => $this->gsapService->buildLoaderHtml(),
-                ],
-            ],
-            'pages' => [
-                $pageUid => [
-                    'tx_nrlandingpage_gsap_version' => GsapService::VERSION,
                 ],
             ],
         ];
