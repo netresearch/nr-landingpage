@@ -113,10 +113,15 @@ Each layout block is displayed with:
 -  **Source editor** — toggle the "Source" button to edit the raw
    HTML, CSS, and SVG code directly
 -  **colPos badge** — shows which layout column the block belongs to
+-  **Image selection** — when the AI decides a section benefits from a
+   photograph (hero image, team photo, etc.), an image panel appears
+   below the preview. The same search and AI generation controls from
+   structured mode are available. Sections without AI-suggested images
+   still offer a manual search input.
 
 The AI generates self-contained HTML fragments with embedded
-``<style>`` blocks and inline SVG graphics. No images from the media
-library are used in creative mode.
+``<style>`` blocks and inline SVG graphics. Real photographs from the
+media library can be mixed in where the AI places an image placeholder.
 
 Step 5: Placement & Save
 -------------------------
@@ -264,6 +269,28 @@ Choosing Reference Pages
 -  Choose pages with similar structure to what you want generated
 -  Avoid selecting pages with very different styles — the AI may
    produce inconsistent results
+
+Media Library (FAL) Metadata
+-----------------------------
+
+The wizard searches images by matching keywords against FAL metadata
+fields (title, description, alternative text) and the filename. For
+best results:
+
+-  **Maintain metadata** — fill in title, description, and alternative
+   text for images in the TYPO3 File module. Well-tagged images are
+   found more reliably by the keyword search.
+-  **Use descriptive filenames** — ``netresearch-team-photo.jpg`` is
+   found by the keyword "netresearch"; ``IMG_4832.jpg`` is not.
+-  **Fallback behavior** — when no images match the keywords, the
+   wizard shows the most recent images from the media library so that
+   editors always have something to choose from.
+
+.. tip::
+
+   Investing a few minutes in image metadata pays off across all
+   generated landing pages. The AI produces keywords automatically,
+   but they can only match what is stored in the media library.
 
 Template Organization
 ---------------------

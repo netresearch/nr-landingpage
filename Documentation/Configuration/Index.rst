@@ -296,18 +296,27 @@ Content & Layout Tab
       **Design rules in creative mode:**
 
       -  CSS-only animations and transitions (no JavaScript)
-      -  Inline SVG for graphics (no external image URLs)
+      -  Inline SVG for decorative graphics
+      -  Optional FAL image per section (hero images, team photos, etc.)
       -  Scoped CSS classes per section to avoid conflicts
       -  Responsive design with relative units and media queries
       -  Semantic HTML for accessibility
 
+      **Images in creative mode:** The AI decides per section whether a
+      real photograph would improve the content. If yes, it places an
+      image placeholder and provides search keywords. The editor selects
+      an image from the media library (or generates one via AI) in the
+      wizard. On save, the placeholder is replaced with the real image
+      URL — or removed if no image was selected.
+
       **Security:** All generated HTML is sanitized. ``<script>`` tags,
-      event handlers, ``javascript:`` protocols, ``data:`` URIs, and
-      CSS ``url()`` are removed automatically.
+      event handlers, ``javascript:`` protocols, ``data:`` URIs,
+      ``<img src="...">`` tags, and CSS ``url()`` are removed
+      automatically. Only ``<img data-image-slot="0">`` placeholders
+      (without ``src``) are preserved for FAL image resolution.
 
    When creative mode is selected, the :confval:`Allowed Content Types`
-   and :confval:`Image Task` fields are hidden since they only apply to
-   structured mode.
+   field is hidden since it only applies to structured mode.
 
 .. confval:: Allowed Content Types
 
