@@ -614,4 +614,78 @@ final class CreativeHtmlSanitizerTest extends UnitTestCase
 
         self::assertSame('<p>Content</p>', $result);
     }
+
+    // -------------------------------------------------------------------------
+    // Script allowlist (data-creative)
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function sanitizePreservesScriptWithDataCreativeAndAllowedContent(): void
+    {
+        $html = '<script data-creative>gsap.to(".hero", {opacity: 1});</script>';
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringContainsString('gsap.to', $result);
+        self::assertStringContainsString('data-creative', $result);
+    }
+
+    #[Test]
+    public function sanitizeStripsScriptWithDataCreativeContainingBlockedApi(): void
+    {
+        $html = '<script data-creative>fetch("/api/data").then(r => r.json());</script>';
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('fetch', $result);
+        self::assertStringNotContainsString('<script', $result);
+    }
+
+    #[Test]
+    public function sanitizeStripsScriptWithoutDataCreativeEvenWhenAllowed(): void
+    {
+        $html = '<script>alert("xss")</script>';
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('<script', $result);
+        self::assertStringNotContainsString('alert', $result);
+    }
+
+    #[Test]
+    public function sanitizeStripsDataCreativeScriptWhenNotAllowed(): void
+    {
+        $html = '<script data-creative>gsap.to(".hero", {opacity: 1});</script>';
+        $result = $this->subject->sanitize($html);
+        self::assertStringNotContainsString('<script', $result);
+    }
+
+    #[Test]
+    public function sanitizeStripsScriptWithBracketNotationBypass(): void
+    {
+        $html = '<script data-creative>window["fetch"]("/api")</script>';
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('<script', $result);
+    }
+
+    #[Test]
+    public function sanitizePreservesMultipleDataCreativeScripts(): void
+    {
+        $html = '<style>.a{}</style>'
+            . '<script data-creative>gsap.from(".a", {y: 40});</script>'
+            . '<section>content</section>'
+            . '<script data-creative>ScrollTrigger.create({trigger: ".a"});</script>';
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertSame(2, substr_count($result, '<script data-creative>'));
+    }
+
+    #[Test]
+    public function sanitizeStripsEvalInDataCreativeScript(): void
+    {
+        $html = '<script data-creative>eval("alert(1)")</script>';
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('<script', $result);
+    }
+
+    #[Test]
+    public function sanitizeStripsDocumentCookieInDataCreativeScript(): void
+    {
+        $html = '<script data-creative>document.cookie</script>';
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('<script', $result);
+    }
 }

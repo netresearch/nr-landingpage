@@ -18,13 +18,43 @@ namespace Netresearch\NrLandingpage\Service;
 final class CreativeHtmlSanitizer
 {
     /**
+     * APIs that must never appear inside a <script data-creative> block.
+     * Matched case-insensitively via stripos.
+     *
+     * @var list<non-empty-string>
+     */
+    private const BLOCKED_APIS = [
+        'fetch', 'XMLHttpRequest', 'eval', 'Function(', 'import(',
+        'require(', 'document.cookie', 'document.write', 'localStorage',
+        'sessionStorage', 'window.location', 'window.open',
+        'navigator.sendBeacon', 'innerHTML', 'outerHTML', 'postMessage',
+        'Worker(', 'ServiceWorker', 'WebSocket', 'globalThis',
+        'self[', 'window[', 'top[', 'parent[', 'frames[',
+    ];
+
+    /**
      * Sanitize creative HTML by removing dangerous elements while
      * preserving <style> blocks and inline SVG.
+     *
+     * @param bool $allowScripts When true, <script data-creative> blocks are
+     *                           preserved if they do not reference blocked APIs.
+     *                           All other <script> tags are always removed.
+     *                           Defaults to false (all scripts stripped).
      */
-    public function sanitize(string $html): string
+    public function sanitize(string $html, bool $allowScripts = false): string
     {
-        // 1. Remove <script> tags and their content
-        $html = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $html) ?? $html;
+        if ($allowScripts) {
+            // Process <script data-creative> blocks: check against blocklist
+            $html = $this->processCreativeScripts($html);
+        }
+
+        // 1. Remove ALL <script> tags without data-creative attribute
+        $html = preg_replace('#<script\b(?![^>]*\bdata-creative\b)[^>]*>.*?</script>#is', '', $html) ?? $html;
+
+        if (!$allowScripts) {
+            // Legacy mode: also strip data-creative scripts
+            $html = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $html) ?? $html;
+        }
 
         // 2. Remove event handler attributes (onclick, onload, onerror, etc.)
         $html = preg_replace('#\s+on\w+\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)#is', '', $html) ?? $html;
@@ -99,6 +129,27 @@ final class CreativeHtmlSanitizer
                 '',
                 $matches[2],
             ) . $matches[3],
+            $html,
+        ) ?? $html;
+    }
+
+    /**
+     * Process <script data-creative> blocks: preserve those whose content
+     * contains none of the BLOCKED_APIS entries, strip the rest.
+     */
+    private function processCreativeScripts(string $html): string
+    {
+        return preg_replace_callback(
+            '#<script\b[^>]*\bdata-creative\b[^>]*>(.*?)</script>#is',
+            function (array $matches): string {
+                $content = $matches[1];
+                foreach (self::BLOCKED_APIS as $blocked) {
+                    if (stripos($content, $blocked) !== false) {
+                        return ''; // Strip entire block
+                    }
+                }
+                return $matches[0]; // Preserve
+            },
             $html,
         ) ?? $html;
     }
