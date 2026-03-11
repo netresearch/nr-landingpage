@@ -14,6 +14,7 @@ use Psr\Log\LoggerAwareTrait;
 use RuntimeException;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
+use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class PageCreatorService implements LoggerAwareInterface
@@ -45,6 +46,7 @@ class PageCreatorService implements LoggerAwareInterface
 
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly ResourceFactory $resourceFactory,
     ) {}
 
     /**
@@ -262,6 +264,48 @@ class PageCreatorService implements LoggerAwareInterface
         }
 
         return $elements;
+    }
+
+    /**
+     * Replace <img data-image-slot="0"> placeholder with a real image URL,
+     * or remove it if no image was selected.
+     */
+    private function resolveImagePlaceholders(string $bodytext, int $imageUid): string
+    {
+        $pattern = '/<img\b[^>]*\bdata-image-slot="0"[^>]*>/i';
+
+        if ($imageUid <= 0) {
+            return preg_replace($pattern, '', $bodytext) ?? $bodytext;
+        }
+
+        try {
+            $file = $this->resourceFactory->getFileObject($imageUid);
+            $publicUrl = $file->getPublicUrl();
+        } catch (\Throwable) {
+            // File deleted or invalid — remove placeholder
+            return preg_replace($pattern, '', $bodytext) ?? $bodytext;
+        }
+
+        if ($publicUrl === null || $publicUrl === '') {
+            return preg_replace($pattern, '', $bodytext) ?? $bodytext;
+        }
+
+        return preg_replace_callback(
+            $pattern,
+            static function (array $matches) use ($publicUrl): string {
+                $tag = $matches[0];
+
+                // Extract alt attribute if present
+                $alt = '';
+                if (preg_match('/\balt="([^"]*)"/', $tag, $altMatch)) {
+                    $alt = $altMatch[1];
+                }
+
+                return '<img src="' . htmlspecialchars($publicUrl, ENT_QUOTES, 'UTF-8')
+                    . '" alt="' . $alt . '">';
+            },
+            $bodytext,
+        ) ?? $bodytext;
     }
 
     /**
