@@ -112,6 +112,59 @@ readonly class ImageSearchService
     }
 
     /**
+     * Return the most recent images from FAL as a fallback when keyword search yields no results.
+     *
+     * @return list<array{uid: int, name: string, title: string, alternative: string, publicUrl: string}>
+     */
+    public function getRecentImages(int $maxResults = 6): array
+    {
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_metadata');
+        $queryBuilder
+            ->select('f.uid', 'f.name', 'm.title', 'm.alternative')
+            ->from('sys_file_metadata', 'm')
+            ->join(
+                'm',
+                'sys_file',
+                'f',
+                $queryBuilder->expr()->eq('m.file', $queryBuilder->quoteIdentifier('f.uid')),
+            )
+            ->where(
+                $queryBuilder->expr()->eq('f.type', $queryBuilder->createNamedParameter(2, Connection::PARAM_INT)),
+            )
+            ->orderBy('f.uid', 'DESC')
+            ->setMaxResults($maxResults);
+
+        $rows = $queryBuilder->executeQuery()->fetchAllAssociative();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $rawUid = $row['uid'] ?? 0;
+            $uid = is_int($rawUid) ? $rawUid : (is_string($rawUid) ? (int) $rawUid : 0);
+            if ($uid <= 0) {
+                continue;
+            }
+
+            $publicUrl = '';
+            try {
+                $file = $this->resourceFactory->getFileObject($uid);
+                $publicUrl = $file->getPublicUrl() ?? '';
+            } catch (Throwable) {
+                continue;
+            }
+
+            $result[] = [
+                'uid' => $uid,
+                'name' => is_string($row['name'] ?? null) ? $row['name'] : '',
+                'title' => is_string($row['title'] ?? null) ? $row['title'] : '',
+                'alternative' => is_string($row['alternative'] ?? null) ? $row['alternative'] : '',
+                'publicUrl' => $publicUrl,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * Extract search keywords from descriptive text.
      * Filters short words (< 3 chars) and common stop words.
      *

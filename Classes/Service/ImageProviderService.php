@@ -162,8 +162,11 @@ class ImageProviderService implements LoggerAwareInterface
             $keywords = $this->imageSearchService->extractKeywords($section['header'] ?? '');
         }
 
-        // Always search FAL
+        // Always search FAL — fall back to recent images when no keywords available
         $falImages = $keywords !== [] ? $this->imageSearchService->searchByKeywords($keywords, 6) : [];
+        if ($falImages === []) {
+            $falImages = $this->imageSearchService->getRecentImages(6);
+        }
 
         // Mark the first FAL result as recommended when no AI generation is available
         if ($falImages !== [] && !$template->hasImageTask()) {

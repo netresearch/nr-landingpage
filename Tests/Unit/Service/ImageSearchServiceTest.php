@@ -121,6 +121,7 @@ final class ImageSearchServiceTest extends UnitTestCase
         $queryBuilder->method('where')->willReturnSelf();
         $queryBuilder->method('andWhere')->willReturnSelf();
         $queryBuilder->method('setMaxResults')->willReturnSelf();
+        $queryBuilder->method('orderBy')->willReturnSelf();
         $queryBuilder->method('expr')->willReturn($expressionBuilder);
         $queryBuilder->method('createNamedParameter')->willReturn("'%keyword%'");
         $queryBuilder->method('quoteIdentifier')->willReturnArgument(0);
@@ -242,6 +243,29 @@ final class ImageSearchServiceTest extends UnitTestCase
         $result = $service->searchByKeywords(['valid', '', 'also-valid']);
 
         self::assertCount(1, $result);
+    }
+
+    #[Test]
+    public function getRecentImagesReturnsLatestImages(): void
+    {
+        $rows = [
+            ['uid' => 10, 'name' => 'newest.jpg', 'title' => 'Newest', 'alternative' => ''],
+            ['uid' => 9, 'name' => 'older.jpg', 'title' => 'Older', 'alternative' => 'Alt'],
+        ];
+
+        $connectionPool = $this->createConnectionPoolWithQueryBuilder($rows);
+        $queryBuilder = $this->getQueryBuilderMock($connectionPool);
+        $queryBuilder->expects(self::atLeastOnce())
+            ->method('orderBy')
+            ->with('f.uid', 'DESC')
+            ->willReturnSelf();
+
+        $service = new ImageSearchService($connectionPool, $this->createResourceFactoryMock());
+        $result = $service->getRecentImages(6);
+
+        self::assertCount(2, $result);
+        self::assertSame(10, $result[0]['uid']);
+        self::assertSame(9, $result[1]['uid']);
     }
 
     /**

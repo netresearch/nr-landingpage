@@ -106,7 +106,7 @@ final class ImageProviderServiceTest extends UnitTestCase
     }
 
     #[Test]
-    public function resolveImagesForSectionsReturnsEmptyWhenNoFalAndNoImageTask(): void
+    public function resolveImagesForSectionsFallsBackToRecentImagesWhenKeywordSearchEmpty(): void
     {
         $template = $this->createTemplate(0);
         $sections = [
@@ -114,6 +114,26 @@ final class ImageProviderServiceTest extends UnitTestCase
         ];
 
         $this->imageSearchService->method('searchByKeywords')->willReturn([]);
+        $recentImage = ['uid' => 99, 'name' => 'recent.jpg', 'title' => 'Recent', 'alternative' => '', 'publicUrl' => '/recent.jpg'];
+        $this->imageSearchService->method('getRecentImages')->willReturn([$recentImage]);
+
+        $result = $this->subject->resolveImagesForSections($template, $sections);
+
+        self::assertCount(1, $result[0]);
+        self::assertSame(99, $result[0][0]['uid']);
+        self::assertTrue($result[0][0]['recommended']);
+    }
+
+    #[Test]
+    public function resolveImagesForSectionsReturnsEmptyWhenNoFalAndNoRecentAndNoImageTask(): void
+    {
+        $template = $this->createTemplate(0);
+        $sections = [
+            ['section' => 'Hero', 'header' => 'Welcome', 'imageKeywords' => ['welcome'], 'imagePrompt' => ''],
+        ];
+
+        $this->imageSearchService->method('searchByKeywords')->willReturn([]);
+        $this->imageSearchService->method('getRecentImages')->willReturn([]);
 
         $result = $this->subject->resolveImagesForSections($template, $sections);
 
@@ -129,6 +149,7 @@ final class ImageProviderServiceTest extends UnitTestCase
         ];
 
         $this->imageSearchService->method('searchByKeywords')->willReturn([]);
+        $this->imageSearchService->method('getRecentImages')->willReturn([]);
         $this->registerFakeGenerator();
         $this->mockStorageForGeneration();
         $this->mockTaskPromptTemplate(5, '');
@@ -174,6 +195,7 @@ final class ImageProviderServiceTest extends UnitTestCase
         ];
 
         $this->imageSearchService->method('extractKeywords')->willReturn([]);
+        $this->imageSearchService->method('getRecentImages')->willReturn([]);
 
         $result = $this->subject->resolveImagesForSections($template, $sections);
 
