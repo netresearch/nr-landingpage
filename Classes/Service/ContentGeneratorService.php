@@ -494,6 +494,23 @@ final class ContentGeneratorService implements LoggerAwareInterface
             8. Responsive: Relative Einheiten (rem, em, %, vw) und Media Queries.
             9. Das umgebende Theme-CSS kommt vom TYPO3-Template — erstelle NUR den Inhalt.
 
+            DESIGN-TOOLKIT (nutze diese Techniken kreativ — nicht alle auf einmal, aber
+            waehle passend zum Inhalt fuer ein modernes, lebendiges Ergebnis):
+            - @keyframes-Animationen: fade-in beim Laden, slide-in von links/rechts, sanfte
+              Puls-Effekte fuer CTAs, dezente Float-Animationen fuer SVG-Dekorationen
+            - Animierte Zahlen/Statistiken: @property mit syntax "<integer>" + @keyframes +
+              counter() fuer hochzaehlende Kennzahlen (z.B. "500+ Projekte", "99% Zufriedenheit")
+            - border-radius: Abgerundete Ecken fuer Karten, Bilder und Buttons (8px-24px)
+            - box-shadow / backdrop-filter: Tiefe und Glasmorphismus-Effekte
+            - clip-path: Wellenfoermige Sektionstrennungen, ausgefallene Bildmasken
+            - Gradient-Hintergruende: Mehrstufige linear-gradient/radial-gradient als Sektionshinterlauf
+            - :hover-Transitions: transform scale, box-shadow, Farbwechsel auf interaktive Elemente
+            - SVG-Animationen: SMIL <animate>/<animateTransform> fuer dezente Icon-Bewegungen
+            - CSS Custom Properties: --primary, --secondary etc. fuer konsistentes Farbschema
+            - Dekorative Elemente: Geometrische SVG-Muster, Kreise, Linien als visuelle Akzente
+            - Grid/Flexbox-Layouts: Asymmetrische Raster, Overlap-Effekte, gestaffelte Karten
+            - Typografie: font-size clamp() fuer fluide Groessen, letter-spacing fuer Eleganz
+
             TOKEN-BUDGET BEACHTEN:
             - Halte CSS kompakt: Shorthand-Properties, keine redundanten Regeln.
             - SVGs klein halten: Einfache, dekorative Grafiken, keine komplexen Pfade.
