@@ -97,6 +97,17 @@ class PageCreatorService implements LoggerAwareInterface
 
             $imageField = $this->getImageFieldForCType($ctype);
 
+            // For html CType, resolve image placeholder into bodytext
+            // instead of creating a sys_file_reference record
+            if ($ctype === 'html') {
+                $element['bodytext'] = $this->resolveImagePlaceholders(
+                    (string) ($element['bodytext'] ?? ''),
+                    $imageUid,
+                );
+                // Reset imageUid so the upgrade logic below is skipped
+                $imageUid = 0;
+            }
+
             // Upgrade CType when an image is selected but current type has no image field
             if ($imageUid > 0 && $imageField === '') {
                 $ctype = 'textpic';

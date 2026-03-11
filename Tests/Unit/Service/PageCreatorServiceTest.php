@@ -806,4 +806,63 @@ final class PageCreatorServiceTest extends UnitTestCase
         self::assertStringNotContainsString('<img', $result);
         self::assertStringContainsString('<p>Text</p>', $result);
     }
+
+    #[Test]
+    public function htmlCtypeResolvesImageIntoBodytextInsteadOfSysFileReference(): void
+    {
+        $file = $this->createMock(File::class);
+        $file->method('getPublicUrl')->willReturn('/fileadmin/hero.jpg');
+
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->with(42)->willReturn($file);
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
+        $dh->expects(self::once())->method('start')
+            ->with(self::callback(function (array $dataMap): bool {
+                $element = $dataMap['tt_content']['NEW_content_0'] ?? [];
+                // CType stays html (not upgraded to textpic)
+                if (($element['CType'] ?? '') !== 'html') {
+                    return false;
+                }
+                // bodytext contains resolved src URL
+                if (!str_contains($element['bodytext'] ?? '', 'src="/fileadmin/hero.jpg"')) {
+                    return false;
+                }
+                // No data-image-slot placeholder remaining
+                if (str_contains($element['bodytext'] ?? '', 'data-image-slot')) {
+                    return false;
+                }
+                // No sys_file_reference created
+                return !isset($dataMap['sys_file_reference']);
+            }), []);
+
+        $service = $this->createService($dh, resourceFactory: $resourceFactory);
+        $service->createLandingPage($this->createTemplate(), 1, 'T', '/t', [], [
+            ['section' => 'Hero', 'ctype' => 'html', 'header' => 'H', 'subheader' => '',
+             'bodytext' => '<section><img data-image-slot="0" alt="Hero shot"></section>', 'imageUid' => 42],
+        ]);
+    }
+
+    #[Test]
+    public function htmlCtypeRemovesPlaceholderWhenNoImageSelected(): void
+    {
+        $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
+        $dh->expects(self::once())->method('start')
+            ->with(self::callback(function (array $dataMap): bool {
+                $element = $dataMap['tt_content']['NEW_content_0'] ?? [];
+                // CType stays html
+                if (($element['CType'] ?? '') !== 'html') {
+                    return false;
+                }
+                // Placeholder removed, text preserved
+                $body = $element['bodytext'] ?? '';
+                return !str_contains($body, '<img') && str_contains($body, '<p>Text</p>');
+            }), []);
+
+        $service = $this->createService($dh);
+        $service->createLandingPage($this->createTemplate(), 1, 'T', '/t', [], [
+            ['section' => 'Hero', 'ctype' => 'html', 'header' => 'H', 'subheader' => '',
+             'bodytext' => '<section><img data-image-slot="0" alt="Hero"><p>Text</p></section>', 'imageUid' => 0],
+        ]);
+    }
 }
