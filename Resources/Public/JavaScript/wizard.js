@@ -329,9 +329,10 @@ class LandingPageWizard {
                     }
                 });
 
-                // Auto-select in re-generate mode
+                // Auto-select and auto-advance in re-generate mode
                 if (preSelectUid > 0 && template.uid === preSelectUid) {
                     selectHandler();
+                    MultiStepWizard.triggerStepButton('next');
                 }
             });
 

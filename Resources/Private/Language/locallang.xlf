@@ -388,6 +388,28 @@
             <trans-unit id="fieldControl.testGenerate.preview.noSections" resname="fieldControl.testGenerate.preview.noSections">
                 <source>No sections were generated. Check your AI instructions and content type settings.</source>
             </trans-unit>
+            <!-- Generation info callout (Page module) -->
+            <trans-unit id="generationInfo.title" resname="generationInfo.title">
+                <source>AI-Generated Landing Page</source>
+            </trans-unit>
+            <trans-unit id="generationInfo.template" resname="generationInfo.template">
+                <source>Template</source>
+            </trans-unit>
+            <trans-unit id="generationInfo.generatedAt" resname="generationInfo.generatedAt">
+                <source>Generated</source>
+            </trans-unit>
+            <trans-unit id="generationInfo.sourcePageUid" resname="generationInfo.sourcePageUid">
+                <source>Re-generated from page</source>
+            </trans-unit>
+            <trans-unit id="generationInfo.briefing" resname="generationInfo.briefing">
+                <source>Briefing</source>
+            </trans-unit>
+            <trans-unit id="generationInfo.templateDeleted" resname="generationInfo.templateDeleted">
+                <source>Template deleted</source>
+            </trans-unit>
+            <trans-unit id="generationInfo.configChanged" resname="generationInfo.configChanged">
+                <source>The template configuration has changed since this page was generated. Consider re-generating.</source>
+            </trans-unit>
             <!-- Hub: Templates section -->
             <trans-unit id="hub.templates.heading" resname="hub.templates.heading">
                 <source>Templates</source>

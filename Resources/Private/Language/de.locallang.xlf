@@ -622,6 +622,35 @@
                 <source>Choose the parent page and save to create the landing page.</source>
                 <target>Wählen Sie die übergeordnete Seite und speichern Sie, um die Landing Page zu erstellen.</target>
             </trans-unit>
+            <!-- Generation info callout (Page module) -->
+            <trans-unit id="generationInfo.title" resname="generationInfo.title">
+                <source>AI-Generated Landing Page</source>
+                <target>KI-generierte Landing Page</target>
+            </trans-unit>
+            <trans-unit id="generationInfo.template" resname="generationInfo.template">
+                <source>Template</source>
+                <target>Vorlage</target>
+            </trans-unit>
+            <trans-unit id="generationInfo.generatedAt" resname="generationInfo.generatedAt">
+                <source>Generated</source>
+                <target>Generiert</target>
+            </trans-unit>
+            <trans-unit id="generationInfo.sourcePageUid" resname="generationInfo.sourcePageUid">
+                <source>Re-generated from page</source>
+                <target>Neu generiert von Seite</target>
+            </trans-unit>
+            <trans-unit id="generationInfo.briefing" resname="generationInfo.briefing">
+                <source>Briefing</source>
+                <target>Briefing</target>
+            </trans-unit>
+            <trans-unit id="generationInfo.templateDeleted" resname="generationInfo.templateDeleted">
+                <source>Template deleted</source>
+                <target>Vorlage gelöscht</target>
+            </trans-unit>
+            <trans-unit id="generationInfo.configChanged" resname="generationInfo.configChanged">
+                <source>The template configuration has changed since this page was generated. Consider re-generating.</source>
+                <target>Die Vorlagenkonfiguration hat sich seit der Generierung dieser Seite geändert. Eine Neugenerierung wird empfohlen.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>
