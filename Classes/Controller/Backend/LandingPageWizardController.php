@@ -519,7 +519,8 @@ final class LandingPageWizardController implements LoggerAwareInterface
             if ($briefingAnswers === [] && is_numeric($sourcePageUid) && (int) $sourcePageUid > 0) {
                 $ancestorUid = (int) $sourcePageUid;
                 $visited = [$pageUid];
-                while ($ancestorUid > 0 && !in_array($ancestorUid, $visited, true)) {
+                $maxDepth = 10;
+                while ($ancestorUid > 0 && !in_array($ancestorUid, $visited, true) && $maxDepth-- > 0) {
                     $visited[] = $ancestorUid;
                     $ancestorQb = $this->connectionPool->getQueryBuilderForTable('pages');
                     $ancestorQb->getRestrictions()->removeByType(
