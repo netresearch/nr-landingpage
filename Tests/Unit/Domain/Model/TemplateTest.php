@@ -237,4 +237,33 @@ final class TemplateTest extends UnitTestCase
         self::assertSame('#ffffff', $resolved->colorBackground);
         self::assertSame('#333333', $resolved->colorText);
     }
+
+    #[Test]
+    public function animationEnabledDefaultsToTrue(): void
+    {
+        $template = new Template(uid: 1, title: 'Test', identifier: 'test');
+        self::assertTrue($template->animationEnabled);
+    }
+
+    #[Test]
+    public function animationEnabledCanBeDisabled(): void
+    {
+        $template = new Template(uid: 1, title: 'Test', identifier: 'test', animationEnabled: false);
+        self::assertFalse($template->animationEnabled);
+    }
+
+    #[Test]
+    public function configHashIncludesAnimationEnabled(): void
+    {
+        $enabled = new Template(uid: 1, title: 'T', identifier: 't', animationEnabled: true);
+        $disabled = new Template(uid: 1, title: 'T', identifier: 't', animationEnabled: false);
+        self::assertNotSame($enabled->getConfigHash(), $disabled->getConfigHash());
+    }
+
+    #[Test]
+    public function isAnimationEnabledReturnsTrueByDefault(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't');
+        self::assertTrue($template->isAnimationEnabled());
+    }
 }
