@@ -100,8 +100,9 @@ class PageCreatorService implements LoggerAwareInterface
             // For html CType, resolve image placeholder into bodytext
             // instead of creating a sys_file_reference record
             if ($ctype === 'html') {
+                $rawBodytext = $element['bodytext'] ?? '';
                 $element['bodytext'] = $this->resolveImagePlaceholders(
-                    (string) ($element['bodytext'] ?? ''),
+                    is_string($rawBodytext) ? $rawBodytext : '',
                     $imageUid,
                 );
                 // Reset imageUid so the upgrade logic below is skipped
