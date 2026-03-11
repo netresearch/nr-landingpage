@@ -314,6 +314,29 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     }
 
     #[Test]
+    public function buildCreativePromptContainsImagePlaceholderInstructions(): void
+    {
+        $layout = $this->createMock(BackendLayout::class);
+        $layout->method('getUsedColumns')->willReturn([0 => 'Main']);
+        $this->dataProviderCollection->method('getBackendLayout')->willReturn($layout);
+
+        $template = new \Netresearch\NrLandingpage\Domain\Model\Template(
+            uid: 1,
+            title: 'Test',
+            identifier: 'test',
+            systemPrompt: 'Create a page',
+            generationMode: 'creative',
+        );
+
+        $method = new ReflectionMethod($this->subject, 'buildCreativePrompt');
+        $prompt = $method->invoke($this->subject, $template, [], 'de', [0 => 'Main']);
+
+        self::assertStringContainsString('data-image-slot', $prompt);
+        self::assertStringContainsString('imageKeywords', $prompt);
+        self::assertStringContainsString('imagePrompt', $prompt);
+    }
+
+    #[Test]
     public function buildCreativePromptContainsColumnInfo(): void
     {
         $layout = $this->createMock(BackendLayout::class);
