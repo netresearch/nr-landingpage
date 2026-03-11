@@ -314,6 +314,42 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     }
 
     #[Test]
+    public function validateCreativeSectionsDefaultsNonArrayImageKeywords(): void
+    {
+        $response = [
+            [
+                'section' => 'Hero',
+                'colPos' => 0,
+                'bodytext' => '<p>Test</p>',
+                'imageKeywords' => 'not-an-array',
+            ],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main']);
+
+        self::assertSame([], $result[0]['imageKeywords']);
+    }
+
+    #[Test]
+    public function validateCreativeSectionsDefaultsNonStringImagePrompt(): void
+    {
+        $response = [
+            [
+                'section' => 'Hero',
+                'colPos' => 0,
+                'bodytext' => '<p>Test</p>',
+                'imagePrompt' => ['not', 'a', 'string'],
+            ],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main']);
+
+        self::assertSame('', $result[0]['imagePrompt']);
+    }
+
+    #[Test]
     public function buildCreativePromptContainsImagePlaceholderInstructions(): void
     {
         $layout = $this->createMock(BackendLayout::class);

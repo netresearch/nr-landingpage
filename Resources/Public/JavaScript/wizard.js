@@ -930,46 +930,54 @@ class LandingPageWizard {
             preview.appendChild(iframe);
             cardBody.appendChild(preview);
 
-            // Image selection (only for sections with imageKeywords)
-            const keywords = section.imageKeywords || [];
-            if (keywords.length > 0) {
+            // Image selection for creative sections
+            {
+                const keywords = section.imageKeywords || [];
+                const hasKeywords = keywords.length > 0;
+
                 const imageSection = document.createElement('div');
                 imageSection.className = 'mt-3 border-top pt-3';
 
                 const imageLabel = document.createElement('small');
                 imageLabel.className = 'text-body-secondary d-block mb-2';
-                imageLabel.textContent = this.label('wizard.content.imageSuggestions');
+                imageLabel.textContent = hasKeywords
+                    ? this.label('wizard.content.imageSuggestions')
+                    : this.label('wizard.content.imageSearchPlaceholder');
                 imageSection.appendChild(imageLabel);
 
-                // Show image generation error if present
-                const imageError = (WizardState.imageErrors || [])[index];
-                if (imageError) {
-                    const errorAlert = document.createElement('div');
-                    errorAlert.className = 'alert alert-warning alert-sm py-1 px-2 mb-2';
-                    errorAlert.style.fontSize = '0.85em';
-                    errorAlert.textContent = this.label('wizard.content.imageGenerationError') + ' ' + imageError;
-                    imageSection.appendChild(errorAlert);
+                if (hasKeywords) {
+                    // Show image generation error if present
+                    const imageError = (WizardState.imageErrors || [])[index];
+                    if (imageError) {
+                        const errorAlert = document.createElement('div');
+                        errorAlert.className = 'alert alert-warning alert-sm py-1 px-2 mb-2';
+                        errorAlert.style.fontSize = '0.85em';
+                        errorAlert.textContent = this.label('wizard.content.imageGenerationError') + ' ' + imageError;
+                        imageSection.appendChild(errorAlert);
+                    }
                 }
 
                 const imageList = document.createElement('div');
                 imageList.className = 'd-flex gap-2 flex-wrap mb-2';
 
-                const images = WizardState.getImages();
-                const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
-                this.renderImageCards(imageList, sectionImages, index);
+                if (hasKeywords) {
+                    const images = WizardState.getImages();
+                    const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
+                    this.renderImageCards(imageList, sectionImages, index);
 
-                // Show info when automatic search found no images
-                if (sectionImages.length === 0 && keywords.length > 0) {
-                    const emptyInfo = document.createElement('div');
-                    emptyInfo.className = 'alert alert-info py-2 px-3 mb-2';
-                    emptyInfo.style.fontSize = '0.85em';
-                    emptyInfo.textContent = this.label('wizard.content.imageAutoSearchEmpty', keywords.join(', '));
-                    imageSection.appendChild(emptyInfo);
+                    // Show info when automatic search found no images
+                    if (sectionImages.length === 0) {
+                        const emptyInfo = document.createElement('div');
+                        emptyInfo.className = 'alert alert-info py-2 px-3 mb-2';
+                        emptyInfo.style.fontSize = '0.85em';
+                        emptyInfo.textContent = this.label('wizard.content.imageAutoSearchEmpty', keywords.join(', '));
+                        imageSection.appendChild(emptyInfo);
+                    }
                 }
 
                 imageSection.appendChild(imageList);
 
-                // Search input pre-filled with AI keywords
+                // Search input — pre-filled with keywords if available
                 const searchRow = document.createElement('div');
                 searchRow.className = 'd-flex gap-2 align-items-center flex-wrap';
 
@@ -978,7 +986,9 @@ class LandingPageWizard {
                 searchInput.className = 'form-control form-control-sm';
                 searchInput.placeholder = this.label('wizard.content.imageSearchPlaceholder');
                 searchInput.style.maxWidth = '250px';
-                searchInput.value = keywords.join(' ');
+                if (hasKeywords) {
+                    searchInput.value = keywords.join(' ');
+                }
 
                 const searchBtn = this.createIconButton(
                     'actions-search',
@@ -1014,39 +1024,41 @@ class LandingPageWizard {
                 searchRow.appendChild(searchInput);
                 searchRow.appendChild(searchBtn);
 
-                // AI Generate button
-                const aiAvailable = WizardState.aiGenerationAvailable || false;
-                const hasImageTask = WizardState.hasImageTask || false;
-                if (aiAvailable && hasImageTask) {
-                    const generateBtn = this.createIconButton(
-                        'actions-bolt',
-                        this.label('wizard.content.imageGenerateButton'),
-                        'btn btn-sm btn-outline-warning',
-                        async () => {
-                            generateBtn.disabled = true;
-                            generateBtn.textContent = this.label('wizard.content.imageGenerating');
-                            try {
-                                const template = WizardState.getTemplate();
-                                const sectionData = WizardState.getContentSections()[index] || {};
-                                const result = await this.fetchJson(this.getAjaxUrl('generateImage'), {
-                                    templateUid: template.uid,
-                                    imagePrompt: sectionData.imagePrompt || '',
-                                    sectionHeader: sectionData.header || sectionData.section || '',
-                                });
-                                const img = result.image;
-                                if (img) {
-                                    this.renderImageCards(imageList, [img], index);
-                                    Notification.success(this.label('wizard.content.imageGenerated'));
+                // AI Generate button (only when keywords suggest image need)
+                if (hasKeywords) {
+                    const aiAvailable = WizardState.aiGenerationAvailable || false;
+                    const hasImageTask = WizardState.hasImageTask || false;
+                    if (aiAvailable && hasImageTask) {
+                        const generateBtn = this.createIconButton(
+                            'actions-bolt',
+                            this.label('wizard.content.imageGenerateButton'),
+                            'btn btn-sm btn-outline-warning',
+                            async () => {
+                                generateBtn.disabled = true;
+                                generateBtn.textContent = this.label('wizard.content.imageGenerating');
+                                try {
+                                    const template = WizardState.getTemplate();
+                                    const sectionData = WizardState.getContentSections()[index] || {};
+                                    const result = await this.fetchJson(this.getAjaxUrl('generateImage'), {
+                                        templateUid: template.uid,
+                                        imagePrompt: sectionData.imagePrompt || '',
+                                        sectionHeader: sectionData.header || sectionData.section || '',
+                                    });
+                                    const img = result.image;
+                                    if (img) {
+                                        this.renderImageCards(imageList, [img], index);
+                                        Notification.success(this.label('wizard.content.imageGenerated'));
+                                    }
+                                } catch (err) {
+                                    Notification.error(this.label('wizard.error.imageGenerate'), err.message);
+                                } finally {
+                                    generateBtn.disabled = false;
+                                    this.setIconButtonLabel(generateBtn, this.label('wizard.content.imageGenerateButton'));
                                 }
-                            } catch (err) {
-                                Notification.error(this.label('wizard.error.imageGenerate'), err.message);
-                            } finally {
-                                generateBtn.disabled = false;
-                                this.setIconButtonLabel(generateBtn, this.label('wizard.content.imageGenerateButton'));
-                            }
-                        },
-                    );
-                    searchRow.appendChild(generateBtn);
+                            },
+                        );
+                        searchRow.appendChild(generateBtn);
+                    }
                 }
 
                 imageSection.appendChild(searchRow);

@@ -808,6 +808,146 @@ final class PageCreatorServiceTest extends UnitTestCase
     }
 
     #[Test]
+    public function resolveImagePlaceholdersReturnsUnchangedWhenNoPlaceholder(): void
+    {
+        $file = $this->createMock(File::class);
+        $file->method('getPublicUrl')->willReturn('/fileadmin/hero.jpg');
+
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->with(42)->willReturn($file);
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1]);
+        $subject = $this->createService($dh, resourceFactory: $resourceFactory);
+
+        $method = new ReflectionMethod(PageCreatorService::class, 'resolveImagePlaceholders');
+        $input = '<section><p>No image here</p></section>';
+        $result = $method->invoke($subject, $input, 42);
+
+        self::assertSame($input, $result);
+    }
+
+    #[Test]
+    public function resolveImagePlaceholdersFallsBackOnNullPublicUrl(): void
+    {
+        $file = $this->createMock(File::class);
+        $file->method('getPublicUrl')->willReturn(null);
+
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->with(42)->willReturn($file);
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1]);
+        $subject = $this->createService($dh, resourceFactory: $resourceFactory);
+
+        $method = new ReflectionMethod(PageCreatorService::class, 'resolveImagePlaceholders');
+        $result = $method->invoke(
+            $subject,
+            '<section><img data-image-slot="0" alt="Hero"><p>Text</p></section>',
+            42,
+        );
+
+        self::assertStringNotContainsString('<img', $result);
+        self::assertStringContainsString('<p>Text</p>', $result);
+    }
+
+    #[Test]
+    public function resolveImagePlaceholdersEscapesPublicUrl(): void
+    {
+        $file = $this->createMock(File::class);
+        $file->method('getPublicUrl')->willReturn('/fileadmin/file with "quotes" & special.jpg');
+
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->with(1)->willReturn($file);
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1]);
+        $subject = $this->createService($dh, resourceFactory: $resourceFactory);
+
+        $method = new ReflectionMethod(PageCreatorService::class, 'resolveImagePlaceholders');
+        $result = $method->invoke(
+            $subject,
+            '<img data-image-slot="0" alt="Test">',
+            1,
+        );
+
+        self::assertStringContainsString('src="/fileadmin/file with &quot;quotes&quot; &amp; special.jpg"', $result);
+        self::assertStringNotContainsString('data-image-slot', $result);
+    }
+
+    #[Test]
+    public function resolveImagePlaceholdersPreservesCssClass(): void
+    {
+        $file = $this->createMock(File::class);
+        $file->method('getPublicUrl')->willReturn('/fileadmin/hero.jpg');
+
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->with(1)->willReturn($file);
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1]);
+        $subject = $this->createService($dh, resourceFactory: $resourceFactory);
+
+        $method = new ReflectionMethod(PageCreatorService::class, 'resolveImagePlaceholders');
+        $result = $method->invoke(
+            $subject,
+            '<img data-image-slot="0" alt="Hero" class="hero-img rounded">',
+            1,
+        );
+
+        self::assertStringContainsString('class="hero-img rounded"', $result);
+        self::assertStringContainsString('src="/fileadmin/hero.jpg"', $result);
+        self::assertStringNotContainsString('data-image-slot', $result);
+    }
+
+    #[Test]
+    public function resolveImagePlaceholdersEscapesAltAttribute(): void
+    {
+        $file = $this->createMock(File::class);
+        $file->method('getPublicUrl')->willReturn('/fileadmin/hero.jpg');
+
+        $resourceFactory = $this->createMock(ResourceFactory::class);
+        $resourceFactory->method('getFileObject')->with(1)->willReturn($file);
+
+        $dh = $this->createMockDataHandler(['NEW_page' => 1]);
+        $subject = $this->createService($dh, resourceFactory: $resourceFactory);
+
+        $method = new ReflectionMethod(PageCreatorService::class, 'resolveImagePlaceholders');
+        // Alt text with characters that need HTML escaping
+        $result = $method->invoke(
+            $subject,
+            '<img data-image-slot="0" alt="Tom & Jerry\'s photo">',
+            1,
+        );
+
+        // The & and ' in alt should be HTML-escaped
+        self::assertStringContainsString('alt="Tom &amp; Jerry&#039;s photo"', $result);
+        self::assertStringContainsString('src="/fileadmin/hero.jpg"', $result);
+    }
+
+    #[Test]
+    public function htmlCtypeWithImageButNoPlaceholderSkipsSysFileReference(): void
+    {
+        $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
+        $dh->expects(self::once())->method('start')
+            ->with(self::callback(function (array $dataMap): bool {
+                $element = $dataMap['tt_content']['NEW_content_0'] ?? [];
+                // CType stays html
+                if (($element['CType'] ?? '') !== 'html') {
+                    return false;
+                }
+                // bodytext unchanged (no placeholder to resolve)
+                if (($element['bodytext'] ?? '') !== '<section><p>No image slot</p></section>') {
+                    return false;
+                }
+                // No sys_file_reference created
+                return !isset($dataMap['sys_file_reference']);
+            }), []);
+
+        $service = $this->createService($dh);
+        $service->createLandingPage($this->createTemplate(), 1, 'T', '/t', [], [
+            ['section' => 'Hero', 'ctype' => 'html', 'header' => 'H', 'subheader' => '',
+             'bodytext' => '<section><p>No image slot</p></section>', 'imageUid' => 42],
+        ]);
+    }
+
+    #[Test]
     public function htmlCtypeResolvesImageIntoBodytextInsteadOfSysFileReference(): void
     {
         $file = $this->createMock(File::class);

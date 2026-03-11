@@ -307,14 +307,22 @@ class PageCreatorService implements LoggerAwareInterface
             static function (array $matches) use ($publicUrl): string {
                 $tag = $matches[0];
 
-                // Extract alt attribute if present
-                $alt = '';
-                if (preg_match('/\balt="([^"]*)"/', $tag, $altMatch)) {
-                    $alt = $altMatch[1];
-                }
+                // Remove data-image-slot attribute, inject src
+                $resolved = preg_replace('/\s*\bdata-image-slot="[^"]*"/', '', $tag) ?? $tag;
+                $resolved = preg_replace(
+                    '/<img\b/',
+                    '<img src="' . htmlspecialchars($publicUrl, ENT_QUOTES, 'UTF-8') . '"',
+                    $resolved,
+                ) ?? $resolved;
 
-                return '<img src="' . htmlspecialchars($publicUrl, ENT_QUOTES, 'UTF-8')
-                    . '" alt="' . $alt . '">';
+                // Escape alt attribute value for XSS safety
+                $resolved = preg_replace_callback(
+                    '/\balt="([^"]*)"/',
+                    static fn(array $m): string => 'alt="' . htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8') . '"',
+                    $resolved,
+                ) ?? $resolved;
+
+                return $resolved;
             },
             $bodytext,
         ) ?? $bodytext;

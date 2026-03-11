@@ -467,6 +467,24 @@ final class CreativeHtmlSanitizerTest extends UnitTestCase
     }
 
     #[Test]
+    public function sanitizeBlocksImgWithSrcAndDataImageSlot(): void
+    {
+        $html = '<img src="https://evil.com/photo.jpg" data-image-slot="0" alt="Test">';
+        $result = $this->subject->sanitize($html);
+
+        self::assertStringNotContainsString('<img', $result);
+    }
+
+    #[Test]
+    public function sanitizeBlocksSelfClosingImgWithSrc(): void
+    {
+        $html = '<img src="https://example.com/photo.jpg" alt="Photo" />';
+        $result = $this->subject->sanitize($html);
+
+        self::assertStringNotContainsString('<img', $result);
+    }
+
+    #[Test]
     public function sanitizePreservesStyleAndSvgTogether(): void
     {
         $html = '<style>svg { display: block; margin: auto; }</style>'
