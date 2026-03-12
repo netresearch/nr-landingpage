@@ -489,11 +489,13 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
         if ($template->isAnimationEnabled()) {
             $scriptRule = <<<RULE
-                JAVASCRIPT-ANIMATIONEN:
+                JAVASCRIPT-ANIMATIONEN (PFLICHT):
                 GSAP (gsap), ScrollTrigger und TextPlugin sind global verfuegbar.
-                Nutze sie fuer Scroll-Animationen, Reveals, Typewriter-Effekte,
-                Parallax und alles was die Seite lebendig macht.
+                JEDE Section MUSS mindestens eine GSAP-Animation enthalten — Scroll-Reveals,
+                Fade-Ins, Slide-Ins, Typewriter-Effekte, Parallax oder Stagger-Animationen.
+                Eine Seite ohne Animationen ist unvollstaendig.
                 - Jeder <script>-Block MUSS das Attribut data-creative tragen.
+                - Wrapping: Alle gsap-Aufrufe in document.addEventListener('DOMContentLoaded', function() { ... });
                 - Erlaubte APIs: gsap.*, ScrollTrigger.*, TextPlugin.*,
                   document.querySelector/All, Standard-JS (const, let, =>, forEach).
                 - VERBOTEN: fetch, XMLHttpRequest, eval, document.cookie,
