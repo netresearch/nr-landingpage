@@ -742,4 +742,47 @@ final class CreativeHtmlSanitizerTest extends UnitTestCase
         self::assertStringNotContainsString('<script', $result);
         self::assertStringNotContainsString('importScripts', $result);
     }
+
+    #[Test]
+    public function sanitizePreservesFunctionCallbackInDataCreativeScript(): void
+    {
+        $html = "<script data-creative>document.addEventListener('DOMContentLoaded', function() { gsap.from('.hero', {opacity: 0, y: 30}); });</script>";
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringContainsString('<script data-creative>', $result);
+        self::assertStringContainsString('function()', $result);
+        self::assertStringContainsString('gsap.from', $result);
+    }
+
+    #[Test]
+    public function sanitizePreservesArrowFunctionInDataCreativeScript(): void
+    {
+        $html = "<script data-creative>document.addEventListener('DOMContentLoaded', () => { gsap.from('.hero', {opacity: 0}); });</script>";
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringContainsString('<script data-creative>', $result);
+        self::assertStringContainsString('gsap.from', $result);
+    }
+
+    #[Test]
+    public function sanitizeStillBlocksNewFunctionConstructor(): void
+    {
+        $html = "<script data-creative>new Function('return this')()</script>";
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('<script', $result);
+    }
+
+    #[Test]
+    public function sanitizePreservesTypicalGsapDomContentLoadedPattern(): void
+    {
+        $html = '<style>.hero{opacity:0}</style>'
+            . '<section class="hero"><h1>Title</h1></section>'
+            . "<script data-creative>document.addEventListener('DOMContentLoaded', function() {"
+            . " gsap.from('.hero h1', {scrollTrigger: '.hero', opacity: 0, y: -50, duration: 1});"
+            . ' });</script>';
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringContainsString('<script data-creative>', $result);
+        self::assertStringContainsString('gsap.from', $result);
+        self::assertStringContainsString('scrollTrigger', $result);
+        self::assertStringContainsString('<style>', $result);
+        self::assertStringContainsString('<section', $result);
+    }
 }
