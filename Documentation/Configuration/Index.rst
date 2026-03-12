@@ -427,6 +427,18 @@ from :ref:`site settings <color-inheritance>`.
 
    Overrides the site-level text color for body text.
 
+.. confval:: Animation
+
+   :type: boolean
+   :default: enabled
+
+   Enable GSAP-powered JavaScript animations for generated pages. When
+   enabled, content elements receive scroll-triggered reveals, typewriter
+   effects, parallax, and other modern animation effects.
+
+   Disable this for templates that should produce lightweight, JS-free
+   pages (e.g. for accessibility-focused or performance-critical sites).
+
 Wizard Tab
 ----------
 
@@ -496,3 +508,59 @@ the language the system prompt is written in.
 
 The system prompt language does not matter. You can write prompts in
 any language; the output always follows the site's default language.
+
+GSAP Animation Library
+======================
+
+The extension ships GSAP (GreenSock Animation Platform) for
+JavaScript-powered animations in generated landing pages.
+
+Included Plugins
+----------------
+
+-  **GSAP Core** — timeline-based animations, tweening
+-  **ScrollTrigger** — scroll-based animation triggers, pinning
+-  **TextPlugin** — typewriter and text morphing effects
+
+Version & Retention Policy
+--------------------------
+
+The extension bundles GSAP files in versioned directories. A maximum
+of **two major versions** are shipped simultaneously (current +
+previous). When a new major version is added, the oldest is removed.
+
+Generated pages reference the GSAP version via script paths in the
+loader element. After an extension update that drops an old GSAP major
+version, previously generated pages using that version should be
+re-generated or manually verified.
+
+License
+-------
+
+GSAP Core, ScrollTrigger, and TextPlugin are free for commercial use
+under the GSAP Standard License.
+
+Content Security Policy
+-----------------------
+
+GSAP animations use inline ``<script>`` tags. If your site enforces
+a Content Security Policy on the frontend, add these directives:
+
+.. code-block:: text
+
+   script-src 'unsafe-inline' /typo3conf/ext/nr_landingpage/Resources/Public/;
+
+For nonce-based CSP, configure TYPO3's CSP API to add nonces to
+inline scripts.
+
+Script Allowlist (Creative Mode)
+--------------------------------
+
+In creative mode, the AI may write ``<script data-creative>`` blocks
+using GSAP. These scripts are checked against an allowlist. Blocked
+APIs (``fetch``, ``eval``, ``document.cookie``, etc.) cause the
+entire script block to be removed.
+
+This is a defense-in-depth measure. The primary trust boundary is the
+AI prompt. For maximum security, configure a frontend CSP alongside
+the allowlist.
