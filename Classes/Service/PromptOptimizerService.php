@@ -32,7 +32,9 @@ class PromptOptimizerService implements LoggerAwareInterface
         The system prompt you write MUST:
         - Be topic-neutral — work equally well for technology, travel, food, B2B, events, etc.
         - Define tone of voice and language style (derive from template context if available)
-        - Specify a clear content structure: Hero > Benefits > Social Proof > CTA
+        - Suggest a flexible content structure with 5-8 section types the AI can choose
+          from based on the topic (e.g. Hero, Problem/Pain, Solution, Features, Social Proof,
+          Workflow, Comparison, FAQ, Pricing, Team, CTA) — do NOT prescribe a fixed order
         - Reference the available content types and explain when to use each
         - Give concrete guidance for each page field (SEO titles, descriptions, etc.)
         - Emphasize benefit-driven copy over feature lists
