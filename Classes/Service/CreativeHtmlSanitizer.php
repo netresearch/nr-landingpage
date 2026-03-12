@@ -24,7 +24,7 @@ final class CreativeHtmlSanitizer
      * @var list<non-empty-string>
      */
     private const BLOCKED_APIS = [
-        'fetch', 'XMLHttpRequest', 'eval', 'Function(', 'import(',
+        'fetch', 'XMLHttpRequest', 'eval', 'new Function(', 'import(',
         'require(', 'document.cookie', 'document.write', 'localStorage',
         'sessionStorage', 'window.location', 'window.open',
         'navigator.sendBeacon', 'innerHTML', 'outerHTML', 'postMessage',
