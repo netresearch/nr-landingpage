@@ -395,6 +395,44 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     }
 
     #[Test]
+    public function buildJsonExampleIncludesAnimationFieldWhenEnabled(): void
+    {
+        $this->dataProviderCollection->method('getBackendLayout')->willReturn(null);
+
+        $method = new ReflectionMethod($this->subject, 'buildJsonExample');
+        $result = $method->invoke($this->subject, '', 'text', 0, true);
+
+        self::assertStringContainsString('"animation":', $result);
+        self::assertStringContainsString('"type": "fade-up"', $result);
+    }
+
+    #[Test]
+    public function buildJsonExampleOmitsAnimationFieldWhenDisabled(): void
+    {
+        $this->dataProviderCollection->method('getBackendLayout')->willReturn(null);
+
+        $method = new ReflectionMethod($this->subject, 'buildJsonExample');
+        $result = $method->invoke($this->subject, '', 'text', 0, false);
+
+        self::assertStringNotContainsString('"animation":', $result);
+    }
+
+    #[Test]
+    public function buildJsonExampleIncludesAnimationInMultiColumnLayout(): void
+    {
+        $layout = $this->createMock(BackendLayout::class);
+        $layout->method('getUsedColumns')->willReturn([0 => 'Main', 1 => 'Sidebar']);
+        $this->dataProviderCollection->method('getBackendLayout')->willReturn($layout);
+
+        $method = new ReflectionMethod($this->subject, 'buildJsonExample');
+        $result = $method->invoke($this->subject, 'pagets__2col', 'text', 0, true);
+
+        self::assertStringContainsString('"animation":', $result);
+        self::assertStringContainsString('"colPos": 0', $result);
+        self::assertStringContainsString('"colPos": 1', $result);
+    }
+
+    #[Test]
     public function buildCreativePromptContainsImagePlaceholderInstructions(): void
     {
         $layout = $this->createMock(BackendLayout::class);

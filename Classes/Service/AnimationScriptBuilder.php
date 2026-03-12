@@ -81,7 +81,9 @@ final class AnimationScriptBuilder
 
         return <<<HTML
             <script data-creative>
+            document.addEventListener('DOMContentLoaded', function() {
             {$script}
+            });
             </script>
             HTML;
     }

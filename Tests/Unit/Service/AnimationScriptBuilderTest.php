@@ -294,6 +294,31 @@ final class AnimationScriptBuilderTest extends UnitTestCase
     // Constants
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+    // Script wrapping
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function buildWrapsCallsInDomContentLoaded(): void
+    {
+        $builder = new AnimationScriptBuilder();
+        $result = $builder->build([
+            50 => ['type' => 'fade-up'],
+        ]);
+        self::assertStringContainsString("document.addEventListener('DOMContentLoaded'", $result);
+        self::assertStringContainsString('});', $result);
+        // Verify animation call is inside the wrapper (DOMContentLoaded before gsap.from)
+        $domReadyPos = strpos($result, 'DOMContentLoaded');
+        $gsapFromPos = strpos($result, 'gsap.from');
+        self::assertNotFalse($domReadyPos);
+        self::assertNotFalse($gsapFromPos);
+        self::assertGreaterThan($domReadyPos, $gsapFromPos);
+    }
+
+    // -------------------------------------------------------------------------
+    // Constants
+    // -------------------------------------------------------------------------
+
     #[Test]
     public function clampingConstantsHaveExpectedValues(): void
     {

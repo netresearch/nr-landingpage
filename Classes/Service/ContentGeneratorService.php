@@ -194,9 +194,9 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $cTypeMetadata = $this->buildCTypeMetadataBlock($template->allowedCTypes);
         $columnBlock = $this->buildColumnBlock($template->backendLayout, $parentPageId);
         $languageBlock = $this->buildLanguageBlock($outputLanguage);
-        $jsonExample = $this->buildJsonExample($template->backendLayout, $cTypes, $parentPageId);
         $colorBlock = $this->buildColorBlock($template);
         $animationBlock = $this->buildAnimationBlock($template);
+        $jsonExample = $this->buildJsonExample($template->backendLayout, $cTypes, $parentPageId, $template->isAnimationEnabled());
 
         return <<<PROMPT
             {$template->systemPrompt}
@@ -318,9 +318,12 @@ final class ContentGeneratorService implements LoggerAwareInterface
      * When multiple columns exist, show examples with different colPos values
      * to prevent the LLM from defaulting everything to colPos 0.
      */
-    private function buildJsonExample(string $backendLayout, string $cTypes, int $parentPageId = 0): string
+    private function buildJsonExample(string $backendLayout, string $cTypes, int $parentPageId = 0, bool $includeAnimation = false): string
     {
         $columnMap = $this->backendLayoutService->getColumnMap($backendLayout, $parentPageId);
+        $animationField = $includeAnimation
+            ? ",\n   \"animation\": {\"type\": \"fade-up\", \"duration\": 0.8}"
+            : '';
 
         if (count($columnMap) <= 1) {
             return <<<JSON
@@ -328,7 +331,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
               {"section": "string", "ctype": "one of [{$cTypes}]", "colPos": 0,
                "header": "string", "subheader": "string", "bodytext": "HTML string",
                "imageKeywords": ["keyword1", "keyword2", "keyword3"],
-               "imagePrompt": "A detailed description of an image suitable for this section"}
+               "imagePrompt": "A detailed description of an image suitable for this section"{$animationField}}
             ]
             JSON;
         }
@@ -337,7 +340,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         foreach ($columnMap as $colPos => $name) {
             $examples[] = '  {"section": "Inhalt fuer ' . $name . '", "ctype": "one of [' . $cTypes . ']", "colPos": ' . $colPos . ',' . "\n"
                 . '   "header": "string", "subheader": "string", "bodytext": "HTML string",' . "\n"
-                . '   "imageKeywords": ["keyword1", "keyword2"], "imagePrompt": "..."}';
+                . '   "imageKeywords": ["keyword1", "keyword2"], "imagePrompt": "..."' . $animationField . '}';
         }
 
         return "[\n" . implode(",\n", $examples) . "\n]";
