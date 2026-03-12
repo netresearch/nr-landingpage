@@ -386,6 +386,7 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
             systemPrompt: 'Be creative',
             backendLayout: 'pagets__2col',
             generationMode: 'creative',
+            animationEnabled: false,
         );
 
         $method = new ReflectionMethod($this->subject, 'buildCreativePrompt');

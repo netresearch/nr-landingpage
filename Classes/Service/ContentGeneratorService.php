@@ -29,9 +29,9 @@ final class ContentGeneratorService implements LoggerAwareInterface
         return $this->getSanitizer()->sanitize($html);
     }
 
-    private function sanitizeCreativeHtml(string $html): string
+    private function sanitizeCreativeHtml(string $html, bool $allowScripts = false): string
     {
-        return $this->creativeHtmlSanitizer->sanitize($html);
+        return $this->creativeHtmlSanitizer->sanitize($html, $allowScripts);
     }
 
     private function getSanitizer(): Sanitizer
@@ -108,7 +108,9 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $prompt = $this->buildCreativePrompt($template, $briefingAnswers, $outputLanguage, $columnMap);
         $response = $this->completeJsonWithTemplate($template, $prompt);
 
-        return $this->validateCreativeSections($response, $columnMap);
+        $allowScripts = $template->isAnimationEnabled();
+
+        return $this->validateCreativeSections($response, $columnMap, $allowScripts);
     }
 
     /**
@@ -463,6 +465,25 @@ final class ContentGeneratorService implements LoggerAwareInterface
         }
         $columnsBlock = implode("\n", $columnDescriptions);
 
+        if ($template->isAnimationEnabled()) {
+            $scriptRule = <<<RULE
+                JAVASCRIPT-ANIMATIONEN:
+                GSAP (gsap), ScrollTrigger und TextPlugin sind global verfuegbar.
+                Nutze sie fuer Scroll-Animationen, Reveals, Typewriter-Effekte,
+                Parallax und alles was die Seite lebendig macht.
+                - Jeder <script>-Block MUSS das Attribut data-creative tragen.
+                - Erlaubte APIs: gsap.*, ScrollTrigger.*, TextPlugin.*,
+                  document.querySelector/All, Standard-JS (const, let, =>, forEach).
+                - VERBOTEN: fetch, XMLHttpRequest, eval, document.cookie,
+                  localStorage, window.location, innerHTML und alle Netzwerk-APIs.
+                - Verwende die CSS-Klassen-Praefixe der Section als Selektoren.
+                - prefers-reduced-motion wird automatisch vom Loader behandelt,
+                  du brauchst KEINE eigene Pruefung einzubauen.
+                RULE;
+        } else {
+            $scriptRule = '3. KEIN JavaScript, KEINE <script>-Tags, KEINE Event-Handler.';
+        }
+
         return <<<PROMPT
             {$template->systemPrompt}
 
@@ -495,7 +516,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
                Wenn ein Foto den Inhalt bereichert (Hero, Teaser, Portrait), setze genau
                EIN <img data-image-slot="0" alt="Beschreibung"> pro Section — kein src-Attribut.
                Nicht jede Section braucht ein Foto.
-            3. KEIN JavaScript, KEINE <script>-Tags, KEINE Event-Handler.
+            {$scriptRule}
             4. KEIN CSS url() — keine externen Ressourcen.
             5. Barrierefrei und responsive.
             6. Nutze CSS Custom Properties (--primary, --secondary) aus dem Farbschema.
@@ -528,7 +549,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
      * @param array<int, string> $columnMap
      * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string}>
      */
-    private function validateCreativeSections(mixed $response, array $columnMap): array
+    private function validateCreativeSections(mixed $response, array $columnMap, bool $allowScripts = false): array
     {
         if (!is_array($response)) {
             return [];
@@ -546,7 +567,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
             }
 
             $bodytext = is_string($item['bodytext'] ?? null) ? $item['bodytext'] : '';
-            $bodytext = $this->sanitizeCreativeHtml($bodytext);
+            $bodytext = $this->sanitizeCreativeHtml($bodytext, $allowScripts);
 
             $rawColPos = $item['colPos'] ?? 0;
             $colPos = is_int($rawColPos) ? $rawColPos : (is_numeric($rawColPos) ? (int) $rawColPos : 0);
