@@ -526,11 +526,27 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Stripe, Linear, Vercel oder Apple gestaltet. Jede Section ist ein
             eigenstaendiges HTML-Fragment mit eigenem <style>-Block.
 
-            QUALITAETSANSPRUCH:
-            Erstelle Designs die wie Premium-SaaS-Landingpages wirken — mit allem was
-            modernes CSS-only Design hergibt: Animationen, weiche Uebergaenge, organische
-            Formen, Tiefeneffekte, lebendige Typografie. Sektionen sollen fliessend
-            ineinander uebergehen, nie wie gestapelte Kaesten wirken.
+            VERBOTEN (Lazy Patterns — fuehren zu minderwertigen Ergebnissen):
+            - Flache einfarbige Hintergruende ohne Gradient, Textur oder Tiefeneffekt
+            - Sections die wie gestapelte Rechteck-Boxen wirken (harte Kante, Farbe, harte Kante)
+            - Einheitliche Schriftgroessen und -gewichte ueber alle Elemente
+            - Alles zentriert, alles gleich breit, alles symmetrisch
+
+            PFLICHT (Qualitaetsmerkmale — jede Section muss diese erfuellen):
+            - Visuelle Tiefe: Schatten, Layering, Ueberlappungen oder Transparenz einsetzen
+            - Typografie-Hierarchie: Deutliche Unterschiede in Groesse, Gewicht und Spacing
+              zwischen Headline, Subline und Fliesstext
+            - Grosszuegiger Whitespace — lieber zu viel als zu wenig
+            - Weiche Uebergaenge zwischen Sections — keine harten Farbwechsel-Kanten
+            - Mindestens ein visueller Eyecatcher pro Section (SVG-Grafik, Formelement,
+              Akzentlinie, Icon-Gruppe oder dekoratives Element)
+            - Interaktive Hover-States fuer klickbare Elemente (Links, Buttons, Cards)
+
+            OPTIONAL aber erwuenscht:
+            - Dekorative SVG-Elemente (Wellen, Blobs, geometrische Formen) als
+              Section-Trenner oder Hintergrund-Akzente
+            - Subtile CSS-Animationen und Transitions
+            - Asymmetrische Layouts wo es zum Inhalt passt
 
             TECHNISCHE REGELN:
             1. Verwende CSS-Klassen mit eindeutigem Praefix pro Section (z.B. .hero-*, .feat-*).
