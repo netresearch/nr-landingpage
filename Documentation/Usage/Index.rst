@@ -92,6 +92,10 @@ Each section is displayed as a card showing:
 -  **Section name** and **content type** (badge)
 -  **Header** and **subheader**
 -  **Body text** — rendered as HTML preview
+-  **Animation** — optional GSAP animation effect for the section
+   (e.g. scroll-triggered fade-in, typewriter). Not every section
+   needs animation; leave blank for sections where motion would be
+   distracting.
 -  **Image keywords** — search terms for the media library
 -  **Image prompt** — description for AI image generation
 -  **Matched images** — from the media library or AI-generated
@@ -122,6 +126,13 @@ Each layout block is displayed with:
 The AI generates self-contained HTML fragments with embedded
 ``<style>`` blocks and inline SVG graphics. Real photographs from the
 media library can be mixed in where the AI places an image placeholder.
+
+When the template has animations enabled, the AI may include
+``<script data-creative>`` blocks that use GSAP for scroll-triggered
+reveals, entrance animations, and typewriter effects. These scripts
+are automatically checked against a security allowlist before the
+page is saved — see :ref:`script-allowlist` in the Configuration
+reference.
 
 Step 5: Placement & Save
 -------------------------
@@ -302,3 +313,18 @@ Template Organization
 -  Use access control to show relevant templates to relevant teams
 -  Start with briefing mode "optional" and switch to "required" once
    you know which questions improve the output
+
+Accessibility
+-------------
+
+Generated animations automatically respect the operating system's
+``prefers-reduced-motion`` setting. When a user has enabled reduced
+motion, all GSAP animations are skipped.
+
+GSAP Version Updates
+--------------------
+
+When updating the extension, check the release notes for GSAP version
+changes. If a GSAP major version was dropped, test existing landing
+pages that were generated with the old version. Re-generate affected
+pages if animations no longer work correctly.
