@@ -30,6 +30,8 @@ final class CreativeHtmlSanitizer
         'navigator.sendBeacon', 'innerHTML', 'outerHTML', 'postMessage',
         'Worker(', 'ServiceWorker', 'WebSocket', 'globalThis',
         'self[', 'window[', 'top[', 'parent[', 'frames[',
+        'setTimeout', 'setInterval', 'document.createElement',
+        'constructor', 'importScripts', 'new Image',
     ];
 
     /**

@@ -11,6 +11,18 @@ namespace Netresearch\NrLandingpage\Service;
  */
 final class AnimationScriptBuilder
 {
+    public const DURATION_MIN = 0.1;
+    public const DURATION_MAX = 3.0;
+    public const DURATION_DEFAULT = 0.8;
+
+    public const DELAY_MIN = 0.0;
+    public const DELAY_MAX = 2.0;
+    public const DELAY_DEFAULT = 0.0;
+
+    public const STAGGER_MIN = 0.05;
+    public const STAGGER_MAX = 0.5;
+    public const STAGGER_DEFAULT = 0.15;
+
     private const ANIMATION_MAP = [
         'fade-up' => ['prop' => 'opacity: 0, y: 40'],
         'fade-down' => ['prop' => 'opacity: 0, y: -40'],
@@ -38,15 +50,16 @@ final class AnimationScriptBuilder
                 continue;
             }
 
-            $duration = $this->clamp((float) ($config['duration'] ?? 0.8), 0.1, 3.0);
-            $delay = $this->clamp((float) ($config['delay'] ?? 0.0), 0.0, 2.0);
-            $stagger = $this->clamp((float) ($config['stagger'] ?? 0.15), 0.05, 0.5);
+            $duration = $this->clamp((float) ($config['duration'] ?? self::DURATION_DEFAULT), self::DURATION_MIN, self::DURATION_MAX);
+            $delay = $this->clamp((float) ($config['delay'] ?? self::DELAY_DEFAULT), self::DELAY_MIN, self::DELAY_MAX);
+            $stagger = $this->clamp((float) ($config['stagger'] ?? self::STAGGER_DEFAULT), self::STAGGER_MIN, self::STAGGER_MAX);
             $def = self::ANIMATION_MAP[$type];
 
             $selector = "'#c{$uid}'";
 
             if (($def['special'] ?? '') === 'typewriter') {
-                $calls[] = "document.querySelectorAll({$selector} + ' h1, ' + {$selector} + ' h2, ' + {$selector} + ' p').forEach(function(el) { var t = el.textContent; el.textContent = ''; gsap.to(el, {scrollTrigger: {$selector}, text: t, duration: {$duration}, delay: {$delay}, ease: 'none'}); });";
+                $twSelector = "'#c{$uid} h1, #c{$uid} h2, #c{$uid} p'";
+                $calls[] = "document.querySelectorAll({$twSelector}).forEach(function(el) { var t = el.textContent; el.textContent = ''; gsap.to(el, {scrollTrigger: {$selector}, text: t, duration: {$duration}, delay: {$delay}, ease: 'none'}); });";
                 continue;
             }
             if (($def['special'] ?? '') === 'parallax') {
@@ -55,7 +68,7 @@ final class AnimationScriptBuilder
             }
 
             $prop = $def['prop'] ?? '';
-            $target = ($def['children'] ?? false) ? "{$selector} + ' > *'" : $selector;
+            $target = ($def['children'] ?? false) ? "'#c{$uid} > *'" : $selector;
             $staggerProp = ($def['children'] ?? false) ? ", stagger: {$stagger}" : '';
             $calls[] = "gsap.from({$target}, {scrollTrigger: {$selector}, {$prop}, duration: {$duration}, delay: {$delay}{$staggerProp}});";
         }

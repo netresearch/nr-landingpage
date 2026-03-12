@@ -42,15 +42,13 @@ class GsapService
         $base = $basePath ?? $this->getPublicBasePath();
 
         return <<<HTML
-            <script src="{$base}gsap.min.js" defer></script>
-            <script src="{$base}ScrollTrigger.min.js" defer></script>
-            <script src="{$base}TextPlugin.min.js" defer></script>
+            <script src="{$base}gsap.min.js"></script>
+            <script src="{$base}ScrollTrigger.min.js"></script>
+            <script src="{$base}TextPlugin.min.js"></script>
             <script data-creative>
             gsap.registerPlugin(ScrollTrigger, TextPlugin);
-            ScrollTrigger.matchMedia({
-              '(prefers-reduced-motion: no-preference)': function() {
-                document.documentElement.classList.add('gsap-animations-active');
-              }
+            gsap.matchMedia().add('(prefers-reduced-motion: no-preference)', function() {
+              document.documentElement.classList.add('gsap-animations-active');
             });
             </script>
             HTML;

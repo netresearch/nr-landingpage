@@ -634,13 +634,13 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
         $result = ['type' => $type];
         if (isset($animation['duration']) && is_numeric($animation['duration'])) {
-            $result['duration'] = max(0.1, min(3.0, (float) $animation['duration']));
+            $result['duration'] = max(AnimationScriptBuilder::DURATION_MIN, min(AnimationScriptBuilder::DURATION_MAX, (float) $animation['duration']));
         }
         if (isset($animation['delay']) && is_numeric($animation['delay'])) {
-            $result['delay'] = max(0.0, min(2.0, (float) $animation['delay']));
+            $result['delay'] = max(AnimationScriptBuilder::DELAY_MIN, min(AnimationScriptBuilder::DELAY_MAX, (float) $animation['delay']));
         }
         if (isset($animation['stagger']) && is_numeric($animation['stagger'])) {
-            $result['stagger'] = max(0.05, min(0.5, (float) $animation['stagger']));
+            $result['stagger'] = max(AnimationScriptBuilder::STAGGER_MIN, min(AnimationScriptBuilder::STAGGER_MAX, (float) $animation['stagger']));
         }
 
         return $result;

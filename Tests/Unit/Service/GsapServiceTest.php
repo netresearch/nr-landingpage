@@ -30,7 +30,7 @@ final class GsapServiceTest extends UnitTestCase
         self::assertStringContainsString('/test/path/ScrollTrigger.min.js', $html);
         self::assertStringContainsString('/test/path/TextPlugin.min.js', $html);
         self::assertStringContainsString('gsap.registerPlugin(ScrollTrigger, TextPlugin)', $html);
-        self::assertStringContainsString('defer', $html);
+        self::assertStringNotContainsString('defer', $html);
         self::assertStringContainsString('data-creative', $html);
     }
 
@@ -41,6 +41,6 @@ final class GsapServiceTest extends UnitTestCase
         $html = $service->buildLoaderHtml('/test/');
 
         self::assertStringContainsString('prefers-reduced-motion', $html);
-        self::assertStringContainsString('ScrollTrigger.matchMedia', $html);
+        self::assertStringContainsString('gsap.matchMedia', $html);
     }
 }

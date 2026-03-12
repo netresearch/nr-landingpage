@@ -358,7 +358,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 $bodytext = is_string($section['bodytext'] ?? null) ? $section['bodytext'] : '';
                 // Re-sanitize creative mode content at save time (editors can edit source in wizard)
                 if ($template->isCreativeMode()) {
-                    $bodytext = $this->creativeHtmlSanitizer->sanitize($bodytext);
+                    $bodytext = $this->creativeHtmlSanitizer->sanitize(
+                        $bodytext,
+                        $template->isAnimationEnabled(),
+                    );
                 }
 
                 $typedSections[] = [
