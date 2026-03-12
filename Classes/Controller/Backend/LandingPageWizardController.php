@@ -381,6 +381,14 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 sourcePageUid: $sourcePageUid,
             );
 
+            /** @var array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animations */
+            $animations = array_values(array_map(
+                static fn(mixed $section): array => is_array($section) && is_array($section['animation'] ?? null)
+                    ? $section['animation']
+                    : [],
+                $contentSections,
+            ));
+
             $result = $this->pageCreatorService->createLandingPage(
                 $template,
                 $parentPageId,
@@ -389,6 +397,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 $stringPageFields,
                 $typedSections,
                 $generationContext,
+                $animations,
             );
 
             return new JsonResponse(['success' => true, 'data' => $result]);
