@@ -47,6 +47,8 @@ class PageCreatorService implements LoggerAwareInterface
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly ResourceFactory $resourceFactory,
+        private readonly GsapService $gsapService,
+        private readonly AnimationScriptBuilder $animationScriptBuilder,
     ) {}
 
     /**
@@ -54,6 +56,7 @@ class PageCreatorService implements LoggerAwareInterface
      *
      * @param array<string, string> $pageFields SEO and other page field values
      * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid?: int, colPos?: int}> $contentSections
+     * @param array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animations
      * @return array{pageUid: int, contentUids: list<int>}
      * @throws RuntimeException if page creation fails
      */
@@ -65,6 +68,7 @@ class PageCreatorService implements LoggerAwareInterface
         array $pageFields,
         array $contentSections,
         ?GenerationContext $generationContext = null,
+        array $animations = [],
     ): array {
         $pageData = $this->buildPageData($template, $parentPageId, $title, $slug, $pageFields);
         $pageData = $this->addGenerationMetadata($pageData, $template, $generationContext);
@@ -161,6 +165,19 @@ class PageCreatorService implements LoggerAwareInterface
             if ($uid > 0) {
                 $contentUids[] = $uid;
             }
+        }
+
+        // Pass 2: Add GSAP loader + animation script if animation is enabled
+        if ($template->isAnimationEnabled()) {
+            /** @var array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animationMap */
+            $animationMap = [];
+            foreach ($contentUids as $index => $uid) {
+                $anim = $animations[$index] ?? [];
+                if (is_array($anim) && ($anim['type'] ?? '') !== '') {
+                    $animationMap[$uid] = $anim;
+                }
+            }
+            $this->createGsapElements($pageUid, $animationMap);
         }
 
         $this->eventDispatcher->dispatch(
@@ -367,6 +384,60 @@ class PageCreatorService implements LoggerAwareInterface
         }
 
         return 0;
+    }
+
+    /**
+     * Create GSAP loader and animation script content elements.
+     * Separate DataHandler pass because we need real page/content UIDs.
+     *
+     * Non-fatal: if this fails, the page is saved without animations.
+     *
+     * @param array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animationMap
+     */
+    private function createGsapElements(int $pageUid, array $animationMap): void
+    {
+        try {
+            $dataMap = [
+                'tt_content' => [
+                    'NEW_gsap_loader' => [
+                        'pid' => $pageUid,
+                        'CType' => 'html',
+                        'header' => '[Animation Library]',
+                        'header_layout' => 100,
+                        'sorting' => 1,
+                        'colPos' => 0,
+                        'bodytext' => $this->gsapService->buildLoaderHtml(),
+                    ],
+                ],
+            ];
+
+            $animationScript = $this->animationScriptBuilder->build($animationMap);
+            if ($animationScript !== '') {
+                $dataMap['tt_content']['NEW_gsap_animation'] = [
+                    'pid' => $pageUid,
+                    'CType' => 'html',
+                    'header' => '[Animation Script]',
+                    'header_layout' => 100,
+                    'sorting' => 99999,
+                    'colPos' => 0,
+                    'bodytext' => $animationScript,
+                ];
+            }
+
+            $dataHandler = $this->createDataHandler();
+            $dataHandler->start($dataMap, []);
+            $dataHandler->process_datamap();
+
+            if ($dataHandler->errorLog !== []) {
+                $this->logger?->warning('GSAP elements creation failed', [
+                    'errors' => implode(', ', $dataHandler->errorLog),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            $this->logger?->warning('GSAP elements creation failed', [
+                'exception' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

@@ -7,7 +7,7 @@ namespace Netresearch\NrLandingpage\Service;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 
-final class GsapService
+class GsapService
 {
     /**
      * Current GSAP major version directory.

@@ -8,6 +8,8 @@ use Netresearch\NrLandingpage\Domain\Model\GenerationContext;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Event\AfterContentGenerationEvent;
 use Netresearch\NrLandingpage\Event\BeforePageCreationEvent;
+use Netresearch\NrLandingpage\Service\AnimationScriptBuilder;
+use Netresearch\NrLandingpage\Service\GsapService;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -23,9 +25,9 @@ use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 #[CoversClass(PageCreatorService::class)]
 final class PageCreatorServiceTest extends UnitTestCase
 {
-    private function createTemplate(string $publishMode = 'hidden'): Template
+    private function createTemplate(string $publishMode = 'hidden', bool $animationEnabled = false): Template
     {
-        return new Template(uid: 1, title: 'T', identifier: 't', publishMode: $publishMode);
+        return new Template(uid: 1, title: 'T', identifier: 't', publishMode: $publishMode, animationEnabled: $animationEnabled);
     }
 
     private function createMockDataHandler(array $substMap = [], array $errorLog = []): DataHandler
@@ -41,18 +43,24 @@ final class PageCreatorServiceTest extends UnitTestCase
         ?EventDispatcherInterface $eventDispatcher = null,
         int $workspaceId = 0,
         ?ResourceFactory $resourceFactory = null,
+        ?GsapService $gsapService = null,
+        ?AnimationScriptBuilder $animationScriptBuilder = null,
     ): PageCreatorService {
         $dispatcher = $eventDispatcher ?? $this->createPassthroughDispatcher();
         $factory = $resourceFactory ?? $this->createMock(ResourceFactory::class);
+        $gsap = $gsapService ?? new GsapService();
+        $animBuilder = $animationScriptBuilder ?? new AnimationScriptBuilder();
 
-        return new class ($dispatcher, $factory, $dataHandler, $workspaceId) extends PageCreatorService {
+        return new class ($dispatcher, $factory, $gsap, $animBuilder, $dataHandler, $workspaceId) extends PageCreatorService {
             public function __construct(
                 EventDispatcherInterface $eventDispatcher,
                 ResourceFactory $resourceFactory,
+                GsapService $gsapService,
+                AnimationScriptBuilder $animationScriptBuilder,
                 private readonly DataHandler $mockDataHandler,
                 private readonly int $mockWorkspaceId,
             ) {
-                parent::__construct($eventDispatcher, $resourceFactory);
+                parent::__construct($eventDispatcher, $resourceFactory, $gsapService, $animationScriptBuilder);
             }
 
             protected function createDataHandler(): DataHandler
@@ -360,13 +368,17 @@ final class PageCreatorServiceTest extends UnitTestCase
 
         // Use real PageCreatorService (not the test subclass) to test getCurrentWorkspaceId
         $factory = $this->createMock(ResourceFactory::class);
-        $service = new class ($dispatcher, $factory, $dh) extends PageCreatorService {
+        $gsap = new GsapService();
+        $animBuilder = new AnimationScriptBuilder();
+        $service = new class ($dispatcher, $factory, $gsap, $animBuilder, $dh) extends PageCreatorService {
             public function __construct(
                 EventDispatcherInterface $eventDispatcher,
                 ResourceFactory $resourceFactory,
+                GsapService $gsapService,
+                AnimationScriptBuilder $animationScriptBuilder,
                 private readonly DataHandler $mockDataHandler,
             ) {
-                parent::__construct($eventDispatcher, $resourceFactory);
+                parent::__construct($eventDispatcher, $resourceFactory, $gsapService, $animationScriptBuilder);
             }
 
             protected function createDataHandler(): DataHandler
@@ -394,13 +406,17 @@ final class PageCreatorServiceTest extends UnitTestCase
         $dispatcher = $this->createPassthroughDispatcher();
 
         $factory = $this->createMock(ResourceFactory::class);
-        $service = new class ($dispatcher, $factory, $dh) extends PageCreatorService {
+        $gsap = new GsapService();
+        $animBuilder = new AnimationScriptBuilder();
+        $service = new class ($dispatcher, $factory, $gsap, $animBuilder, $dh) extends PageCreatorService {
             public function __construct(
                 EventDispatcherInterface $eventDispatcher,
                 ResourceFactory $resourceFactory,
+                GsapService $gsapService,
+                AnimationScriptBuilder $animationScriptBuilder,
                 private readonly DataHandler $mockDataHandler,
             ) {
-                parent::__construct($eventDispatcher, $resourceFactory);
+                parent::__construct($eventDispatcher, $resourceFactory, $gsapService, $animationScriptBuilder);
             }
 
             protected function createDataHandler(): DataHandler
@@ -444,7 +460,7 @@ final class PageCreatorServiceTest extends UnitTestCase
                     && !isset($page['backend_layout_next_level']);
             }), []);
 
-        $template = new Template(uid: 1, title: 'T', identifier: 't', backendLayout: '');
+        $template = new Template(uid: 1, title: 'T', identifier: 't', backendLayout: '', animationEnabled: false);
         $service = $this->createService($dh);
         $service->createLandingPage($template, 10, 'T', '/t', [], []);
     }
@@ -687,7 +703,7 @@ final class PageCreatorServiceTest extends UnitTestCase
     #[Test]
     public function generationMetadataWrittenToPageData(): void
     {
-        $template = new Template(uid: 5, title: 'T', identifier: 't', systemPrompt: 'prompt', allowedCTypes: ['text']);
+        $template = new Template(uid: 5, title: 'T', identifier: 't', systemPrompt: 'prompt', allowedCTypes: ['text'], animationEnabled: false);
         $context = new GenerationContext(['title' => 'Test'], 99);
 
         $dh = $this->createMockDataHandler(['NEW_page' => 1]);
@@ -709,7 +725,7 @@ final class PageCreatorServiceTest extends UnitTestCase
     #[Test]
     public function regeneratePageIsAlwaysHidden(): void
     {
-        $template = new Template(uid: 1, title: 'T', identifier: 't', publishMode: 'visible');
+        $template = new Template(uid: 1, title: 'T', identifier: 't', publishMode: 'visible', animationEnabled: false);
         $context = new GenerationContext([], 42);
 
         $dh = $this->createMockDataHandler(['NEW_page' => 1]);
@@ -1053,5 +1069,52 @@ final class PageCreatorServiceTest extends UnitTestCase
             ['section' => 'Hero', 'ctype' => 'html', 'header' => 'H', 'subheader' => '',
              'bodytext' => '<section><img data-image-slot="0" alt="Hero"><p>Text</p></section>', 'imageUid' => 0],
         ]);
+    }
+
+    #[Test]
+    public function createLandingPageCreatesGsapLoaderWhenAnimationEnabled(): void
+    {
+        $dh = $this->createMockDataHandler([
+            'NEW_page' => 42,
+            'NEW_content_0' => 100,
+        ]);
+
+        // The DataHandler's start() method will be called twice:
+        // once for page+content, once for GSAP elements
+        $dh->expects(self::exactly(2))->method('start');
+        $dh->expects(self::exactly(2))->method('process_datamap');
+
+        // Mock GsapService to avoid ExtensionManagementUtility::extPath() call
+        $gsapService = $this->createMock(GsapService::class);
+        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js" defer></script>');
+
+        $template = new Template(uid: 1, title: 'T', identifier: 't', animationEnabled: true);
+        $service = $this->createService($dh, gsapService: $gsapService);
+
+        $service->createLandingPage(
+            $template, 1, 'Test', '/test', [],
+            [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B']],
+        );
+    }
+
+    #[Test]
+    public function createLandingPageSkipsGsapLoaderWhenAnimationDisabled(): void
+    {
+        $dh = $this->createMockDataHandler([
+            'NEW_page' => 42,
+            'NEW_content_0' => 100,
+        ]);
+
+        // Only one DataHandler call (no GSAP pass)
+        $dh->expects(self::once())->method('start');
+        $dh->expects(self::once())->method('process_datamap');
+
+        $template = new Template(uid: 1, title: 'T', identifier: 't', animationEnabled: false);
+        $service = $this->createService($dh);
+
+        $service->createLandingPage(
+            $template, 1, 'Test', '/test', [],
+            [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B']],
+        );
     }
 }
