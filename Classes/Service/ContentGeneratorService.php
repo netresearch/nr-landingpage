@@ -161,6 +161,18 @@ final class ContentGeneratorService implements LoggerAwareInterface
             COLORS;
     }
 
+    /**
+     * Build the script example fragment for the creative mode JSON bodytext example.
+     */
+    private function buildCreativeBodytextExample(Template $template): string
+    {
+        if (!$template->isAnimationEnabled()) {
+            return '';
+        }
+
+        return "<script data-creative>document.addEventListener('DOMContentLoaded', function() { gsap.from('.hero-title', {scrollTrigger: '.hero', opacity: 0, y: 30, duration: 0.8}); });</script>";
+    }
+
     private function buildAnimationBlock(Template $template): string
     {
         if (!$template->isAnimationEnabled()) {
@@ -550,16 +562,17 @@ final class ContentGeneratorService implements LoggerAwareInterface
             - Subtile CSS-Animationen und Transitions
             - Asymmetrische Layouts wo es zum Inhalt passt
 
+            {$scriptRule}
+
             TECHNISCHE REGELN:
             1. Verwende CSS-Klassen mit eindeutigem Praefix pro Section (z.B. .hero-*, .feat-*).
             2. Fuer dekorative Grafiken verwende Inline-SVG.
                Wenn ein Foto den Inhalt bereichert (Hero, Teaser, Portrait), setze genau
                EIN <img data-image-slot="0" alt="Beschreibung"> pro Section — kein src-Attribut.
                Nicht jede Section braucht ein Foto.
-            {$scriptRule}
-            4. KEIN CSS url() — keine externen Ressourcen.
-            5. Barrierefrei und responsive.
-            6. Nutze CSS Custom Properties (--primary, --secondary) aus dem Farbschema.
+            3. KEIN CSS url() — keine externen Ressourcen.
+            4. Barrierefrei und responsive.
+            5. Nutze CSS Custom Properties (--primary, --secondary) aus dem Farbschema.
 
             TOKEN-BUDGET BEACHTEN:
             - Halte CSS kompakt: Shorthand-Properties, keine redundanten Regeln.
@@ -570,7 +583,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Antworte ausschliesslich als JSON-Array:
             [
               {"section": "Name", "colPos": 0, "header": "Titel",
-               "bodytext": "<style>.hero { ... }</style><section class='hero'>...<img data-image-slot=\"0\" alt=\"...\">...</section>",
+               "bodytext": "<style>.hero { ... }</style><section class='hero'>...</section>{$this->buildCreativeBodytextExample($template)}",
                "imageKeywords": ["keyword1", "keyword2"],
                "imagePrompt": "Detailed English image description"}
             ]
