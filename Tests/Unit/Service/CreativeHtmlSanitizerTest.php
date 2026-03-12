@@ -688,4 +688,58 @@ final class CreativeHtmlSanitizerTest extends UnitTestCase
         $result = $this->subject->sanitize($html, allowScripts: true);
         self::assertStringNotContainsString('<script', $result);
     }
+
+    #[Test]
+    public function sanitizeStripsSetTimeoutInDataCreativeScript(): void
+    {
+        $html = '<script data-creative>setTimeout(function(){}, 100)</script>';
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('<script', $result);
+        self::assertStringNotContainsString('setTimeout', $result);
+    }
+
+    #[Test]
+    public function sanitizeStripsSetIntervalInDataCreativeScript(): void
+    {
+        $html = '<script data-creative>setInterval(tick, 1000)</script>';
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('<script', $result);
+        self::assertStringNotContainsString('setInterval', $result);
+    }
+
+    #[Test]
+    public function sanitizeStripsDocumentCreateElementInDataCreativeScript(): void
+    {
+        $html = "<script data-creative>document.createElement('script')</script>";
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('<script', $result);
+        self::assertStringNotContainsString('createElement', $result);
+    }
+
+    #[Test]
+    public function sanitizeStripsConstructorBypassInDataCreativeScript(): void
+    {
+        $html = "<script data-creative>[].constructor.constructor('alert(1)')()</script>";
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('<script', $result);
+        self::assertStringNotContainsString('constructor', $result);
+    }
+
+    #[Test]
+    public function sanitizeStripsNewImageInDataCreativeScript(): void
+    {
+        $html = "<script data-creative>new Image().src='//evil.com/x'</script>";
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('<script', $result);
+        self::assertStringNotContainsString('new Image', $result);
+    }
+
+    #[Test]
+    public function sanitizeStripsImportScriptsInDataCreativeScript(): void
+    {
+        $html = "<script data-creative>importScripts('evil.js')</script>";
+        $result = $this->subject->sanitize($html, allowScripts: true);
+        self::assertStringNotContainsString('<script', $result);
+        self::assertStringNotContainsString('importScripts', $result);
+    }
 }

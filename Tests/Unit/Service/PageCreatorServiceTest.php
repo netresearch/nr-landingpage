@@ -1126,4 +1126,261 @@ final class PageCreatorServiceTest extends UnitTestCase
             [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B']],
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Animation map filtering
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function createLandingPageFiltersAnimationsWithoutType(): void
+    {
+        $dh = $this->createMockDataHandler([
+            'NEW_page' => 10,
+            'NEW_content_0' => 101,
+            'NEW_content_1' => 102,
+        ]);
+
+        // Two DataHandler passes expected: pass 1 (page+content) + pass 2 (GSAP)
+        $dh->expects(self::exactly(2))->method('start');
+        $dh->expects(self::exactly(2))->method('process_datamap');
+
+        $gsapService = $this->createMock(GsapService::class);
+        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+
+        $service = $this->createService($dh, gsapService: $gsapService);
+
+        $result = $service->createLandingPage(
+            $this->createTemplate(animationEnabled: true),
+            1,
+            'Test',
+            '/test',
+            [],
+            [
+                ['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B'],
+                ['section' => 'Text', 'ctype' => 'text', 'header' => 'T', 'subheader' => '', 'bodytext' => 'C'],
+            ],
+            animations: [
+                0 => ['type' => 'fade-up'],
+                1 => [],  // empty — no type, must be filtered out
+            ],
+        );
+
+        self::assertSame(10, $result['pageUid']);
+    }
+
+    #[Test]
+    public function createLandingPageCreatesLoaderOnlyWhenNoValidAnimations(): void
+    {
+        $dh = $this->createMockDataHandler([
+            'NEW_page' => 10,
+            'NEW_content_0' => 101,
+        ]);
+
+        // Pass 2 is still executed even when all animation entries are invalid
+        $dh->expects(self::exactly(2))->method('start');
+        $dh->expects(self::exactly(2))->method('process_datamap');
+
+        $gsapService = $this->createMock(GsapService::class);
+        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+
+        $service = $this->createService($dh, gsapService: $gsapService);
+
+        $result = $service->createLandingPage(
+            $this->createTemplate(animationEnabled: true),
+            1,
+            'Test',
+            '/test',
+            [],
+            [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B']],
+            animations: [
+                0 => [],     // no type
+                1 => ['type' => ''],  // empty type
+            ],
+        );
+
+        self::assertSame(10, $result['pageUid']);
+    }
+
+    #[Test]
+    public function createLandingPagePassesAnimationMapToBuilder(): void
+    {
+        // AnimationScriptBuilder is final and cannot be mocked — instead we verify
+        // the output: uid 201 (fade-up) must produce a GSAP call, uid 202 (empty)
+        // must be filtered so no #c202 selector appears in the animation script.
+        $capturedDataMap = null;
+        $callCount = 0;
+
+        $dh = $this->createMockDataHandler([
+            'NEW_page' => 20,
+            'NEW_content_0' => 201,
+            'NEW_content_1' => 202,
+        ]);
+        $dh->method('start')->willReturnCallback(function (array $dataMap) use (&$capturedDataMap, &$callCount): void {
+            $callCount++;
+            if ($callCount === 2) {
+                $capturedDataMap = $dataMap;
+            }
+        });
+
+        $gsapService = $this->createMock(GsapService::class);
+        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+
+        $service = $this->createService($dh, gsapService: $gsapService);
+
+        $service->createLandingPage(
+            $this->createTemplate(animationEnabled: true),
+            1,
+            'Test',
+            '/test',
+            [],
+            [
+                ['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B'],
+                ['section' => 'Text', 'ctype' => 'text', 'header' => 'T', 'subheader' => '', 'bodytext' => 'C'],
+            ],
+            animations: [
+                0 => ['type' => 'fade-up', 'duration' => 0.5],
+                1 => [],  // filtered out — no type
+            ],
+        );
+
+        self::assertNotNull($capturedDataMap, 'Second DataHandler start() was not called');
+
+        // Animation script for uid 201 (fade-up) must be present
+        $animScript = $capturedDataMap['tt_content']['NEW_gsap_animation']['bodytext'] ?? null;
+        self::assertNotNull($animScript, 'Animation script element not created for valid animation');
+        self::assertStringContainsString('#c201', $animScript);
+
+        // uid 202 was filtered — no selector for it in the script
+        self::assertStringNotContainsString('#c202', $animScript);
+    }
+
+    // -------------------------------------------------------------------------
+    // Error handling
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function createGsapElementsLogsWarningOnDataHandlerError(): void
+    {
+        $dh = $this->createMockDataHandler([
+            'NEW_page' => 30,
+            'NEW_content_0' => 301,
+        ]);
+
+        $callCount = 0;
+        $dh->method('start')->willReturnCallback(function () use ($dh, &$callCount): void {
+            $callCount++;
+            if ($callCount === 2) {
+                // Simulate a DataHandler error on the GSAP pass
+                $dh->errorLog = ['GSAP insert failed'];
+            }
+        });
+
+        $gsapService = $this->createMock(GsapService::class);
+        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+
+        $logger = $this->createMock(\Psr\Log\LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('warning')
+            ->with('GSAP elements creation failed', self::arrayHasKey('errors'));
+
+        $service = $this->createService($dh, gsapService: $gsapService);
+        $service->setLogger($logger);
+
+        $result = $service->createLandingPage(
+            $this->createTemplate(animationEnabled: true),
+            1,
+            'Test',
+            '/test',
+            [],
+            [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B']],
+        );
+
+        // Page is returned successfully despite GSAP error
+        self::assertSame(30, $result['pageUid']);
+    }
+
+    #[Test]
+    public function createGsapElementsLogsWarningOnException(): void
+    {
+        $dh = $this->createMockDataHandler([
+            'NEW_page' => 40,
+            'NEW_content_0' => 401,
+        ]);
+
+        $callCount = 0;
+        $dh->method('start')->willReturnCallback(function () use (&$callCount): void {
+            $callCount++;
+            if ($callCount === 2) {
+                throw new \RuntimeException('DB connection lost');
+            }
+        });
+
+        $gsapService = $this->createMock(GsapService::class);
+        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+
+        $logger = $this->createMock(\Psr\Log\LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('warning')
+            ->with('GSAP elements creation failed', self::arrayHasKey('exception'));
+
+        $service = $this->createService($dh, gsapService: $gsapService);
+        $service->setLogger($logger);
+
+        $result = $service->createLandingPage(
+            $this->createTemplate(animationEnabled: true),
+            1,
+            'Test',
+            '/test',
+            [],
+            [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B']],
+        );
+
+        // Page is returned successfully despite GSAP exception
+        self::assertSame(40, $result['pageUid']);
+    }
+
+    // -------------------------------------------------------------------------
+    // Element properties
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function gsapLoaderElementHasCorrectProperties(): void
+    {
+        $dh = $this->createMockDataHandler([
+            'NEW_page' => 50,
+            'NEW_content_0' => 501,
+        ]);
+
+        $capturedDataMap = null;
+        $callCount = 0;
+        $dh->method('start')->willReturnCallback(function (array $dataMap) use (&$capturedDataMap, &$callCount): void {
+            $callCount++;
+            if ($callCount === 2) {
+                $capturedDataMap = $dataMap;
+            }
+        });
+
+        $gsapService = $this->createMock(GsapService::class);
+        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+
+        $service = $this->createService($dh, gsapService: $gsapService);
+
+        $service->createLandingPage(
+            $this->createTemplate(animationEnabled: true),
+            1,
+            'Test',
+            '/test',
+            [],
+            [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B']],
+        );
+
+        self::assertNotNull($capturedDataMap, 'Second DataHandler start() was not called');
+        $loader = $capturedDataMap['tt_content']['NEW_gsap_loader'] ?? null;
+        self::assertIsArray($loader, 'GSAP loader element not found in dataMap');
+        self::assertSame('html', $loader['CType']);
+        self::assertSame('[Animation Library]', $loader['header']);
+        self::assertSame(100, $loader['header_layout']);
+        self::assertSame(1, $loader['sorting']);
+        self::assertSame(0, $loader['colPos']);
+    }
 }
