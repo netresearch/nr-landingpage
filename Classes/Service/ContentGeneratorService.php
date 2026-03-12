@@ -150,14 +150,19 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
     private function buildColorBlock(Template $template): string
     {
+        if ($template->colorPrimary === '' && $template->colorSecondary === ''
+            && $template->colorBackground === '' && $template->colorText === '') {
+            return '';
+        }
+
         return <<<COLORS
 
-            --- FARBSCHEMA ---
-            Verwende folgendes Farbschema fuer die generierten Inhalte:
-            - Primaerfarbe (Buttons, Links, CTAs): {$template->colorPrimary}
-            - Sekundaerfarbe (Akzente, Hover-States): {$template->colorSecondary}
-            - Hintergrundfarbe: {$template->colorBackground}
-            - Textfarbe: {$template->colorText}
+            --- FARBSCHEMA (PFLICHT) ---
+            Du MUSST ausschliesslich folgende Farben verwenden. Keine eigenen Farben erfinden.
+            Definiere in der ERSTEN Section ein :root-Element mit diesen CSS Custom Properties:
+            :root { --primary: {$template->colorPrimary}; --secondary: {$template->colorSecondary}; --bg: {$template->colorBackground}; --text: {$template->colorText}; }
+            Nutze in allen Sections var(--primary), var(--secondary), var(--bg), var(--text).
+            Erlaubt sind Abstufungen per opacity/lighten/darken (z.B. rgba, color-mix).
             COLORS;
     }
 
