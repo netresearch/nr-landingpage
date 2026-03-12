@@ -1311,7 +1311,7 @@ final class PageCreatorServiceTest extends UnitTestCase
         $dh->method('start')->willReturnCallback(function () use (&$callCount): void {
             $callCount++;
             if ($callCount === 2) {
-                throw new \RuntimeException('DB connection lost');
+                throw new RuntimeException('DB connection lost');
             }
         });
 
