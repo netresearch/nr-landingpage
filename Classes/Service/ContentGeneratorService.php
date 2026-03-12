@@ -75,7 +75,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
      *
      * @param array<string, string> $briefingAnswers
      * @param int $parentPageId Page ID used to resolve TSconfig-based backend layouts
-     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string}>
+     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string, animation?: array{type?: string, duration?: float, delay?: float, stagger?: float}}>
      */
     public function generateContent(Template $template, array $briefingAnswers, string $outputLanguage = '', int $parentPageId = 0): array
     {
@@ -161,6 +161,23 @@ final class ContentGeneratorService implements LoggerAwareInterface
             COLORS;
     }
 
+    private function buildAnimationBlock(Template $template): string
+    {
+        if (!$template->isAnimationEnabled()) {
+            return '';
+        }
+
+        return <<<BLOCK
+
+            Optional pro Section: "animation" Objekt.
+            Moegliche Typen: fade-up, fade-down, slide-left, slide-right,
+            zoom-in, scale-up, stagger-children, typewriter, parallax.
+            Nicht jede Section braucht Animation — setze sie gezielt ein.
+            Format: {"type": "fade-up", "duration": 0.8, "delay": 0, "stagger": 0.15}
+            Alle Felder ausser "type" sind optional.
+            BLOCK;
+    }
+
     /**
      * @param array<string, string> $briefingAnswers
      */
@@ -179,6 +196,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $languageBlock = $this->buildLanguageBlock($outputLanguage);
         $jsonExample = $this->buildJsonExample($template->backendLayout, $cTypes, $parentPageId);
         $colorBlock = $this->buildColorBlock($template);
+        $animationBlock = $this->buildAnimationBlock($template);
 
         return <<<PROMPT
             {$template->systemPrompt}
@@ -221,7 +239,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
             - Stimmung und Farbpalette
             - Perspektive und Komposition
             Beispiel: "Overhead view of a modern coworking space with diverse professionals collaborating around laptops, natural daylight, warm tones, shallow depth of field"
-
+            {$animationBlock}
             Antworte ausschliesslich als JSON-Array:
             {$jsonExample}
             PROMPT;
@@ -392,7 +410,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
     /**
      * @param list<string> $allowedCTypes
      * @param list<int> $validColPositions
-     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string}>
+     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string, animation: array{type?: string, duration?: float, delay?: float, stagger?: float}}>
      */
     private function validateSections(mixed $response, array $allowedCTypes, array $validColPositions = [0]): array
     {
@@ -441,6 +459,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 'bodytext' => $this->sanitizeHtml($bodytext),
                 'imageKeywords' => $imageKeywords,
                 'imagePrompt' => is_string($item['imagePrompt'] ?? null) ? $item['imagePrompt'] : '',
+                'animation' => $this->validateAnimation($item['animation'] ?? null),
             ];
         }
 
@@ -597,6 +616,34 @@ final class ContentGeneratorService implements LoggerAwareInterface
         }
 
         return $validated;
+    }
+
+    /**
+     * @return array{type?: string, duration?: float, delay?: float, stagger?: float}
+     */
+    private function validateAnimation(mixed $animation): array
+    {
+        if (!is_array($animation)) {
+            return [];
+        }
+
+        $type = is_string($animation['type'] ?? null) ? $animation['type'] : '';
+        if ($type === '') {
+            return [];
+        }
+
+        $result = ['type' => $type];
+        if (isset($animation['duration']) && is_numeric($animation['duration'])) {
+            $result['duration'] = max(0.1, min(3.0, (float) $animation['duration']));
+        }
+        if (isset($animation['delay']) && is_numeric($animation['delay'])) {
+            $result['delay'] = max(0.0, min(2.0, (float) $animation['delay']));
+        }
+        if (isset($animation['stagger']) && is_numeric($animation['stagger'])) {
+            $result['stagger'] = max(0.05, min(0.5, (float) $animation['stagger']));
+        }
+
+        return $result;
     }
 
     /**

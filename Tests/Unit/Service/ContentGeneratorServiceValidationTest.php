@@ -350,6 +350,51 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     }
 
     #[Test]
+    public function validateAnimationReturnsEmptyForNull(): void
+    {
+        $method = new ReflectionMethod($this->subject, 'validateAnimation');
+        $result = $method->invoke($this->subject, null);
+
+        self::assertSame([], $result);
+    }
+
+    #[Test]
+    public function validateAnimationReturnsEmptyForMissingType(): void
+    {
+        $method = new ReflectionMethod($this->subject, 'validateAnimation');
+        $result = $method->invoke($this->subject, ['duration' => 1.0]);
+
+        self::assertSame([], $result);
+    }
+
+    #[Test]
+    public function validateAnimationClampsDurationToMax(): void
+    {
+        $method = new ReflectionMethod($this->subject, 'validateAnimation');
+        $result = $method->invoke($this->subject, ['type' => 'fade-up', 'duration' => 10.0]);
+
+        self::assertSame('fade-up', $result['type']);
+        self::assertSame(3.0, $result['duration']);
+    }
+
+    #[Test]
+    public function validateAnimationReturnsValidArrayForGoodInput(): void
+    {
+        $method = new ReflectionMethod($this->subject, 'validateAnimation');
+        $result = $method->invoke($this->subject, [
+            'type' => 'slide-left',
+            'duration' => 0.8,
+            'delay' => 0.2,
+            'stagger' => 0.15,
+        ]);
+
+        self::assertSame('slide-left', $result['type']);
+        self::assertSame(0.8, $result['duration']);
+        self::assertSame(0.2, $result['delay']);
+        self::assertSame(0.15, $result['stagger']);
+    }
+
+    #[Test]
     public function buildCreativePromptContainsImagePlaceholderInstructions(): void
     {
         $layout = $this->createMock(BackendLayout::class);
