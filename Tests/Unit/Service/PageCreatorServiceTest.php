@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Tests\Unit\Service;
 
+use InvalidArgumentException;
 use Netresearch\NrLandingpage\Domain\Model\GenerationContext;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Event\AfterContentGenerationEvent;
@@ -807,7 +808,7 @@ final class PageCreatorServiceTest extends UnitTestCase
     public function resolveImagePlaceholdersFallsBackOnInvalidFile(): void
     {
         $resourceFactory = $this->createMock(ResourceFactory::class);
-        $resourceFactory->method('getFileObject')->willThrowException(new \InvalidArgumentException('File not found'));
+        $resourceFactory->method('getFileObject')->willThrowException(new InvalidArgumentException('File not found'));
 
         $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
         $subject = $this->createService($dh, resourceFactory: $resourceFactory);
@@ -1008,7 +1009,7 @@ final class PageCreatorServiceTest extends UnitTestCase
         $service = $this->createService($dh);
         $service->createLandingPage($this->createTemplate(), 1, 'T', '/t', [], [
             ['section' => 'Hero', 'ctype' => 'html', 'header' => 'H', 'subheader' => '',
-             'bodytext' => '<section><p>No image slot</p></section>', 'imageUid' => 42],
+                'bodytext' => '<section><p>No image slot</p></section>', 'imageUid' => 42],
         ]);
     }
 
@@ -1044,7 +1045,7 @@ final class PageCreatorServiceTest extends UnitTestCase
         $service = $this->createService($dh, resourceFactory: $resourceFactory);
         $service->createLandingPage($this->createTemplate(), 1, 'T', '/t', [], [
             ['section' => 'Hero', 'ctype' => 'html', 'header' => 'H', 'subheader' => '',
-             'bodytext' => '<section><img data-image-slot="0" alt="Hero shot"></section>', 'imageUid' => 42],
+                'bodytext' => '<section><img data-image-slot="0" alt="Hero shot"></section>', 'imageUid' => 42],
         ]);
     }
 
@@ -1067,7 +1068,7 @@ final class PageCreatorServiceTest extends UnitTestCase
         $service = $this->createService($dh);
         $service->createLandingPage($this->createTemplate(), 1, 'T', '/t', [], [
             ['section' => 'Hero', 'ctype' => 'html', 'header' => 'H', 'subheader' => '',
-             'bodytext' => '<section><img data-image-slot="0" alt="Hero"><p>Text</p></section>', 'imageUid' => 0],
+                'bodytext' => '<section><img data-image-slot="0" alt="Hero"><p>Text</p></section>', 'imageUid' => 0],
         ]);
     }
 
@@ -1092,7 +1093,11 @@ final class PageCreatorServiceTest extends UnitTestCase
         $service = $this->createService($dh, gsapService: $gsapService);
 
         $service->createLandingPage(
-            $template, 1, 'Test', '/test', [],
+            $template,
+            1,
+            'Test',
+            '/test',
+            [],
             [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B']],
         );
     }
@@ -1113,7 +1118,11 @@ final class PageCreatorServiceTest extends UnitTestCase
         $service = $this->createService($dh);
 
         $service->createLandingPage(
-            $template, 1, 'Test', '/test', [],
+            $template,
+            1,
+            'Test',
+            '/test',
+            [],
             [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B']],
         );
     }

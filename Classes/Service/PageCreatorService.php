@@ -12,6 +12,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use RuntimeException;
+use Throwable;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
@@ -310,7 +311,7 @@ class PageCreatorService implements LoggerAwareInterface
         try {
             $file = $this->resourceFactory->getFileObject($imageUid);
             $publicUrl = $file->getPublicUrl();
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // File deleted or invalid — remove placeholder
             return preg_replace($pattern, '', $bodytext) ?? $bodytext;
         }
@@ -433,7 +434,7 @@ class PageCreatorService implements LoggerAwareInterface
                     'errors' => implode(', ', $dataHandler->errorLog),
                 ]);
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger?->warning('GSAP elements creation failed', [
                 'exception' => $e->getMessage(),
             ]);
