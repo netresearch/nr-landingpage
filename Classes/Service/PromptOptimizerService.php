@@ -60,17 +60,11 @@ class PromptOptimizerService implements LoggerAwareInterface
         - Be specific and actionable in HOW to write, not WHAT to write about
         - Write the prompt in the OUTPUT LANGUAGE specified below
 
-        For CREATIVE MODE templates (generation_mode = creative):
-        - Include CSS technique guidance (Grid, Flexbox, Gradients, SVG, clip-path)
-        - Require :root CSS Custom Properties for the color scheme
-        - Emphasize visual variety between sections
-        - Mention that each section is a standalone HTML/CSS/SVG block
-        - Include the layout column mapping (which colPos gets which type of content)
-
-        For STRUCTURED MODE templates (generation_mode = structured):
-        - Focus on content type selection guidance
-        - Explain when to use which CType for best results
-        - Include the layout column mapping (which colPos gets which type of content)
+        MODE-SPECIFIC additions (check the generation_mode in the template structure):
+        - Creative mode: add CSS technique guidance (Grid, Flexbox, Gradients, SVG, clip-path),
+          require :root CSS Custom Properties, emphasize visual variety, note that each section
+          is a standalone HTML/CSS/SVG block
+        - Structured mode: add content type selection guidance — explain when to use which CType
 
         Do NOT repeat general rules about quality, specificity, marketing style, or SEO basics
         — these are already covered by the base configuration.
