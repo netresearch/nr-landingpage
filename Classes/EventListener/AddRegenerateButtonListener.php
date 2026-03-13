@@ -9,8 +9,8 @@ use TYPO3\CMS\Backend\Controller\Event\ModifyPageLayoutContentEvent;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\Components\ButtonBar;
 use TYPO3\CMS\Core\Attribute\AsEventListener;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 
 /**
@@ -52,7 +52,7 @@ final class AddRegenerateButtonListener
                 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:contextMenu.regenerateLandingPage',
             ) ?: 'Re-Generate Landing Page')
             ->setShowLabelText(true)
-            ->setIcon($this->iconFactory->getIcon('actions-bolt', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-bolt', IconSize::SMALL));
 
         $buttonBar->addButton($button, ButtonBar::BUTTON_POSITION_LEFT, 4);
     }

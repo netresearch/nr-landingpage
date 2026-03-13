@@ -10,6 +10,7 @@ use Netresearch\NrLlm\Service\Feature\CompletionService;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Netresearch\NrLlm\Service\Option\ChatOptions;
 use RuntimeException;
+use Throwable;
 use TYPO3\CMS\Core\Core\Environment;
 
 /**
@@ -107,7 +108,7 @@ trait LlmCompletionTrait
             }
             $filename = sprintf('llm_response_%s_%s.txt', $templateIdentifier, date('Ymd_His'));
             file_put_contents($logDir . '/' . $filename, $content);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Silently ignore dump failures
         }
     }

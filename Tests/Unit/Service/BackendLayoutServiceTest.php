@@ -33,7 +33,8 @@ final class BackendLayoutServiceTest extends UnitTestCase
         $languageServiceFactory = $this->createMock(LanguageServiceFactory::class);
         $backendLayoutView = $this->createMock(BackendLayoutView::class);
         $this->dataProviderCollection = $this->createMock(DataProviderCollection::class);
-        $this->subject = new BackendLayoutService($this->dataProviderCollection, $languageServiceFactory, $backendLayoutView);
+        $connectionPool = $this->createMock(\TYPO3\CMS\Core\Database\ConnectionPool::class);
+        $this->subject = new BackendLayoutService($this->dataProviderCollection, $languageServiceFactory, $connectionPool, $backendLayoutView);
     }
 
     protected function tearDown(): void

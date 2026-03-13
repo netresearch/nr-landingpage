@@ -45,9 +45,11 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
         $languageServiceFactory = $this->createMock(LanguageServiceFactory::class);
         $backendLayoutView = $this->createMock(BackendLayoutView::class);
 
+        $connectionPool = $this->createMock(\TYPO3\CMS\Core\Database\ConnectionPool::class);
         $this->backendLayoutService = new BackendLayoutService(
             $this->dataProviderCollection,
             $languageServiceFactory,
+            $connectionPool,
             $backendLayoutView,
         );
 
@@ -350,6 +352,89 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     }
 
     #[Test]
+    public function validateAnimationReturnsEmptyForNull(): void
+    {
+        $method = new ReflectionMethod($this->subject, 'validateAnimation');
+        $result = $method->invoke($this->subject, null);
+
+        self::assertSame([], $result);
+    }
+
+    #[Test]
+    public function validateAnimationReturnsEmptyForMissingType(): void
+    {
+        $method = new ReflectionMethod($this->subject, 'validateAnimation');
+        $result = $method->invoke($this->subject, ['duration' => 1.0]);
+
+        self::assertSame([], $result);
+    }
+
+    #[Test]
+    public function validateAnimationClampsDurationToMax(): void
+    {
+        $method = new ReflectionMethod($this->subject, 'validateAnimation');
+        $result = $method->invoke($this->subject, ['type' => 'fade-up', 'duration' => 10.0]);
+
+        self::assertSame('fade-up', $result['type']);
+        self::assertSame(3.0, $result['duration']);
+    }
+
+    #[Test]
+    public function validateAnimationReturnsValidArrayForGoodInput(): void
+    {
+        $method = new ReflectionMethod($this->subject, 'validateAnimation');
+        $result = $method->invoke($this->subject, [
+            'type' => 'slide-left',
+            'duration' => 0.8,
+            'delay' => 0.2,
+            'stagger' => 0.15,
+        ]);
+
+        self::assertSame('slide-left', $result['type']);
+        self::assertSame(0.8, $result['duration']);
+        self::assertSame(0.2, $result['delay']);
+        self::assertSame(0.15, $result['stagger']);
+    }
+
+    #[Test]
+    public function buildJsonExampleIncludesAnimationFieldWhenEnabled(): void
+    {
+        $this->dataProviderCollection->method('getBackendLayout')->willReturn(null);
+
+        $method = new ReflectionMethod($this->subject, 'buildJsonExample');
+        $result = $method->invoke($this->subject, '', 'text', 0, true);
+
+        self::assertStringContainsString('"animation":', $result);
+        self::assertStringContainsString('"type": "fade-up"', $result);
+    }
+
+    #[Test]
+    public function buildJsonExampleOmitsAnimationFieldWhenDisabled(): void
+    {
+        $this->dataProviderCollection->method('getBackendLayout')->willReturn(null);
+
+        $method = new ReflectionMethod($this->subject, 'buildJsonExample');
+        $result = $method->invoke($this->subject, '', 'text', 0, false);
+
+        self::assertStringNotContainsString('"animation":', $result);
+    }
+
+    #[Test]
+    public function buildJsonExampleIncludesAnimationInMultiColumnLayout(): void
+    {
+        $layout = $this->createMock(BackendLayout::class);
+        $layout->method('getUsedColumns')->willReturn([0 => 'Main', 1 => 'Sidebar']);
+        $this->dataProviderCollection->method('getBackendLayout')->willReturn($layout);
+
+        $method = new ReflectionMethod($this->subject, 'buildJsonExample');
+        $result = $method->invoke($this->subject, 'pagets__2col', 'text', 0, true);
+
+        self::assertStringContainsString('"animation":', $result);
+        self::assertStringContainsString('"colPos": 0', $result);
+        self::assertStringContainsString('"colPos": 1', $result);
+    }
+
+    #[Test]
     public function buildCreativePromptContainsImagePlaceholderInstructions(): void
     {
         $layout = $this->createMock(BackendLayout::class);
@@ -386,6 +471,7 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
             systemPrompt: 'Be creative',
             backendLayout: 'pagets__2col',
             generationMode: 'creative',
+            animationEnabled: false,
         );
 
         $method = new ReflectionMethod($this->subject, 'buildCreativePrompt');

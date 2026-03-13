@@ -563,6 +563,7 @@ final readonly class TemplateService
             colorSecondary: is_string($row['color_secondary'] ?? null) ? $row['color_secondary'] : '',
             colorBackground: is_string($row['color_background'] ?? null) ? $row['color_background'] : '',
             colorText: is_string($row['color_text'] ?? null) ? $row['color_text'] : '',
+            animationEnabled: (bool) ($row['animation_enabled'] ?? true),
         );
     }
 

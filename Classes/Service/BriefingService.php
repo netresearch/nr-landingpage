@@ -17,7 +17,7 @@ final class BriefingService implements LoggerAwareInterface
     use LoggerAwareTrait;
     use LlmCompletionTrait;
 
-    private const MAX_QUESTIONS = 8;
+    private const MAX_QUESTIONS = 5;
 
     public function __construct(
         private readonly CompletionService $completionService,
@@ -52,18 +52,25 @@ final class BriefingService implements LoggerAwareInterface
 
             --- ANWEISUNGEN ZUR AUSGABE ---
 
-            Stelle dem User die wichtigsten Fragen, um eine effektive Landing Page zu erstellen.
-            Maximal {self::MAX_QUESTIONS} Fragen, priorisiert nach Wichtigkeit:
+            Stelle dem Redakteur die wichtigsten Fragen, um eine effektive Seite zu erstellen.
+            Maximal {self::MAX_QUESTIONS} Fragen, fokussiert auf INHALTLICHE Informationen.
 
-            1. Ziel/Thema der Seite (immer als erste Frage, required)
-            2. Zielgruppe und deren Beduerfnisse
-            3. Kernbotschaft oder Alleinstellungsmerkmal (USP)
-            4. Gewuenschte Handlung (Call-to-Action)
-            5. Weitere kontextspezifische Fragen je nach Template
+            WICHTIG:
+            - Der Seitentitel / das Thema wird bereits in einem separaten Feld abgefragt.
+              Frage NICHT nochmal nach dem Titel oder Thema der Seite.
+            - Frage NUR nach Dingen, die der Redakteur wissen kann: Zielgruppe, Kernbotschaft,
+              gewuenschte Handlung, spezifische Inhalte/Zahlen/Fakten.
+            - Frage NICHT nach technischen oder gestalterischen Entscheidungen wie Inhaltstyp,
+              Layout, Struktur oder Designstil — das entscheidet die KI selbst.
 
-            Verwende kurze, verstaendliche Labels. Biete bei type=select sinnvolle Optionen an.
-            Die Fragen sollen dem AI-Content-Generator genuegend Kontext liefern, um hochwertige,
-            zielgruppenspezifische Inhalte zu erstellen.
+            Priorisierung:
+            1. Zielgruppe und deren Beduerfnisse (required)
+            2. Kernbotschaft oder Alleinstellungsmerkmal (USP)
+            3. Gewuenschte Handlung (Call-to-Action)
+            4-5. Kontextspezifische Fragen je nach Template (z.B. Produkte, Termine, Zahlen)
+
+            Verwende kurze, verstaendliche Labels. Nutze type=textarea fuer offene Fragen.
+            Nutze type=select nur wenn es wenige klare Alternativen gibt (z.B. Du/Sie Ansprache).
 
             Antworte ausschliesslich als JSON-Array:
             [

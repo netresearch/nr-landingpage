@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Service;
 
+use Locale;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Service\Feature\CompletionService;
@@ -11,54 +12,101 @@ use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Throwable;
+use TYPO3\CMS\Core\Localization\LanguageService;
+
+/**
+ * Generates optimized system prompts for templates using a meta-prompt approach.
+ *
+ * The optimizer sends the template's structural context (layout, CTypes, colors,
+ * generation mode) plus optional editor hints to an LLM, which produces
+ * a reusable system prompt tailored to the template configuration.
+ */
 
 class PromptOptimizerService implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
     private const DEFAULT_META_PROMPT = <<<'PROMPT'
-        You are an expert prompt engineer specializing in conversion-optimized landing pages.
-        Your task is to generate a reusable system prompt for an AI that creates landing page
-        content within a TYPO3 CMS.
+        You are an expert prompt engineer. Your task is to generate a reusable system prompt
+        for an AI that creates web page content within a TYPO3 CMS.
 
         CRITICAL: The system prompt you write must be TOPIC-NEUTRAL. It will be used as a
         template for many different topics — the actual topic comes later from the editor.
         Do NOT invent, assume, or embed any specific topic, industry, city, product, or theme.
         Use placeholders like "the given topic" or "the editor's briefing" where needed.
 
+        IMPORTANT: There is already a BASE SYSTEM PROMPT in the LLM configuration that covers
+        general quality rules, style guidelines, SEO basics, and language preferences.
+        Do NOT repeat these — they are always active. Focus the template prompt on what is
+        SPECIFIC to this template: its purpose, target audience, layout structure, content types,
+        and generation mode.
+
         Based on the template structure below, write a system prompt that produces
-        high-converting, well-structured landing page content for ANY topic.
+        well-structured, high-quality content for ANY topic.
 
         The system prompt you write MUST:
         - Be topic-neutral — work equally well for technology, travel, food, B2B, events, etc.
-        - Define tone of voice and language style (derive from template context if available)
-        - Specify a clear content structure: Hero > Benefits > Social Proof > CTA
-        - Reference the available content types and explain when to use each
+        - Define the template's specific PURPOSE (landing page, blog post, product page, etc.)
+        - Define tone of voice SPECIFIC to this template (derive from context if available)
+        - Suggest a flexible content structure with 5-8 section types the AI can choose
+          from based on the topic — do NOT prescribe a fixed order
+        - Include a LAYOUT SECTION that maps EVERY colPos from the template structure
+          to its purpose (e.g. "Border (colPos 3): Hero area", "Normal (colPos 0): Main content").
+          This is MANDATORY when multiple columns exist — the AI needs to know WHERE to place content.
+        - Reference the available content types and encourage variety
         - Give concrete guidance for each page field (SEO titles, descriptions, etc.)
-        - Emphasize benefit-driven copy over feature lists
-        - Include instructions for writing compelling headlines and subheadlines
-        - Consider the backend layout structure when suggesting content sections
+        - Address animation based on the GENERATION MODE (see mode-specific section below)
         - Be specific and actionable in HOW to write, not WHAT to write about
+        - Write the prompt in the OUTPUT LANGUAGE specified below
+
+        MODE-SPECIFIC additions (check the generation_mode in the template structure):
+        - Creative mode: add CSS technique guidance (Grid, Flexbox, Gradients, SVG, clip-path),
+          require :root CSS Custom Properties, emphasize visual variety, note that each section
+          is a standalone HTML/CSS/SVG block.
+          If animation is enabled: the AI MUST write GSAP ScrollTrigger animations in
+          <script data-creative> blocks. GSAP, ScrollTrigger, and TextPlugin are globally available.
+          Every section should have at least one animation (fade-in, slide, parallax, stagger, etc.).
+        - Structured mode: add content type selection guidance — explain when to use which CType.
+          If animation is enabled: state that GSAP ScrollTrigger animations are injected
+          AUTOMATICALLY by the system — the AI must NOT write animation code, only provide
+          animation metadata (type, duration, delay) in the JSON response.
+
+        CRITICAL — TEMPLATE STRUCTURE IS YOUR PRIMARY SOURCE:
+        The TEMPLATE STRUCTURE block below contains the authoritative technical configuration:
+        layout columns (colPos numbers and names), generation mode, allowed content types,
+        page fields, animation settings, and color scheme. You MUST incorporate ALL of this
+        into the system prompt you write. Every colPos must be mapped to a purpose. Every
+        page field must have guidance. Animation and color scheme must be addressed.
+        The current system prompt (if provided) is a BASELINE to improve upon — retain its
+        guidance and intent, but enrich it with any structural information it is missing.
+
+        Do NOT repeat general rules about quality, specificity, marketing style, or SEO basics
+        — these are already covered by the base configuration.
 
         The system prompt will be reused across many different topics and editors,
         so it must be self-contained, topic-agnostic, and produce consistent,
         high-quality results regardless of the subject matter.
 
-        Respond with ONLY the system prompt text. No explanations, no markdown formatting.
+        Respond with ONLY the system prompt text in the OUTPUT LANGUAGE. No explanations, no markdown formatting.
         PROMPT;
 
     public function __construct(
         private readonly CompletionService $completionService,
         private readonly LlmServiceManagerInterface $llmServiceManager,
         private readonly LlmConfigurationRepository $configurationRepository,
+        private readonly BackendLayoutService $backendLayoutService,
     ) {}
 
-    public function generateOptimizedPrompt(Template $template): string
+    public function generateOptimizedPrompt(Template $template, string $outputLanguage = ''): string
     {
         try {
             $structuralContext = $this->buildStructuralContext($template);
 
-            $prompt = self::DEFAULT_META_PROMPT . "\n\n--- TEMPLATE STRUCTURE ---\n" . $structuralContext;
+            $languageLabel = $outputLanguage !== '' ? $outputLanguage : $this->resolveBackendLanguage();
+            $prompt = self::DEFAULT_META_PROMPT
+                . "\n\n--- OUTPUT LANGUAGE ---\n"
+                . 'Write the system prompt in: ' . $languageLabel
+                . "\n\n--- TEMPLATE STRUCTURE ---\n" . $structuralContext;
 
             if ($template->promptOptimizerMetaPrompt !== '') {
                 $prompt .= "\n\n--- EDITOR STYLE HINTS ---\n"
@@ -90,6 +138,10 @@ class PromptOptimizerService implements LoggerAwareInterface
     {
         $lines = [];
         $lines[] = 'Template: ' . $template->title;
+        $lines[] = 'Generation Mode: ' . $template->generationMode
+            . ($template->isCreativeMode()
+                ? ' (each section is a standalone HTML/CSS/SVG block, CType "html")'
+                : ' (standard TYPO3 content elements)');
 
         if ($template->allowedCTypes !== []) {
             $lines[] = 'Allowed Content Types: ' . implode(', ', $template->allowedCTypes);
@@ -101,9 +153,18 @@ class PromptOptimizerService implements LoggerAwareInterface
 
         if ($template->backendLayout !== '') {
             $lines[] = 'Backend Layout: ' . $template->backendLayout;
+            $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout);
+            if (count($columnMap) > 1) {
+                $lines[] = 'LAYOUT COLUMNS (EXACT — use ONLY these colPos numbers, do NOT invent others):';
+                foreach ($columnMap as $colPos => $name) {
+                    $lines[] = '  - colPos ' . $colPos . ': ' . $name;
+                }
+                $lines[] = 'NO other colPos numbers exist. Map EVERY colPos above to a purpose in your prompt.';
+            }
         }
 
         $lines[] = 'Briefing Mode: ' . $template->briefingMode;
+        $lines[] = 'Animation: ' . ($template->isAnimationEnabled() ? 'enabled (GSAP ScrollTrigger)' : 'disabled');
         $lines[] = 'Color Scheme: Primary=' . $template->colorPrimary
             . ', Secondary=' . $template->colorSecondary
             . ', Background=' . $template->colorBackground
@@ -113,13 +174,47 @@ class PromptOptimizerService implements LoggerAwareInterface
             $lines[] = 'Reference Pages: ' . implode(', ', $template->referencePages);
         }
 
+        // Include base LLM config system prompt summary so the optimizer knows what's already covered
+        if ($template->llmConfiguration > 0) {
+            $llmConfig = $this->configurationRepository->findByUid($template->llmConfiguration);
+            $basePrompt = $llmConfig?->getSystemPrompt() ?? '';
+            if ($basePrompt !== '') {
+                $lines[] = '';
+                $lines[] = 'Base LLM Configuration System Prompt (already active, do NOT repeat):';
+                $lines[] = $basePrompt;
+            }
+        }
+
         if ($template->systemPrompt !== '') {
             $lines[] = '';
-            $lines[] = 'Current System Prompt (for reference):';
+            $lines[] = 'Current System Prompt (BASELINE — improve but do NOT lose any guidance):';
             $lines[] = $template->systemPrompt;
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * Resolve a human-readable language name from the backend user's language setting.
+     * Falls back to "English" if the locale cannot be determined.
+     */
+    private function resolveBackendLanguage(): string
+    {
+        $lang = $GLOBALS['LANG'] ?? null;
+        if (!$lang instanceof LanguageService) {
+            return 'English';
+        }
+
+        $locale = $lang->getLocale();
+        $localeString = (string) $locale;
+        if ($localeString === '' || $localeString === 'default') {
+            return 'English';
+        }
+
+        // Use intl extension to get the display name (e.g. "de" → "German", "fr" → "French")
+        $displayName = Locale::getDisplayLanguage($localeString, 'en');
+
+        return $displayName !== '' && $displayName !== $localeString ? $displayName : 'English';
     }
 
     private function completeTextWithTemplate(Template $template, string $prompt): string

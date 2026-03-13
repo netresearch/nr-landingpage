@@ -29,9 +29,9 @@ final class ContentGeneratorService implements LoggerAwareInterface
         return $this->getSanitizer()->sanitize($html);
     }
 
-    private function sanitizeCreativeHtml(string $html): string
+    private function sanitizeCreativeHtml(string $html, bool $allowScripts = false): string
     {
-        return $this->creativeHtmlSanitizer->sanitize($html);
+        return $this->creativeHtmlSanitizer->sanitize($html, $allowScripts);
     }
 
     private function getSanitizer(): Sanitizer
@@ -75,7 +75,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
      *
      * @param array<string, string> $briefingAnswers
      * @param int $parentPageId Page ID used to resolve TSconfig-based backend layouts
-     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string}>
+     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string, animation?: array{type?: string, duration?: float, delay?: float, stagger?: float}}>
      */
     public function generateContent(Template $template, array $briefingAnswers, string $outputLanguage = '', int $parentPageId = 0): array
     {
@@ -108,7 +108,9 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $prompt = $this->buildCreativePrompt($template, $briefingAnswers, $outputLanguage, $columnMap);
         $response = $this->completeJsonWithTemplate($template, $prompt);
 
-        return $this->validateCreativeSections($response, $columnMap);
+        $allowScripts = $template->isAnimationEnabled();
+
+        return $this->validateCreativeSections($response, $columnMap, $allowScripts);
     }
 
     /**
@@ -148,15 +150,49 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
     private function buildColorBlock(Template $template): string
     {
+        if ($template->colorPrimary === '' && $template->colorSecondary === ''
+            && $template->colorBackground === '' && $template->colorText === '') {
+            return '';
+        }
+
         return <<<COLORS
 
-            --- FARBSCHEMA ---
-            Verwende folgendes Farbschema fuer die generierten Inhalte:
-            - Primaerfarbe (Buttons, Links, CTAs): {$template->colorPrimary}
-            - Sekundaerfarbe (Akzente, Hover-States): {$template->colorSecondary}
-            - Hintergrundfarbe: {$template->colorBackground}
-            - Textfarbe: {$template->colorText}
+            --- FARBSCHEMA (PFLICHT) ---
+            Du MUSST ausschliesslich folgende Farben verwenden. Keine eigenen Farben erfinden.
+            Definiere in der ERSTEN Section ein :root-Element mit diesen CSS Custom Properties:
+            :root { --primary: {$template->colorPrimary}; --secondary: {$template->colorSecondary}; --bg: {$template->colorBackground}; --text: {$template->colorText}; }
+            Nutze in allen Sections var(--primary), var(--secondary), var(--bg), var(--text).
+            Erlaubt sind Abstufungen per opacity/lighten/darken (z.B. rgba, color-mix).
             COLORS;
+    }
+
+    /**
+     * Build the script example fragment for the creative mode JSON bodytext example.
+     */
+    private function buildCreativeBodytextExample(Template $template): string
+    {
+        if (!$template->isAnimationEnabled()) {
+            return '';
+        }
+
+        return "<script data-creative>document.addEventListener('DOMContentLoaded', function() { gsap.from('.hero-title', {scrollTrigger: '.hero', opacity: 0, y: 30, duration: 0.8}); });</script>";
+    }
+
+    private function buildAnimationBlock(Template $template): string
+    {
+        if (!$template->isAnimationEnabled()) {
+            return '';
+        }
+
+        return <<<BLOCK
+
+            Optional pro Section: "animation" Objekt.
+            Moegliche Typen: fade-up, fade-down, slide-left, slide-right,
+            zoom-in, scale-up, stagger-children, typewriter, parallax.
+            Nicht jede Section braucht Animation — setze sie gezielt ein.
+            Format: {"type": "fade-up", "duration": 0.8, "delay": 0, "stagger": 0.15}
+            Alle Felder ausser "type" sind optional.
+            BLOCK;
     }
 
     /**
@@ -175,8 +211,9 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $cTypeMetadata = $this->buildCTypeMetadataBlock($template->allowedCTypes);
         $columnBlock = $this->buildColumnBlock($template->backendLayout, $parentPageId);
         $languageBlock = $this->buildLanguageBlock($outputLanguage);
-        $jsonExample = $this->buildJsonExample($template->backendLayout, $cTypes, $parentPageId);
         $colorBlock = $this->buildColorBlock($template);
+        $animationBlock = $this->buildAnimationBlock($template);
+        $jsonExample = $this->buildJsonExample($template->backendLayout, $cTypes, $parentPageId, $template->isAnimationEnabled());
 
         return <<<PROMPT
             {$template->systemPrompt}
@@ -219,7 +256,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
             - Stimmung und Farbpalette
             - Perspektive und Komposition
             Beispiel: "Overhead view of a modern coworking space with diverse professionals collaborating around laptops, natural daylight, warm tones, shallow depth of field"
-
+            {$animationBlock}
             Antworte ausschliesslich als JSON-Array:
             {$jsonExample}
             PROMPT;
@@ -298,9 +335,12 @@ final class ContentGeneratorService implements LoggerAwareInterface
      * When multiple columns exist, show examples with different colPos values
      * to prevent the LLM from defaulting everything to colPos 0.
      */
-    private function buildJsonExample(string $backendLayout, string $cTypes, int $parentPageId = 0): string
+    private function buildJsonExample(string $backendLayout, string $cTypes, int $parentPageId = 0, bool $includeAnimation = false): string
     {
         $columnMap = $this->backendLayoutService->getColumnMap($backendLayout, $parentPageId);
+        $animationField = $includeAnimation
+            ? ",\n   \"animation\": {\"type\": \"fade-up\", \"duration\": 0.8}"
+            : '';
 
         if (count($columnMap) <= 1) {
             return <<<JSON
@@ -308,7 +348,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
               {"section": "string", "ctype": "one of [{$cTypes}]", "colPos": 0,
                "header": "string", "subheader": "string", "bodytext": "HTML string",
                "imageKeywords": ["keyword1", "keyword2", "keyword3"],
-               "imagePrompt": "A detailed description of an image suitable for this section"}
+               "imagePrompt": "A detailed description of an image suitable for this section"{$animationField}}
             ]
             JSON;
         }
@@ -317,7 +357,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         foreach ($columnMap as $colPos => $name) {
             $examples[] = '  {"section": "Inhalt fuer ' . $name . '", "ctype": "one of [' . $cTypes . ']", "colPos": ' . $colPos . ',' . "\n"
                 . '   "header": "string", "subheader": "string", "bodytext": "HTML string",' . "\n"
-                . '   "imageKeywords": ["keyword1", "keyword2"], "imagePrompt": "..."}';
+                . '   "imageKeywords": ["keyword1", "keyword2"], "imagePrompt": "..."' . $animationField . '}';
         }
 
         return "[\n" . implode(",\n", $examples) . "\n]";
@@ -390,7 +430,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
     /**
      * @param list<string> $allowedCTypes
      * @param list<int> $validColPositions
-     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string}>
+     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string, animation: array{type?: string, duration?: float, delay?: float, stagger?: float}}>
      */
     private function validateSections(mixed $response, array $allowedCTypes, array $validColPositions = [0]): array
     {
@@ -439,6 +479,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 'bodytext' => $this->sanitizeHtml($bodytext),
                 'imageKeywords' => $imageKeywords,
                 'imagePrompt' => is_string($item['imagePrompt'] ?? null) ? $item['imagePrompt'] : '',
+                'animation' => $this->validateAnimation($item['animation'] ?? null),
             ];
         }
 
@@ -463,6 +504,27 @@ final class ContentGeneratorService implements LoggerAwareInterface
         }
         $columnsBlock = implode("\n", $columnDescriptions);
 
+        if ($template->isAnimationEnabled()) {
+            $scriptRule = <<<RULE
+                JAVASCRIPT-ANIMATIONEN (PFLICHT):
+                GSAP (gsap), ScrollTrigger und TextPlugin sind global verfuegbar.
+                JEDE Section MUSS mindestens eine GSAP-Animation enthalten — Scroll-Reveals,
+                Fade-Ins, Slide-Ins, Typewriter-Effekte, Parallax oder Stagger-Animationen.
+                Eine Seite ohne Animationen ist unvollstaendig.
+                - Jeder <script>-Block MUSS das Attribut data-creative tragen.
+                - Wrapping: Alle gsap-Aufrufe in document.addEventListener('DOMContentLoaded', function() { ... });
+                - Erlaubte APIs: gsap.*, ScrollTrigger.*, TextPlugin.*,
+                  document.querySelector/All, Standard-JS (const, let, =>, forEach).
+                - VERBOTEN: fetch, XMLHttpRequest, eval, document.cookie,
+                  localStorage, window.location, innerHTML und alle Netzwerk-APIs.
+                - Verwende die CSS-Klassen-Praefixe der Section als Selektoren.
+                - prefers-reduced-motion wird automatisch vom Loader behandelt,
+                  du brauchst KEINE eigene Pruefung einzubauen.
+                RULE;
+        } else {
+            $scriptRule = '3. KEIN JavaScript, KEINE <script>-Tags, KEINE Event-Handler.';
+        }
+
         return <<<PROMPT
             {$template->systemPrompt}
 
@@ -483,22 +545,46 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Stripe, Linear, Vercel oder Apple gestaltet. Jede Section ist ein
             eigenstaendiges HTML-Fragment mit eigenem <style>-Block.
 
-            QUALITAETSANSPRUCH:
-            Erstelle Designs die wie Premium-SaaS-Landingpages wirken — mit allem was
-            modernes CSS-only Design hergibt: Animationen, weiche Uebergaenge, organische
-            Formen, Tiefeneffekte, lebendige Typografie. Sektionen sollen fliessend
-            ineinander uebergehen, nie wie gestapelte Kaesten wirken.
+            VERBOTEN (Lazy Patterns — fuehren zu minderwertigen Ergebnissen):
+            - Flache einfarbige Hintergruende ohne Gradient, Textur oder Tiefeneffekt
+            - Sections die wie gestapelte Rechteck-Boxen wirken (harte Kante, Farbe, harte Kante)
+            - Einheitliche Schriftgroessen und -gewichte ueber alle Elemente
+            - Alles zentriert, alles gleich breit, alles symmetrisch
+
+            PFLICHT (Qualitaetsmerkmale — jede Section muss diese erfuellen):
+            - Visuelle Tiefe: Schatten, Layering, Ueberlappungen oder Transparenz einsetzen
+            - Typografie-Hierarchie: Deutliche Unterschiede in Groesse, Gewicht und Spacing
+              zwischen Headline, Subline und Fliesstext
+            - Grosszuegiger Whitespace — lieber zu viel als zu wenig
+            - Weiche Uebergaenge zwischen Sections — keine harten Farbwechsel-Kanten
+            - Mindestens ein visueller Eyecatcher pro Section (SVG-Grafik, Formelement,
+              Akzentlinie, Icon-Gruppe oder dekoratives Element)
+            - Interaktive Hover-States fuer klickbare Elemente (Links, Buttons, Cards)
+
+            OPTIONAL aber erwuenscht:
+            - Dekorative SVG-Elemente (Wellen, Blobs, geometrische Formen) als
+              Section-Trenner oder Hintergrund-Akzente
+            - Subtile CSS-Animationen und Transitions
+            - Asymmetrische Layouts wo es zum Inhalt passt
+
+            {$scriptRule}
+
+            FOTO-PLATZHALTER (WICHTIG):
+            Wenn eine Section von einem Foto profitiert (Hero, Teaser, Portrait, Produkt),
+            setze einen Platzhalter: <img data-image-slot="0" alt="Beschreibung">
+            - KEIN src-Attribut — das System fuegt die URL automatisch ein.
+            - Das alt-Attribut MUSS eine sinnvolle Beschreibung enthalten.
+            - Genau EIN Platzhalter pro Section (nicht mehrere).
+            - Liefere fuer JEDE Section mit Platzhalter imageKeywords und imagePrompt.
+            - Nicht jede Section braucht ein Foto — dekorative Grafiken als Inline-SVG.
+            - ABER: Wenn du ein Foto willst, MUSST du den Platzhalter setzen.
+              Ohne Platzhalter wird kein Bild angezeigt.
 
             TECHNISCHE REGELN:
             1. Verwende CSS-Klassen mit eindeutigem Praefix pro Section (z.B. .hero-*, .feat-*).
-            2. Fuer dekorative Grafiken verwende Inline-SVG.
-               Wenn ein Foto den Inhalt bereichert (Hero, Teaser, Portrait), setze genau
-               EIN <img data-image-slot="0" alt="Beschreibung"> pro Section — kein src-Attribut.
-               Nicht jede Section braucht ein Foto.
-            3. KEIN JavaScript, KEINE <script>-Tags, KEINE Event-Handler.
-            4. KEIN CSS url() — keine externen Ressourcen.
-            5. Barrierefrei und responsive.
-            6. Nutze CSS Custom Properties (--primary, --secondary) aus dem Farbschema.
+            2. KEIN CSS url() — keine externen Ressourcen.
+            3. Barrierefrei und responsive.
+            4. Nutze CSS Custom Properties (--primary, --secondary) aus dem Farbschema.
 
             TOKEN-BUDGET BEACHTEN:
             - Halte CSS kompakt: Shorthand-Properties, keine redundanten Regeln.
@@ -508,16 +594,16 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
             Antworte ausschliesslich als JSON-Array:
             [
-              {"section": "Name", "colPos": 0, "header": "Titel",
-               "bodytext": "<style>.hero { ... }</style><section class='hero'>...<img data-image-slot=\"0\" alt=\"...\">...</section>",
+              {"section": "Hero", "colPos": 0, "header": "Titel",
+               "bodytext": "<style>.hero { ... }</style><section class='hero'><img data-image-slot=\"0\" alt=\"Hero image\"><h1>...</h1></section>{$this->buildCreativeBodytextExample($template)}",
                "imageKeywords": ["keyword1", "keyword2"],
                "imagePrompt": "Detailed English image description"}
             ]
 
             Das bodytext-Feld enthaelt das komplette HTML inkl. <style>-Block.
-            Wenn du einen <img data-image-slot="0"> Platzhalter setzt, liefere imageKeywords
-            (3-5 englische Suchbegriffe fuer die Mediathek) und imagePrompt (detaillierter
-            englischer Bild-Prompt). Ohne Platzhalter: leeres Array / leerer String.
+            Jede Section mit <img data-image-slot="0"> MUSS imageKeywords (3-5 englische
+            Suchbegriffe fuer die Mediathek) und imagePrompt (detaillierter englischer
+            Bild-Prompt) liefern. Ohne Platzhalter: leeres Array / leerer String.
             Erstelle fuer JEDEN colPos ({$this->formatColPosValues($columnMap)}) genau ein Element.
             PROMPT;
     }
@@ -528,7 +614,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
      * @param array<int, string> $columnMap
      * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string}>
      */
-    private function validateCreativeSections(mixed $response, array $columnMap): array
+    private function validateCreativeSections(mixed $response, array $columnMap, bool $allowScripts = false): array
     {
         if (!is_array($response)) {
             return [];
@@ -546,7 +632,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
             }
 
             $bodytext = is_string($item['bodytext'] ?? null) ? $item['bodytext'] : '';
-            $bodytext = $this->sanitizeCreativeHtml($bodytext);
+            $bodytext = $this->sanitizeCreativeHtml($bodytext, $allowScripts);
 
             $rawColPos = $item['colPos'] ?? 0;
             $colPos = is_int($rawColPos) ? $rawColPos : (is_numeric($rawColPos) ? (int) $rawColPos : 0);
@@ -576,6 +662,34 @@ final class ContentGeneratorService implements LoggerAwareInterface
         }
 
         return $validated;
+    }
+
+    /**
+     * @return array{type?: string, duration?: float, delay?: float, stagger?: float}
+     */
+    private function validateAnimation(mixed $animation): array
+    {
+        if (!is_array($animation)) {
+            return [];
+        }
+
+        $type = is_string($animation['type'] ?? null) ? $animation['type'] : '';
+        if ($type === '') {
+            return [];
+        }
+
+        $result = ['type' => $type];
+        if (isset($animation['duration']) && is_numeric($animation['duration'])) {
+            $result['duration'] = max(AnimationScriptBuilder::DURATION_MIN, min(AnimationScriptBuilder::DURATION_MAX, (float) $animation['duration']));
+        }
+        if (isset($animation['delay']) && is_numeric($animation['delay'])) {
+            $result['delay'] = max(AnimationScriptBuilder::DELAY_MIN, min(AnimationScriptBuilder::DELAY_MAX, (float) $animation['delay']));
+        }
+        if (isset($animation['stagger']) && is_numeric($animation['stagger'])) {
+            $result['stagger'] = max(AnimationScriptBuilder::STAGGER_MIN, min(AnimationScriptBuilder::STAGGER_MAX, (float) $animation['stagger']));
+        }
+
+        return $result;
     }
 
     /**

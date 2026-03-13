@@ -34,6 +34,7 @@ final readonly class Template
         public string $colorSecondary = '',
         public string $colorBackground = '',
         public string $colorText = '',
+        public bool $animationEnabled = true,
     ) {}
 
     /**
@@ -65,7 +66,13 @@ final readonly class Template
             colorSecondary: $this->colorSecondary !== '' ? $this->colorSecondary : ($defaults['colorSecondary'] ?? '#ff8700'),
             colorBackground: $this->colorBackground !== '' ? $this->colorBackground : ($defaults['colorBackground'] ?? '#ffffff'),
             colorText: $this->colorText !== '' ? $this->colorText : ($defaults['colorText'] ?? '#333333'),
+            animationEnabled: $this->animationEnabled,
         );
+    }
+
+    public function isAnimationEnabled(): bool
+    {
+        return $this->animationEnabled;
     }
 
     public function isCreativeMode(): bool
@@ -123,6 +130,7 @@ final readonly class Template
             (string) $this->llmConfiguration,
             (string) $this->imageTask,
             $this->generationMode,
+            $this->animationEnabled ? '1' : '0',
         ]);
 
         return hash('sha256', $data);

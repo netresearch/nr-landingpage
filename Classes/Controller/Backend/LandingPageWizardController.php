@@ -358,7 +358,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 $bodytext = is_string($section['bodytext'] ?? null) ? $section['bodytext'] : '';
                 // Re-sanitize creative mode content at save time (editors can edit source in wizard)
                 if ($template->isCreativeMode()) {
-                    $bodytext = $this->creativeHtmlSanitizer->sanitize($bodytext);
+                    $bodytext = $this->creativeHtmlSanitizer->sanitize(
+                        $bodytext,
+                        $template->isAnimationEnabled(),
+                    );
                 }
 
                 $typedSections[] = [
@@ -381,6 +384,14 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 sourcePageUid: $sourcePageUid,
             );
 
+            /** @var array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animations */
+            $animations = array_values(array_map(
+                static fn(mixed $section): array => is_array($section) && is_array($section['animation'] ?? null)
+                    ? $section['animation']
+                    : [],
+                $contentSections,
+            ));
+
             $result = $this->pageCreatorService->createLandingPage(
                 $template,
                 $parentPageId,
@@ -389,6 +400,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 $stringPageFields,
                 $typedSections,
                 $generationContext,
+                $animations,
             );
 
             return new JsonResponse(['success' => true, 'data' => $result]);
@@ -416,8 +428,12 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 return new JsonResponse(['success' => false, 'error' => 'Prompt optimizer service not available'], 500);
             }
 
+            $parentPageId = $this->extractIntFromBody($body, 'parentPageId');
+            $outputLanguage = $parentPageId > 0 ? $this->resolveOutputLanguage($parentPageId) : '';
+
             $optimizedPrompt = $this->promptOptimizerService->generateOptimizedPrompt(
                 $template->withResolvedColors([]),
+                $outputLanguage,
             );
 
             return new JsonResponse(['success' => true, 'data' => ['prompt' => $optimizedPrompt]]);
@@ -457,10 +473,16 @@ final class LandingPageWizardController implements LoggerAwareInterface
             $images = $this->imageProviderService->resolveImagesForSections($template, $contentSections);
             $imageErrors = $this->imageProviderService->getImageErrors();
 
+            $pageFields = [];
+            if ($template->pageFields !== []) {
+                $pageFields = $this->contentGeneratorService->generatePageFields($template, $briefingAnswers);
+            }
+
             return new JsonResponse(['success' => true, 'data' => [
                 'sections' => $contentSections,
                 'images' => $images,
                 'imageErrors' => $imageErrors,
+                'pageFields' => $pageFields,
                 'aiGenerationAvailable' => $this->imageProviderService->isAiGenerationAvailable(),
                 'generationMode' => $template->generationMode,
             ]]);

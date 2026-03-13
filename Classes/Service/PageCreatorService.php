@@ -12,6 +12,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use RuntimeException;
+use Throwable;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
@@ -47,6 +48,8 @@ class PageCreatorService implements LoggerAwareInterface
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly ResourceFactory $resourceFactory,
+        private readonly GsapService $gsapService,
+        private readonly AnimationScriptBuilder $animationScriptBuilder,
     ) {}
 
     /**
@@ -54,6 +57,7 @@ class PageCreatorService implements LoggerAwareInterface
      *
      * @param array<string, string> $pageFields SEO and other page field values
      * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid?: int, colPos?: int}> $contentSections
+     * @param array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animations
      * @return array{pageUid: int, contentUids: list<int>}
      * @throws RuntimeException if page creation fails
      */
@@ -65,6 +69,7 @@ class PageCreatorService implements LoggerAwareInterface
         array $pageFields,
         array $contentSections,
         ?GenerationContext $generationContext = null,
+        array $animations = [],
     ): array {
         $pageData = $this->buildPageData($template, $parentPageId, $title, $slug, $pageFields);
         $pageData = $this->addGenerationMetadata($pageData, $template, $generationContext);
@@ -116,18 +121,6 @@ class PageCreatorService implements LoggerAwareInterface
                 $imageField = 'image';
             }
 
-            if ($imageUid > 0 && $imageField !== '') {
-                $newRefId = 'NEW_ref_' . $index;
-                $dataMap['sys_file_reference'][$newRefId] = [
-                    'pid' => $newPageId,
-                    'uid_local' => $imageUid,
-                    'uid_foreign' => $newContentId,
-                    'tablenames' => 'tt_content',
-                    'fieldname' => $imageField,
-                ];
-                $element[$imageField] = $newRefId;
-            }
-
             $dataMap['tt_content'][$newContentId] = $element;
             $contentUidMap[] = $newContentId;
         }
@@ -161,6 +154,22 @@ class PageCreatorService implements LoggerAwareInterface
             if ($uid > 0) {
                 $contentUids[] = $uid;
             }
+        }
+
+        // Pass 2: Create sys_file_reference records with real UIDs
+        $this->createImageReferences($pageUid, $contentUids, $contentSections);
+
+        // Pass 3: Add GSAP loader + animation script if animation is enabled
+        if ($template->isAnimationEnabled()) {
+            /** @var array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animationMap */
+            $animationMap = [];
+            foreach ($contentUids as $index => $uid) {
+                $anim = $animations[$index] ?? [];
+                if (is_array($anim) && ($anim['type'] ?? '') !== '') {
+                    $animationMap[$uid] = $anim;
+                }
+            }
+            $this->createGsapElements($pageUid, $animationMap);
         }
 
         $this->eventDispatcher->dispatch(
@@ -293,7 +302,7 @@ class PageCreatorService implements LoggerAwareInterface
         try {
             $file = $this->resourceFactory->getFileObject($imageUid);
             $publicUrl = $file->getPublicUrl();
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // File deleted or invalid — remove placeholder
             return preg_replace($pattern, '', $bodytext) ?? $bodytext;
         }
@@ -345,6 +354,80 @@ class PageCreatorService implements LoggerAwareInterface
      * - textpic, image: uses 'image'
      * - uploads: uses 'media'
      */
+    /**
+     * Create sys_file_reference records for content elements that have images.
+     *
+     * This runs as a separate DataHandler pass because uid_foreign is a number
+     * field in TCA and DataHandler does NOT substitute NEW_ placeholders in
+     * number fields. We need the real tt_content UIDs from the first pass.
+     *
+     * @param list<int> $contentUids Real tt_content UIDs (same order as $contentSections)
+     * @param list<array<string, mixed>> $contentSections Original content section data
+     */
+    private function createImageReferences(int $pageUid, array $contentUids, array $contentSections): void
+    {
+        $dataMap = [];
+        $refIndex = 0;
+
+        foreach ($contentSections as $index => $section) {
+            $contentUid = $contentUids[$index] ?? 0;
+            if ($contentUid === 0) {
+                continue;
+            }
+
+            $rawImageUid = $section['imageUid'] ?? 0;
+            $imageUid = is_int($rawImageUid) ? $rawImageUid : (is_numeric($rawImageUid) ? (int) $rawImageUid : 0);
+            if ($imageUid === 0) {
+                continue;
+            }
+
+            $ctype = is_string($section['ctype'] ?? null) ? $section['ctype'] : '';
+            if ($ctype === 'html') {
+                continue;
+            }
+
+            $imageField = $this->getImageFieldForCType($ctype);
+            if ($imageField === '') {
+                $imageField = 'image';
+            }
+
+            $newRefId = 'NEW_ref_' . $refIndex++;
+            $dataMap['sys_file_reference'][$newRefId] = [
+                'pid' => $pageUid,
+                'uid_local' => $imageUid,
+                'uid_foreign' => $contentUid,
+                'tablenames' => 'tt_content',
+                'fieldname' => $imageField,
+                'sorting_foreign' => 1,
+            ];
+
+            // Update tt_content to reference the new sys_file_reference
+            $dataMap['tt_content'][$contentUid] = [
+                $imageField => $newRefId,
+            ];
+        }
+
+        if ($dataMap === []) {
+            return;
+        }
+
+        try {
+            $dataHandler = $this->createDataHandler();
+            $dataHandler->start($dataMap, []);
+            $dataHandler->process_datamap();
+
+            if ($dataHandler->errorLog !== []) {
+                $this->logger?->warning('DataHandler errors during image reference creation', [
+                    'errors' => implode(', ', $dataHandler->errorLog),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            $this->logger?->error('Image reference creation failed', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     private function getImageFieldForCType(string $ctype): string
     {
         return match ($ctype) {
@@ -367,6 +450,60 @@ class PageCreatorService implements LoggerAwareInterface
         }
 
         return 0;
+    }
+
+    /**
+     * Create GSAP loader and animation script content elements.
+     * Separate DataHandler pass because we need real page/content UIDs.
+     *
+     * Non-fatal: if this fails, the page is saved without animations.
+     *
+     * @param array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animationMap
+     */
+    private function createGsapElements(int $pageUid, array $animationMap): void
+    {
+        try {
+            $dataMap = [
+                'tt_content' => [
+                    'NEW_gsap_loader' => [
+                        'pid' => $pageUid,
+                        'CType' => 'html',
+                        'header' => '[Animation Library]',
+                        'header_layout' => 100,
+                        'sorting' => 1,
+                        'colPos' => 0,
+                        'bodytext' => $this->gsapService->buildLoaderHtml(),
+                    ],
+                ],
+            ];
+
+            $animationScript = $this->animationScriptBuilder->build($animationMap);
+            if ($animationScript !== '') {
+                $dataMap['tt_content']['NEW_gsap_animation'] = [
+                    'pid' => $pageUid,
+                    'CType' => 'html',
+                    'header' => '[Animation Script]',
+                    'header_layout' => 100,
+                    'sorting' => 99999,
+                    'colPos' => 0,
+                    'bodytext' => $animationScript,
+                ];
+            }
+
+            $dataHandler = $this->createDataHandler();
+            $dataHandler->start($dataMap, []);
+            $dataHandler->process_datamap();
+
+            if ($dataHandler->errorLog !== []) {
+                $this->logger?->warning('GSAP elements creation failed', [
+                    'errors' => implode(', ', $dataHandler->errorLog),
+                ]);
+            }
+        } catch (Throwable $e) {
+            $this->logger?->warning('GSAP elements creation failed', [
+                'exception' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

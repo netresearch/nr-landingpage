@@ -150,6 +150,15 @@
             <trans-unit id="palette.color_scheme" resname="palette.color_scheme">
                 <source>Color Scheme</source>
             </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.animation_enabled" resname="tx_nrlandingpage_domain_model_template.animation_enabled">
+                <source>Animation</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.animation_enabled.label" resname="tx_nrlandingpage_domain_model_template.animation_enabled.label">
+                <source>Enable GSAP animations (scroll effects, typewriter, parallax)</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.animation_enabled.description" resname="tx_nrlandingpage_domain_model_template.animation_enabled.description">
+                <source>When enabled, GSAP-powered animations are injected into the generated page: scroll-triggered reveal effects, typewriter headlines, and parallax backgrounds.</source>
+            </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.color.placeholder" resname="tx_nrlandingpage_domain_model_template.color.placeholder">
                 <source>Inherited from site settings</source>
             </trans-unit>

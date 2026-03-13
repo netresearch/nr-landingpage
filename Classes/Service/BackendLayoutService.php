@@ -8,7 +8,9 @@ use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Backend\View\BackendLayout\BackendLayout;
 use TYPO3\CMS\Backend\View\BackendLayout\DataProviderCollection;
+use TYPO3\CMS\Backend\View\BackendLayout\DataProviderContext;
 use TYPO3\CMS\Backend\View\BackendLayoutView;
+use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 
@@ -32,6 +34,7 @@ class BackendLayoutService implements LoggerAwareInterface
     public function __construct(
         private readonly DataProviderCollection $dataProviderCollection,
         private readonly LanguageServiceFactory $languageServiceFactory,
+        private readonly ConnectionPool $connectionPool,
         /** @phpstan-ignore property.onlyWritten (Injected to trigger provider registration in its constructor) */
         private readonly BackendLayoutView $backendLayoutView,
     ) {}
@@ -51,6 +54,17 @@ class BackendLayoutService implements LoggerAwareInterface
         }
 
         $layout = $this->dataProviderCollection->getBackendLayout($backendLayoutIdentifier, $pageId);
+
+        // PageTSconfig-based layouts (pagets__*) need a real page context.
+        // If pageId=0 failed, try: 1) a page using this layout, 2) any site root page.
+        if (!$layout instanceof BackendLayout && $pageId === 0) {
+            $resolvedPageId = $this->findPageWithLayout($backendLayoutIdentifier)
+                ?: $this->findAnySiteRootPage();
+            if ($resolvedPageId > 0) {
+                $layout = $this->dataProviderCollection->getBackendLayout($backendLayoutIdentifier, $resolvedPageId);
+            }
+        }
+
         if (!$layout instanceof BackendLayout) {
             $this->logger?->warning('Could not resolve backend layout, falling back to single column', [
                 'identifier' => $backendLayoutIdentifier,
@@ -99,6 +113,52 @@ class BackendLayoutService implements LoggerAwareInterface
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * Find any page that uses the given backend layout, so we have a page context
+     * for resolving PageTSconfig-based layouts when no pageId was provided.
+     */
+    private function findPageWithLayout(string $identifier): int
+    {
+        $qb = $this->connectionPool->getQueryBuilderForTable('pages');
+        $qb->getRestrictions()->removeAll();
+
+        $row = $qb->select('uid')
+            ->from('pages')
+            ->where(
+                $qb->expr()->or(
+                    $qb->expr()->eq('backend_layout', $qb->createNamedParameter($identifier)),
+                    $qb->expr()->eq('backend_layout_next_level', $qb->createNamedParameter($identifier)),
+                ),
+                $qb->expr()->eq('deleted', 0),
+            )
+            ->setMaxResults(1)
+            ->executeQuery()
+            ->fetchAssociative();
+
+        return is_array($row) ? (int) ($row['uid'] ?? 0) : 0;
+    }
+
+    /**
+     * Find any site root page as fallback context for PageTSconfig resolution.
+     */
+    private function findAnySiteRootPage(): int
+    {
+        $qb = $this->connectionPool->getQueryBuilderForTable('pages');
+        $qb->getRestrictions()->removeAll();
+
+        $row = $qb->select('uid')
+            ->from('pages')
+            ->where(
+                $qb->expr()->eq('is_siteroot', 1),
+                $qb->expr()->eq('deleted', 0),
+            )
+            ->setMaxResults(1)
+            ->executeQuery()
+            ->fetchAssociative();
+
+        return is_array($row) ? (int) ($row['uid'] ?? 0) : 0;
     }
 
     private function resolveLabel(string $label, LanguageService $languageService): string

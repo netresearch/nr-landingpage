@@ -18,7 +18,8 @@ CREATE TABLE tx_nrlandingpage_domain_model_template (
     color_primary varchar(7) NOT NULL DEFAULT '',
     color_secondary varchar(7) NOT NULL DEFAULT '',
     color_background varchar(7) NOT NULL DEFAULT '',
-    color_text varchar(7) NOT NULL DEFAULT ''
+    color_text varchar(7) NOT NULL DEFAULT '',
+    animation_enabled tinyint(1) unsigned NOT NULL DEFAULT 1
 );
 
 CREATE TABLE pages (

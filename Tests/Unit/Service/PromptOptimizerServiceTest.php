@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Tests\Unit\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
+use Netresearch\NrLandingpage\Service\BackendLayoutService;
 use Netresearch\NrLandingpage\Service\PromptOptimizerService;
 use Netresearch\NrLlm\Domain\Model\CompletionResponse;
 use Netresearch\NrLlm\Domain\Model\LlmConfiguration;
@@ -14,6 +15,7 @@ use Netresearch\NrLlm\Service\Feature\CompletionService;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
@@ -58,15 +60,33 @@ final class PromptOptimizerServiceTest extends UnitTestCase
         );
     }
 
+    private function createBackendLayoutService(): BackendLayoutService&MockObject
+    {
+        $service = $this->createMock(BackendLayoutService::class);
+        $service->method('getColumnMap')->willReturn([0 => 'Main']);
+
+        return $service;
+    }
+
+    private function createService(
+        ?CompletionService $completionService = null,
+        ?LlmServiceManagerInterface $llmManager = null,
+        ?LlmConfigurationRepository $configRepo = null,
+        ?BackendLayoutService $backendLayoutService = null,
+    ): PromptOptimizerService {
+        return new PromptOptimizerService(
+            $completionService ?? $this->createMock(CompletionService::class),
+            $llmManager ?? $this->createMock(LlmServiceManagerInterface::class),
+            $configRepo ?? $this->createMock(LlmConfigurationRepository::class),
+            $backendLayoutService ?? $this->createBackendLayoutService(),
+        );
+    }
+
     #[Test]
     public function buildStructuralContextIncludesTemplateTitle(): void
     {
         $template = $this->createTemplate(title: 'My Landing Page');
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService();
 
         $context = $service->buildStructuralContext($template);
 
@@ -77,11 +97,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     public function buildStructuralContextIncludesAllowedCTypes(): void
     {
         $template = $this->createTemplate(allowedCTypes: ['text', 'textmedia', 'header']);
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService();
 
         $context = $service->buildStructuralContext($template);
 
@@ -92,11 +108,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     public function buildStructuralContextIncludesPageFields(): void
     {
         $template = $this->createTemplate(pageFields: ['seo_title', 'og_title']);
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService();
 
         $context = $service->buildStructuralContext($template);
 
@@ -107,11 +119,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     public function buildStructuralContextIncludesBackendLayout(): void
     {
         $template = $this->createTemplate(backendLayout: 'pagets__two_column');
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService();
 
         $context = $service->buildStructuralContext($template);
 
@@ -122,11 +130,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     public function buildStructuralContextOmitsBackendLayoutWhenEmpty(): void
     {
         $template = $this->createTemplate(backendLayout: '');
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService();
 
         $context = $service->buildStructuralContext($template);
 
@@ -137,11 +141,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     public function buildStructuralContextIncludesBriefingMode(): void
     {
         $template = $this->createTemplate(briefingMode: 'required');
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService();
 
         $context = $service->buildStructuralContext($template);
 
@@ -152,11 +152,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     public function buildStructuralContextIncludesReferencePages(): void
     {
         $template = $this->createTemplate(referencePages: [10, 20]);
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService();
 
         $context = $service->buildStructuralContext($template);
 
@@ -167,11 +163,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     public function buildStructuralContextOmitsReferencePagesWhenEmpty(): void
     {
         $template = $this->createTemplate(referencePages: []);
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService();
 
         $context = $service->buildStructuralContext($template);
 
@@ -182,15 +174,11 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     public function buildStructuralContextIncludesCurrentSystemPrompt(): void
     {
         $template = $this->createTemplate(systemPrompt: 'Write formal content');
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService();
 
         $context = $service->buildStructuralContext($template);
 
-        self::assertStringContainsString('Current System Prompt (for reference):', $context);
+        self::assertStringContainsString('Current System Prompt (BASELINE', $context);
         self::assertStringContainsString('Write formal content', $context);
     }
 
@@ -198,11 +186,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     public function buildStructuralContextOmitsSystemPromptWhenEmpty(): void
     {
         $template = $this->createTemplate(systemPrompt: '');
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService();
 
         $context = $service->buildStructuralContext($template);
 
@@ -213,11 +197,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     public function buildStructuralContextOmitsEmptyCTypes(): void
     {
         $template = $this->createTemplate(allowedCTypes: []);
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService();
 
         $context = $service->buildStructuralContext($template);
 
@@ -236,11 +216,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
             ))
             ->willReturn($this->createCompletionResponse('Optimized prompt result'));
 
-        $service = new PromptOptimizerService(
-            $completionService,
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService(completionService: $completionService);
 
         $result = $service->generateOptimizedPrompt($this->createTemplate());
 
@@ -260,11 +236,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
             ))
             ->willReturn($this->createCompletionResponse('Custom result'));
 
-        $service = new PromptOptimizerService(
-            $completionService,
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService(completionService: $completionService);
 
         $template = $this->createTemplate(promptOptimizerMetaPrompt: 'Generate a German prompt');
 
@@ -285,11 +257,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
             ))
             ->willReturn($this->createCompletionResponse('Result with context'));
 
-        $service = new PromptOptimizerService(
-            $completionService,
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService(completionService: $completionService);
 
         $template = $this->createTemplate(promptOptimizerContext: 'Brand: Acme Corp');
 
@@ -309,11 +277,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
             ))
             ->willReturn($this->createCompletionResponse('Result'));
 
-        $service = new PromptOptimizerService(
-            $completionService,
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService(completionService: $completionService);
 
         $result = $service->generateOptimizedPrompt($this->createTemplate(promptOptimizerContext: ''));
 
@@ -338,11 +302,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
             )
             ->willReturn($this->createCompletionResponse('  LLM config result  '));
 
-        $service = new PromptOptimizerService(
-            $this->createMock(CompletionService::class),
-            $llmManager,
-            $configRepo,
-        );
+        $service = $this->createService(llmManager: $llmManager, configRepo: $configRepo);
 
         $result = $service->generateOptimizedPrompt($this->createTemplate(llmConfiguration: 5));
 
@@ -360,11 +320,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
             ->method('complete')
             ->willReturn($this->createCompletionResponse('Fallback result'));
 
-        $service = new PromptOptimizerService(
-            $completionService,
-            $this->createMock(LlmServiceManagerInterface::class),
-            $configRepo,
-        );
+        $service = $this->createService(completionService: $completionService, configRepo: $configRepo);
 
         $result = $service->generateOptimizedPrompt($this->createTemplate(llmConfiguration: 99));
 
@@ -386,11 +342,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
                     && $context['error'] === 'LLM failed',
             ));
 
-        $service = new PromptOptimizerService(
-            $completionService,
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService(completionService: $completionService);
         $service->setLogger($logger);
 
         $this->expectException(RuntimeException::class);
@@ -406,11 +358,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
         $completionService->method('complete')
             ->willReturn($this->createCompletionResponse("  \n  Trimmed result  \n  "));
 
-        $service = new PromptOptimizerService(
-            $completionService,
-            $this->createMock(LlmServiceManagerInterface::class),
-            $this->createMock(LlmConfigurationRepository::class),
-        );
+        $service = $this->createService(completionService: $completionService);
 
         $result = $service->generateOptimizedPrompt($this->createTemplate());
 

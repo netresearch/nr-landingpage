@@ -199,6 +199,18 @@
                 <source>Color Scheme</source>
                 <target>Farbschema</target>
             </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.animation_enabled" resname="tx_nrlandingpage_domain_model_template.animation_enabled">
+                <source>Animation</source>
+                <target>Animation</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.animation_enabled.label" resname="tx_nrlandingpage_domain_model_template.animation_enabled.label">
+                <source>Enable GSAP animations (scroll effects, typewriter, parallax)</source>
+                <target>GSAP-Animationen aktivieren (Scroll-Effekte, Typewriter, Parallax)</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.animation_enabled.description" resname="tx_nrlandingpage_domain_model_template.animation_enabled.description">
+                <source>When enabled, GSAP-powered animations are injected into the generated page: scroll-triggered reveal effects, typewriter headlines, and parallax backgrounds.</source>
+                <target>Wenn aktiviert, werden GSAP-Animationen in die generierte Seite eingebettet: Scroll-Trigger-Einblendeffekte, Typewriter-Überschriften und Parallax-Hintergründe.</target>
+            </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.color.placeholder" resname="tx_nrlandingpage_domain_model_template.color.placeholder">
                 <source>Inherited from site settings</source>
                 <target>Wird aus Site-Einstellungen geerbt</target>
