@@ -6,6 +6,7 @@ namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Throwable;
+use Netresearch\NrLandingpage\Service\BackendLayoutService;
 use TYPO3\CMS\Backend\View\BackendLayoutView;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\Connection;
@@ -73,6 +74,7 @@ final readonly class TemplateService
     public function __construct(
         private ConnectionPool $connectionPool,
         private ?BackendLayoutView $backendLayoutView = null,
+        private ?BackendLayoutService $backendLayoutService = null,
     ) {}
 
     /** @param array<string, mixed> $params */
@@ -535,6 +537,7 @@ final readonly class TemplateService
         $allowedCTypesRaw = is_string($row['allowed_ctypes'] ?? null) ? $row['allowed_ctypes'] : '';
         $pageFieldsRaw = is_string($row['page_fields'] ?? null) ? $row['page_fields'] : '';
         $referencePagesRaw = is_string($row['reference_pages'] ?? null) ? $row['reference_pages'] : '';
+        $contentColumnsRaw = is_string($row['content_columns'] ?? null) ? $row['content_columns'] : '';
 
         return new Template(
             uid: self::toInt($row['uid'] ?? 0),
@@ -564,7 +567,38 @@ final readonly class TemplateService
             colorBackground: is_string($row['color_background'] ?? null) ? $row['color_background'] : '',
             colorText: is_string($row['color_text'] ?? null) ? $row['color_text'] : '',
             animationEnabled: (bool) ($row['animation_enabled'] ?? true),
+            contentColumns: $contentColumnsRaw !== ''
+                ? array_values(array_filter(
+                    array_map('intval', explode(',', $contentColumnsRaw)),
+                    static fn(int $v): bool => $v >= 0,
+                ))
+                : [],
         );
+    }
+
+    /**
+     * itemsProcFunc: Populate content column checkboxes from the selected backend layout.
+     *
+     * @param array<string, mixed> $params
+     */
+    public function getAvailableContentColumns(array &$params): void
+    {
+        $backendLayout = is_string($params['row']['backend_layout'] ?? null)
+            ? $params['row']['backend_layout']
+            : '';
+
+        if ($backendLayout === '' || $this->backendLayoutService === null) {
+            return;
+        }
+
+        $columnMap = $this->backendLayoutService->getColumnMap($backendLayout);
+
+        foreach ($columnMap as $colPos => $name) {
+            $params['items'][] = [
+                'label' => $name . ' (colPos ' . $colPos . ')',
+                'value' => $colPos,
+            ];
+        }
     }
 
     /**

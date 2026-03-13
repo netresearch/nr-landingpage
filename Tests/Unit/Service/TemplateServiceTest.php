@@ -1155,4 +1155,49 @@ final class TemplateServiceTest extends UnitTestCase
 
         return $connectionPool;
     }
+
+    #[Test]
+    public function getAvailableContentColumnsPopulatesItemsFromBackendLayout(): void
+    {
+        $backendLayoutService = $this->createMock(\Netresearch\NrLandingpage\Service\BackendLayoutService::class);
+        $backendLayoutService->method('getColumnMap')
+            ->with('pagets__default')
+            ->willReturn([0 => 'Main Content', 1 => 'Sidebar', 2 => 'Footer']);
+
+        $service = new TemplateService(
+            $this->createMock(ConnectionPool::class),
+            backendLayoutService: $backendLayoutService,
+        );
+
+        $params = [
+            'items' => [],
+            'row' => ['backend_layout' => 'pagets__default'],
+        ];
+        $service->getAvailableContentColumns($params);
+
+        self::assertCount(3, $params['items']);
+        self::assertSame(0, $params['items'][0]['value']);
+        self::assertSame('Main Content (colPos 0)', $params['items'][0]['label']);
+        self::assertSame(1, $params['items'][1]['value']);
+        self::assertSame(2, $params['items'][2]['value']);
+    }
+
+    #[Test]
+    public function getAvailableContentColumnsReturnsEmptyForNoBackendLayout(): void
+    {
+        $backendLayoutService = $this->createMock(\Netresearch\NrLandingpage\Service\BackendLayoutService::class);
+
+        $service = new TemplateService(
+            $this->createMock(ConnectionPool::class),
+            backendLayoutService: $backendLayoutService,
+        );
+
+        $params = [
+            'items' => [],
+            'row' => ['backend_layout' => ''],
+        ];
+        $service->getAvailableContentColumns($params);
+
+        self::assertCount(0, $params['items']);
+    }
 }
