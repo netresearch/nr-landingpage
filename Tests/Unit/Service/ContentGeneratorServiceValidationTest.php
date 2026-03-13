@@ -45,9 +45,11 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
         $languageServiceFactory = $this->createMock(LanguageServiceFactory::class);
         $backendLayoutView = $this->createMock(BackendLayoutView::class);
 
+        $connectionPool = $this->createMock(\TYPO3\CMS\Core\Database\ConnectionPool::class);
         $this->backendLayoutService = new BackendLayoutService(
             $this->dataProviderCollection,
             $languageServiceFactory,
+            $connectionPool,
             $backendLayoutView,
         );
 
