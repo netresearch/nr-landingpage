@@ -76,6 +76,12 @@ class PromptOptimizerService implements LoggerAwareInterface
           <script data-creative> blocks. GSAP, ScrollTrigger, and TextPlugin are globally available.
           Every section should have at least one animation (fade-in, slide, parallax, stagger, etc.).
         - Structured mode: add content type selection guidance — explain when to use which CType.
+          Include HTML formatting guidance for the bodytext field: the bodytext is rendered through
+          TYPO3's Rich Text Editor, so encourage semantic HTML (paragraphs, subheadings h3/h4,
+          lists, blockquotes for testimonials, tables only for tabular data, strong/em sparingly).
+          Forbid inline styles, CSS classes, div, span, img — only semantic markup.
+          Tailor formatting advice to the template purpose (blogs: more blockquotes/subheadings,
+          landing pages: more lists and short paragraphs).
           If animation is enabled: state that GSAP ScrollTrigger animations are injected
           AUTOMATICALLY by the system — the AI must NOT write animation code, only provide
           animation metadata (type, duration, delay) in the JSON response.

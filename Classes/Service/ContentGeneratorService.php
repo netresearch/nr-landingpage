@@ -256,7 +256,19 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
             WICHTIG: Erzeuge KEINE <img>-Tags oder Bild-URLs im bodytext.
             Bilder werden separat aus der CMS-Mediathek zugeordnet.
-            Der bodytext soll ausschliesslich Text-HTML enthalten (p, ul, ol, h2-h4, strong, em, a).
+
+            HTML-GESTALTUNG im bodytext:
+            Der bodytext wird im TYPO3 Rich Text Editor angezeigt. Nutze die verfuegbaren
+            HTML-Elemente gezielt fuer Struktur und Lesbarkeit:
+            - <p> fuer Fliesstext — NICHT alles in einen einzigen Absatz
+            - <h3>, <h4> fuer Zwischenueberschriften innerhalb einer Section (h2 = Section-Header)
+            - <ul>/<ol> fuer Aufzaehlungen und Schrittfolgen
+            - <strong> fuer wichtige Begriffe, <em> fuer Betonungen — sparsam einsetzen
+            - <blockquote> fuer Zitate, Testimonials oder hervorgehobene Aussagen
+            - <a href="#"> fuer interne Verweise (href bleibt Platzhalter)
+            - <table> NUR wenn tabellarische Daten sinnvoll sind (Vergleiche, Specs, Preise)
+            VERBOTEN: inline style-Attribute, CSS-Klassen, <div>, <span>, <img>, <script>.
+            Kein visuelles Styling — nur semantisches HTML. Das Design kommt vom Frontend-Template.
 
             BILD-LAYOUT pro Section (imageorient):
             Waehle pro Section eine passende Bildposition fuer Abwechslung:
