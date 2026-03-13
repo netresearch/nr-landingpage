@@ -89,6 +89,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $response = $this->completeJsonWithTemplate($template, $prompt);
 
         $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout, $parentPageId);
+        $columnMap = $this->filterColumnMap($columnMap, $template->contentColumns);
         $validColPositions = array_keys($columnMap);
 
         return $this->validateSections($response, $template->allowedCTypes, $validColPositions);
@@ -106,6 +107,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         if ($columnMap === []) {
             $columnMap = [0 => 'Main'];
         }
+        $columnMap = $this->filterColumnMap($columnMap, $template->contentColumns);
 
         $prompt = $this->buildCreativePrompt($template, $briefingAnswers, $outputLanguage, $columnMap);
         $response = $this->completeJsonWithTemplate($template, $prompt);
@@ -210,12 +212,15 @@ final class ContentGeneratorService implements LoggerAwareInterface
             ? "Verwende ausschliesslich folgende Content-Typen: {$cTypes}"
             : "Verwende gaengige Content-Typen wie: {$cTypes}";
 
+        $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout, $parentPageId);
+        $columnMap = $this->filterColumnMap($columnMap, $template->contentColumns);
+
         $cTypeMetadata = $this->buildCTypeMetadataBlock($template->allowedCTypes);
-        $columnBlock = $this->buildColumnBlock($template->backendLayout, $parentPageId);
+        $columnBlock = $this->buildColumnBlock($columnMap);
         $languageBlock = $this->buildLanguageBlock($outputLanguage);
         $colorBlock = $this->buildColorBlock($template);
         $animationBlock = $this->buildAnimationBlock($template);
-        $jsonExample = $this->buildJsonExample($template->backendLayout, $cTypes, $parentPageId, $template->isAnimationEnabled());
+        $jsonExample = $this->buildJsonExample($columnMap, $cTypes, $template->isAnimationEnabled());
 
         return <<<PROMPT
             {$template->systemPrompt}
@@ -299,11 +304,11 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
     /**
      * Build the column position block for the prompt.
+     *
+     * @param array<int, string> $columnMap
      */
-    private function buildColumnBlock(string $backendLayout, int $parentPageId = 0): string
+    private function buildColumnBlock(array $columnMap): string
     {
-        $columnMap = $this->backendLayoutService->getColumnMap($backendLayout, $parentPageId);
-
         if (count($columnMap) <= 1) {
             return '';
         }
@@ -345,10 +350,11 @@ final class ContentGeneratorService implements LoggerAwareInterface
      *
      * When multiple columns exist, show examples with different colPos values
      * to prevent the LLM from defaulting everything to colPos 0.
+     *
+     * @param array<int, string> $columnMap
      */
-    private function buildJsonExample(string $backendLayout, string $cTypes, int $parentPageId = 0, bool $includeAnimation = false): string
+    private function buildJsonExample(array $columnMap, string $cTypes, bool $includeAnimation = false): string
     {
-        $columnMap = $this->backendLayoutService->getColumnMap($backendLayout, $parentPageId);
         $animationField = $includeAnimation
             ? ",\n   \"animation\": {\"type\": \"fade-up\", \"duration\": 0.8}"
             : '';
@@ -385,6 +391,25 @@ final class ContentGeneratorService implements LoggerAwareInterface
         return implode(', ', array_keys($columnMap));
     }
 
+    /**
+     * Filter column map to only include columns selected in the template.
+     * Returns the full column map if no content columns are configured.
+     *
+     * @param array<int, string> $columnMap
+     * @param list<int> $contentColumns
+     * @return array<int, string>
+     */
+    private function filterColumnMap(array $columnMap, array $contentColumns): array
+    {
+        if ($contentColumns === []) {
+            return $columnMap;
+        }
+
+        $filtered = array_intersect_key($columnMap, array_flip($contentColumns));
+
+        // Fall back to full map if filter would result in empty (misconfiguration)
+        return $filtered !== [] ? $filtered : $columnMap;
+    }
 
     /**
      * @param array<string, string> $briefingAnswers

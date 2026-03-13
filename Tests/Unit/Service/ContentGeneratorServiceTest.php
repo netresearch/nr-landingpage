@@ -44,6 +44,8 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         string $systemPrompt = 'Test prompt',
         array $allowedCTypes = ['text', 'textmedia'],
         array $pageFields = ['title', 'seo_title', 'description'],
+        array $contentColumns = [],
+        string $generationMode = 'structured',
     ): Template {
         return new Template(
             uid: 1,
@@ -52,6 +54,27 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             systemPrompt: $systemPrompt,
             allowedCTypes: $allowedCTypes,
             pageFields: $pageFields,
+            contentColumns: $contentColumns,
+            generationMode: $generationMode,
+        );
+    }
+
+    private function createServiceWithColumnMap(CompletionService $completionService, array $columnMap): ContentGeneratorService
+    {
+        $cTypeMetadataService = $this->createMock(CTypeMetadataService::class);
+        $cTypeMetadataService->method('buildCTypeDescription')->willReturn('');
+
+        $backendLayoutService = $this->createMock(BackendLayoutService::class);
+        $backendLayoutService->method('getColumnMap')->willReturn($columnMap);
+        $backendLayoutService->method('formatColumnMapForPrompt')->willReturn('');
+
+        return new ContentGeneratorService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+            $cTypeMetadataService,
+            $backendLayoutService,
+            new CreativeHtmlSanitizer(),
         );
     }
 
@@ -618,5 +641,132 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $result = $service->generateContent($this->createTemplate(), []);
 
         self::assertSame(1, $result[0]['colPos']);
+    }
+
+    #[Test]
+    public function filterColumnMapPassesThroughAllColumnsWhenContentColumnsEmpty(): void
+    {
+        // columnMap has 3 columns, contentColumns is [] => all 3 pass through
+        $llmResponse = [
+            ['section' => 'A', 'ctype' => 'text', 'colPos' => 0, 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
+            ['section' => 'B', 'ctype' => 'text', 'colPos' => 1, 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
+            ['section' => 'C', 'ctype' => 'text', 'colPos' => 2, 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = $this->createServiceWithColumnMap($completionService, [0 => 'Main', 1 => 'Sidebar', 2 => 'Footer']);
+
+        $result = $service->generateContent(
+            $this->createTemplate(contentColumns: []),
+            [],
+        );
+
+        self::assertCount(3, $result);
+        self::assertSame(0, $result[0]['colPos']);
+        self::assertSame(1, $result[1]['colPos']);
+        self::assertSame(2, $result[2]['colPos']);
+    }
+
+    #[Test]
+    public function filterColumnMapRestrictsToContentColumnsInStructuredMode(): void
+    {
+        // columnMap has 3 columns, contentColumns = [0, 2] => colPos 1 is excluded,
+        // so LLM response with colPos 1 should be remapped to first valid (0)
+        $llmResponse = [
+            ['section' => 'A', 'ctype' => 'text', 'colPos' => 0, 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
+            ['section' => 'B', 'ctype' => 'text', 'colPos' => 1, 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
+            ['section' => 'C', 'ctype' => 'text', 'colPos' => 2, 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = $this->createServiceWithColumnMap($completionService, [0 => 'Main', 1 => 'Sidebar', 2 => 'Footer']);
+
+        $result = $service->generateContent(
+            $this->createTemplate(contentColumns: [0, 2]),
+            [],
+        );
+
+        self::assertCount(3, $result);
+        self::assertSame(0, $result[0]['colPos']);
+        // colPos 1 is not in contentColumns [0, 2], so falls back to first valid = 0
+        self::assertSame(0, $result[1]['colPos']);
+        self::assertSame(2, $result[2]['colPos']);
+    }
+
+    #[Test]
+    public function filterColumnMapFallsBackToFullMapOnMisconfiguration(): void
+    {
+        // contentColumns references colPos values not present in the actual columnMap
+        // => filter result would be empty => fall back to full map
+        $llmResponse = [
+            ['section' => 'A', 'ctype' => 'text', 'colPos' => 0, 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = $this->createServiceWithColumnMap($completionService, [0 => 'Main']);
+
+        $result = $service->generateContent(
+            // contentColumns [5, 6] don't exist in [0 => 'Main'] => fallback to full map
+            $this->createTemplate(contentColumns: [5, 6]),
+            [],
+        );
+
+        self::assertCount(1, $result);
+        self::assertSame(0, $result[0]['colPos']);
+    }
+
+    #[Test]
+    public function filterColumnMapRestrictsColumnsInCreativeMode(): void
+    {
+        // Creative mode: columnMap [0, 1, 2], contentColumns = [0] => only colPos 0 passes through,
+        // response with colPos 1 should be remapped to 0
+        $llmResponse = [
+            ['section' => 'Hero', 'colPos' => 0, 'header' => 'Title', 'bodytext' => '<p>content</p>'],
+            ['section' => 'Sidebar', 'colPos' => 1, 'header' => 'Side', 'bodytext' => '<p>side</p>'],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = $this->createServiceWithColumnMap($completionService, [0 => 'Main', 1 => 'Sidebar']);
+
+        $result = $service->generateContent(
+            $this->createTemplate(contentColumns: [0], generationMode: 'creative'),
+            [],
+        );
+
+        self::assertCount(2, $result);
+        self::assertSame(0, $result[0]['colPos']);
+        // colPos 1 not in filtered map [0 => 'Main'], falls back to 0
+        self::assertSame(0, $result[1]['colPos']);
+    }
+
+    #[Test]
+    public function filterColumnMapPassesThroughAllColumnsInCreativeModeWhenContentColumnsEmpty(): void
+    {
+        $llmResponse = [
+            ['section' => 'Hero', 'colPos' => 0, 'header' => 'Title', 'bodytext' => '<p>content</p>'],
+            ['section' => 'Sidebar', 'colPos' => 1, 'header' => 'Side', 'bodytext' => '<p>side</p>'],
+        ];
+
+        $completionService = $this->createMock(CompletionService::class);
+        $completionService->method('completeJson')->willReturn($llmResponse);
+
+        $service = $this->createServiceWithColumnMap($completionService, [0 => 'Main', 1 => 'Sidebar']);
+
+        $result = $service->generateContent(
+            $this->createTemplate(contentColumns: [], generationMode: 'creative'),
+            [],
+        );
+
+        self::assertCount(2, $result);
+        self::assertSame(0, $result[0]['colPos']);
+        self::assertSame(1, $result[1]['colPos']);
     }
 }

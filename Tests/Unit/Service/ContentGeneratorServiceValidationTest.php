@@ -117,10 +117,8 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     #[Test]
     public function buildColumnBlockReturnsEmptyForSingleColumn(): void
     {
-        $this->dataProviderCollection->method('getBackendLayout')->willReturn(null);
-
         $method = new ReflectionMethod($this->subject, 'buildColumnBlock');
-        $result = $method->invoke($this->subject, 'pagets__default', 0);
+        $result = $method->invoke($this->subject, [0 => 'Main']);
 
         self::assertSame('', $result);
     }
@@ -128,17 +126,8 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     #[Test]
     public function buildColumnBlockIncludesAllColumnsForMultiColumnLayout(): void
     {
-        $layout = $this->createMock(BackendLayout::class);
-        $layout->method('getUsedColumns')->willReturn([
-            0 => 'Main Content',
-            1 => 'Sidebar',
-        ]);
-        $this->dataProviderCollection->method('getBackendLayout')
-            ->with('pagets__2col', 42)
-            ->willReturn($layout);
-
         $method = new ReflectionMethod($this->subject, 'buildColumnBlock');
-        $result = $method->invoke($this->subject, 'pagets__2col', 42);
+        $result = $method->invoke($this->subject, [0 => 'Main Content', 1 => 'Sidebar']);
 
         self::assertStringContainsString('2 Inhaltsbereiche', $result);
         self::assertStringContainsString('colPos 0: "Main Content"', $result);
@@ -149,30 +138,21 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     #[Test]
     public function buildColumnBlockPassesPageIdToBackendLayoutService(): void
     {
-        $layout = $this->createMock(BackendLayout::class);
-        $layout->method('getUsedColumns')->willReturn([0 => 'Main', 1 => 'Side']);
-
-        $this->dataProviderCollection->expects(self::once())
-            ->method('getBackendLayout')
-            ->with('pagets__2col', 123)
-            ->willReturn($layout);
-
+        // This test previously verified that the pageId was forwarded to BackendLayoutService.
+        // After refactoring buildColumnBlock to accept a pre-resolved columnMap,
+        // the resolution responsibility has moved to the caller (buildContentPrompt).
+        // We verify the block is built correctly when given a two-column map.
         $method = new ReflectionMethod($this->subject, 'buildColumnBlock');
-        $method->invoke($this->subject, 'pagets__2col', 123);
+        $result = $method->invoke($this->subject, [0 => 'Main', 1 => 'Side']);
+
+        self::assertStringContainsString('2 Inhaltsbereiche', $result);
     }
 
     #[Test]
     public function buildJsonExampleShowsMultipleColPosForMultiColumnLayout(): void
     {
-        $layout = $this->createMock(BackendLayout::class);
-        $layout->method('getUsedColumns')->willReturn([
-            0 => 'Main Content',
-            1 => 'Sidebar',
-        ]);
-        $this->dataProviderCollection->method('getBackendLayout')->willReturn($layout);
-
         $method = new ReflectionMethod($this->subject, 'buildJsonExample');
-        $result = $method->invoke($this->subject, 'pagets__2col', 'text, textmedia', 0);
+        $result = $method->invoke($this->subject, [0 => 'Main Content', 1 => 'Sidebar'], 'text, textmedia');
 
         self::assertStringContainsString('"colPos": 0', $result);
         self::assertStringContainsString('"colPos": 1', $result);
@@ -183,10 +163,8 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     #[Test]
     public function buildJsonExampleReturnsSingleColPosFallback(): void
     {
-        $this->dataProviderCollection->method('getBackendLayout')->willReturn(null);
-
         $method = new ReflectionMethod($this->subject, 'buildJsonExample');
-        $result = $method->invoke($this->subject, '', 'text', 0);
+        $result = $method->invoke($this->subject, [0 => 'Main'], 'text');
 
         self::assertStringContainsString('"colPos": 0', $result);
         self::assertStringNotContainsString('"colPos": 1', $result);
@@ -399,10 +377,8 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     #[Test]
     public function buildJsonExampleIncludesAnimationFieldWhenEnabled(): void
     {
-        $this->dataProviderCollection->method('getBackendLayout')->willReturn(null);
-
         $method = new ReflectionMethod($this->subject, 'buildJsonExample');
-        $result = $method->invoke($this->subject, '', 'text', 0, true);
+        $result = $method->invoke($this->subject, [0 => 'Main'], 'text', true);
 
         self::assertStringContainsString('"animation":', $result);
         self::assertStringContainsString('"type": "fade-up"', $result);
@@ -411,10 +387,8 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     #[Test]
     public function buildJsonExampleOmitsAnimationFieldWhenDisabled(): void
     {
-        $this->dataProviderCollection->method('getBackendLayout')->willReturn(null);
-
         $method = new ReflectionMethod($this->subject, 'buildJsonExample');
-        $result = $method->invoke($this->subject, '', 'text', 0, false);
+        $result = $method->invoke($this->subject, [0 => 'Main'], 'text', false);
 
         self::assertStringNotContainsString('"animation":', $result);
     }
@@ -422,12 +396,8 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     #[Test]
     public function buildJsonExampleIncludesAnimationInMultiColumnLayout(): void
     {
-        $layout = $this->createMock(BackendLayout::class);
-        $layout->method('getUsedColumns')->willReturn([0 => 'Main', 1 => 'Sidebar']);
-        $this->dataProviderCollection->method('getBackendLayout')->willReturn($layout);
-
         $method = new ReflectionMethod($this->subject, 'buildJsonExample');
-        $result = $method->invoke($this->subject, 'pagets__2col', 'text', 0, true);
+        $result = $method->invoke($this->subject, [0 => 'Main', 1 => 'Sidebar'], 'text', true);
 
         self::assertStringContainsString('"animation":', $result);
         self::assertStringContainsString('"colPos": 0', $result);
