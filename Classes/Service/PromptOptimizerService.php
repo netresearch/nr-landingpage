@@ -55,16 +55,21 @@ class PromptOptimizerService implements LoggerAwareInterface
           This is MANDATORY when multiple columns exist — the AI needs to know WHERE to place content.
         - Reference the available content types and encourage variety
         - Give concrete guidance for each page field (SEO titles, descriptions, etc.)
-        - If animation is enabled, mention that GSAP ScrollTrigger animations are added
-          automatically — the AI should NOT write animation code itself
+        - Address animation based on the GENERATION MODE (see mode-specific section below)
         - Be specific and actionable in HOW to write, not WHAT to write about
         - Write the prompt in the OUTPUT LANGUAGE specified below
 
         MODE-SPECIFIC additions (check the generation_mode in the template structure):
         - Creative mode: add CSS technique guidance (Grid, Flexbox, Gradients, SVG, clip-path),
           require :root CSS Custom Properties, emphasize visual variety, note that each section
-          is a standalone HTML/CSS/SVG block
-        - Structured mode: add content type selection guidance — explain when to use which CType
+          is a standalone HTML/CSS/SVG block.
+          If animation is enabled: the AI MUST write GSAP ScrollTrigger animations in
+          <script data-creative> blocks. GSAP, ScrollTrigger, and TextPlugin are globally available.
+          Every section should have at least one animation (fade-in, slide, parallax, stagger, etc.).
+        - Structured mode: add content type selection guidance — explain when to use which CType.
+          If animation is enabled: state that GSAP ScrollTrigger animations are injected
+          AUTOMATICALLY by the system — the AI must NOT write animation code, only provide
+          animation metadata (type, duration, delay) in the JSON response.
 
         CRITICAL — TEMPLATE STRUCTURE IS YOUR PRIMARY SOURCE:
         The TEMPLATE STRUCTURE block below contains the authoritative technical configuration:
