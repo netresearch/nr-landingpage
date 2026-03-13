@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Service;
 
+use Locale;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Service\Feature\CompletionService;
@@ -11,6 +12,7 @@ use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Throwable;
+use TYPO3\CMS\Core\Localization\LanguageService;
 
 /**
  * Generates optimized system prompts for templates using a meta-prompt approach.
@@ -53,7 +55,7 @@ class PromptOptimizerService implements LoggerAwareInterface
         - Reference the available content types and encourage variety
         - Give concrete guidance for each page field (SEO titles, descriptions, etc.)
         - Be specific and actionable in HOW to write, not WHAT to write about
-        - Write the prompt in GERMAN (the content will be generated in German)
+        - Write the prompt in the OUTPUT LANGUAGE specified below
 
         For CREATIVE MODE templates (generation_mode = creative):
         - Include CSS technique guidance (Grid, Flexbox, Gradients, SVG, clip-path)
@@ -72,7 +74,7 @@ class PromptOptimizerService implements LoggerAwareInterface
         so it must be self-contained, topic-agnostic, and produce consistent,
         high-quality results regardless of the subject matter.
 
-        Respond with ONLY the system prompt text in German. No explanations, no markdown formatting.
+        Respond with ONLY the system prompt text in the OUTPUT LANGUAGE. No explanations, no markdown formatting.
         PROMPT;
 
     public function __construct(
@@ -82,12 +84,16 @@ class PromptOptimizerService implements LoggerAwareInterface
         private readonly BackendLayoutService $backendLayoutService,
     ) {}
 
-    public function generateOptimizedPrompt(Template $template): string
+    public function generateOptimizedPrompt(Template $template, string $outputLanguage = ''): string
     {
         try {
             $structuralContext = $this->buildStructuralContext($template);
 
-            $prompt = self::DEFAULT_META_PROMPT . "\n\n--- TEMPLATE STRUCTURE ---\n" . $structuralContext;
+            $languageLabel = $outputLanguage !== '' ? $outputLanguage : $this->resolveBackendLanguage();
+            $prompt = self::DEFAULT_META_PROMPT
+                . "\n\n--- OUTPUT LANGUAGE ---\n"
+                . 'Write the system prompt in: ' . $languageLabel
+                . "\n\n--- TEMPLATE STRUCTURE ---\n" . $structuralContext;
 
             if ($template->promptOptimizerMetaPrompt !== '') {
                 $prompt .= "\n\n--- EDITOR STYLE HINTS ---\n"
@@ -172,6 +178,29 @@ class PromptOptimizerService implements LoggerAwareInterface
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * Resolve a human-readable language name from the backend user's language setting.
+     * Falls back to "English" if the locale cannot be determined.
+     */
+    private function resolveBackendLanguage(): string
+    {
+        $lang = $GLOBALS['LANG'] ?? null;
+        if (!$lang instanceof LanguageService) {
+            return 'English';
+        }
+
+        $locale = $lang->getLocale();
+        $localeString = (string) $locale;
+        if ($localeString === '' || $localeString === 'default') {
+            return 'English';
+        }
+
+        // Use intl extension to get the display name (e.g. "de" → "German", "fr" → "French")
+        $displayName = Locale::getDisplayLanguage($localeString, 'en');
+
+        return $displayName !== '' && $displayName !== $localeString ? $displayName : 'English';
     }
 
     private function completeTextWithTemplate(Template $template, string $prompt): string

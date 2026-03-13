@@ -428,8 +428,12 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 return new JsonResponse(['success' => false, 'error' => 'Prompt optimizer service not available'], 500);
             }
 
+            $parentPageId = $this->extractIntFromBody($body, 'parentPageId');
+            $outputLanguage = $parentPageId > 0 ? $this->resolveOutputLanguage($parentPageId) : '';
+
             $optimizedPrompt = $this->promptOptimizerService->generateOptimizedPrompt(
                 $template->withResolvedColors([]),
+                $outputLanguage,
             );
 
             return new JsonResponse(['success' => true, 'data' => ['prompt' => $optimizedPrompt]]);
