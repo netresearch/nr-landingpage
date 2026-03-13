@@ -150,10 +150,11 @@ class PromptOptimizerService implements LoggerAwareInterface
             $lines[] = 'Backend Layout: ' . $template->backendLayout;
             $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout);
             if (count($columnMap) > 1) {
-                $lines[] = 'Layout Columns:';
+                $lines[] = 'LAYOUT COLUMNS (EXACT — use ONLY these colPos numbers, do NOT invent others):';
                 foreach ($columnMap as $colPos => $name) {
                     $lines[] = '  - colPos ' . $colPos . ': ' . $name;
                 }
+                $lines[] = 'NO other colPos numbers exist. Map EVERY colPos above to a purpose in your prompt.';
             }
         }
 
