@@ -387,6 +387,27 @@ Content & Layout Tab
    -  **Footer** columns receive closing elements (CTA, contact)
    -  **Header/Banner** columns receive hero elements
 
+.. confval:: Content Columns
+
+   :type: select (checkboxes)
+   :default: (all columns)
+
+   Select which layout columns should receive generated content.
+   Only visible when a backend layout is selected. If no columns are
+   checked, **all** columns are used (same behavior as before).
+
+   Use this to exclude columns that should remain empty or be filled
+   manually — such as header, footer, or sidebar areas that have
+   fixed content in your design.
+
+   The available checkboxes are dynamically loaded from the selected
+   backend layout's column definitions.
+
+   **Example:** A layout with columns *Main* (colPos 0), *Sidebar*
+   (colPos 1), and *Footer* (colPos 2) shows three checkboxes.
+   Checking only *Main* and *Sidebar* prevents the AI from generating
+   footer content.
+
 .. _color-scheme-palette:
 
 Color Scheme Palette
