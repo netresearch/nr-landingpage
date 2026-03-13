@@ -583,9 +583,12 @@ final readonly class TemplateService
      */
     public function getAvailableContentColumns(array &$params): void
     {
-        $backendLayout = is_string($params['row']['backend_layout'] ?? null)
-            ? $params['row']['backend_layout']
-            : '';
+        $rawLayout = $params['row']['backend_layout'] ?? '';
+        // TCA form engine may pass the value as single-element array in some contexts
+        if (is_array($rawLayout)) {
+            $rawLayout = (string) ($rawLayout[0] ?? '');
+        }
+        $backendLayout = is_string($rawLayout) ? $rawLayout : '';
 
         if ($backendLayout === '' || $this->backendLayoutService === null) {
             return;
