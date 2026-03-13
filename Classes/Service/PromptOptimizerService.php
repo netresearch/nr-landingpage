@@ -56,6 +56,15 @@ class PromptOptimizerService implements LoggerAwareInterface
         - Reference the available content types and encourage variety
         - Give concrete guidance for each page field (SEO titles, descriptions, etc.)
         - Address animation based on the GENERATION MODE (see mode-specific section below)
+        - Include a CONTENT DEPTH section that specifies how long each section's bodytext should be.
+          This is CRITICAL — without it, the AI writes too little text. The depth depends on the
+          template's purpose:
+          * Blog/article templates: 300-600 words per section (detailed, explanatory, argumentative)
+          * Landing pages: 100-200 words per section (concise, benefit-focused, scannable)
+          * Product pages: 150-300 words per section (feature descriptions, use cases)
+          State clearly that this length applies PER SECTION, not per page. Also state that
+          header elements (ctype=header) may be short, but text/textmedia/textpic sections
+          must have real substance — no placeholder text, no single-sentence sections.
         - Be specific and actionable in HOW to write, not WHAT to write about
         - Write the prompt in the OUTPUT LANGUAGE specified below
 

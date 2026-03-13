@@ -237,9 +237,16 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
             Strukturiere die Seite als konversionsstarke Landing Page:
             - Beginne mit einer aufmerksamkeitsstarken Hero-Section (klare Headline, Subheadline, Nutzenversprechen)
-            - Folge mit konkreten Vorteilen oder Features (Bullet Points oder kurze Absaetze)
+            - Folge mit konkreten Vorteilen oder Features
             - Fuelle die Seite mit Social Proof, Testimonials oder Vertrauenssignalen
             - Schliesse mit einem klaren Call-to-Action
+
+            INHALTLICHE TIEFE:
+            Jede Section soll substanziellen Inhalt haben — nicht nur eine Ueberschrift mit ein bis zwei Saetzen.
+            Die gewuenschte Textlaenge pro Section ergibt sich aus dem System-Prompt des Templates.
+            Wenn dort keine Angabe steht: mindestens 100-200 Woerter pro textlastiger Section
+            (text, textmedia, textpic). Header-Elemente (ctype=header) duerfen kurz sein.
+            Die Laengenangabe bezieht sich auf JEDE EINZELNE Section, nicht auf die Gesamtseite.
 
             Schreibe ueberzeugend, konkret und nutzenorientiert. Vermeide generische Floskeln.
             Jede Section soll einen klaren Zweck im Conversion-Funnel haben.
