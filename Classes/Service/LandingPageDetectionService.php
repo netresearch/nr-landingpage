@@ -6,6 +6,7 @@ namespace Netresearch\NrLandingpage\Service;
 
 use Doctrine\DBAL\ParameterType;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
 
 /**
  * Detects whether a page was created by the Landing Page Wizard.
@@ -27,6 +28,7 @@ readonly class LandingPageDetectionService
         }
 
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('pages');
+        $queryBuilder->getRestrictions()->removeByType(HiddenRestriction::class);
         $templateUid = $queryBuilder
             ->select('tx_nrlandingpage_template_uid')
             ->from('pages')

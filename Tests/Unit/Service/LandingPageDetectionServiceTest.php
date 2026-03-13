@@ -11,6 +11,7 @@ use PHPUnit\Framework\Attributes\Test;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
+use TYPO3\CMS\Core\Database\Query\Restriction\QueryRestrictionContainerInterface;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 
 #[CoversClass(LandingPageDetectionService::class)]
@@ -78,7 +79,11 @@ final class LandingPageDetectionServiceTest extends UnitTestCase
         $expressionBuilder = $this->createMock(ExpressionBuilder::class);
         $expressionBuilder->method('eq')->willReturn('');
 
+        $restrictions = $this->createMock(QueryRestrictionContainerInterface::class);
+        $restrictions->method('removeByType')->willReturnSelf();
+
         $queryBuilder = $this->createMock(QueryBuilder::class);
+        $queryBuilder->method('getRestrictions')->willReturn($restrictions);
         $queryBuilder->method('select')->willReturnSelf();
         $queryBuilder->method('from')->willReturnSelf();
         $queryBuilder->method('where')->willReturnSelf();
