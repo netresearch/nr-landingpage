@@ -569,15 +569,22 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
             {$scriptRule}
 
+            FOTO-PLATZHALTER (WICHTIG):
+            Wenn eine Section von einem Foto profitiert (Hero, Teaser, Portrait, Produkt),
+            setze einen Platzhalter: <img data-image-slot="0" alt="Beschreibung">
+            - KEIN src-Attribut — das System fuegt die URL automatisch ein.
+            - Das alt-Attribut MUSS eine sinnvolle Beschreibung enthalten.
+            - Genau EIN Platzhalter pro Section (nicht mehrere).
+            - Liefere fuer JEDE Section mit Platzhalter imageKeywords und imagePrompt.
+            - Nicht jede Section braucht ein Foto — dekorative Grafiken als Inline-SVG.
+            - ABER: Wenn du ein Foto willst, MUSST du den Platzhalter setzen.
+              Ohne Platzhalter wird kein Bild angezeigt.
+
             TECHNISCHE REGELN:
             1. Verwende CSS-Klassen mit eindeutigem Praefix pro Section (z.B. .hero-*, .feat-*).
-            2. Fuer dekorative Grafiken verwende Inline-SVG.
-               Wenn ein Foto den Inhalt bereichert (Hero, Teaser, Portrait), setze genau
-               EIN <img data-image-slot="0" alt="Beschreibung"> pro Section — kein src-Attribut.
-               Nicht jede Section braucht ein Foto.
-            3. KEIN CSS url() — keine externen Ressourcen.
-            4. Barrierefrei und responsive.
-            5. Nutze CSS Custom Properties (--primary, --secondary) aus dem Farbschema.
+            2. KEIN CSS url() — keine externen Ressourcen.
+            3. Barrierefrei und responsive.
+            4. Nutze CSS Custom Properties (--primary, --secondary) aus dem Farbschema.
 
             TOKEN-BUDGET BEACHTEN:
             - Halte CSS kompakt: Shorthand-Properties, keine redundanten Regeln.
@@ -587,16 +594,16 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
             Antworte ausschliesslich als JSON-Array:
             [
-              {"section": "Name", "colPos": 0, "header": "Titel",
-               "bodytext": "<style>.hero { ... }</style><section class='hero'>...</section>{$this->buildCreativeBodytextExample($template)}",
+              {"section": "Hero", "colPos": 0, "header": "Titel",
+               "bodytext": "<style>.hero { ... }</style><section class='hero'><img data-image-slot=\"0\" alt=\"Hero image\"><h1>...</h1></section>{$this->buildCreativeBodytextExample($template)}",
                "imageKeywords": ["keyword1", "keyword2"],
                "imagePrompt": "Detailed English image description"}
             ]
 
             Das bodytext-Feld enthaelt das komplette HTML inkl. <style>-Block.
-            Wenn du einen <img data-image-slot="0"> Platzhalter setzt, liefere imageKeywords
-            (3-5 englische Suchbegriffe fuer die Mediathek) und imagePrompt (detaillierter
-            englischer Bild-Prompt). Ohne Platzhalter: leeres Array / leerer String.
+            Jede Section mit <img data-image-slot="0"> MUSS imageKeywords (3-5 englische
+            Suchbegriffe fuer die Mediathek) und imagePrompt (detaillierter englischer
+            Bild-Prompt) liefern. Ohne Platzhalter: leeres Array / leerer String.
             Erstelle fuer JEDEN colPos ({$this->formatColPosValues($columnMap)}) genau ein Element.
             PROMPT;
     }

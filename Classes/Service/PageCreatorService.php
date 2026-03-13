@@ -121,18 +121,6 @@ class PageCreatorService implements LoggerAwareInterface
                 $imageField = 'image';
             }
 
-            if ($imageUid > 0 && $imageField !== '') {
-                $newRefId = 'NEW_ref_' . $index;
-                $dataMap['sys_file_reference'][$newRefId] = [
-                    'pid' => $newPageId,
-                    'uid_local' => $imageUid,
-                    'uid_foreign' => $newContentId,
-                    'tablenames' => 'tt_content',
-                    'fieldname' => $imageField,
-                ];
-                $element[$imageField] = $newRefId;
-            }
-
             $dataMap['tt_content'][$newContentId] = $element;
             $contentUidMap[] = $newContentId;
         }
@@ -168,7 +156,10 @@ class PageCreatorService implements LoggerAwareInterface
             }
         }
 
-        // Pass 2: Add GSAP loader + animation script if animation is enabled
+        // Pass 2: Create sys_file_reference records with real UIDs
+        $this->createImageReferences($pageUid, $contentUids, $contentSections);
+
+        // Pass 3: Add GSAP loader + animation script if animation is enabled
         if ($template->isAnimationEnabled()) {
             /** @var array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animationMap */
             $animationMap = [];
@@ -363,6 +354,80 @@ class PageCreatorService implements LoggerAwareInterface
      * - textpic, image: uses 'image'
      * - uploads: uses 'media'
      */
+    /**
+     * Create sys_file_reference records for content elements that have images.
+     *
+     * This runs as a separate DataHandler pass because uid_foreign is a number
+     * field in TCA and DataHandler does NOT substitute NEW_ placeholders in
+     * number fields. We need the real tt_content UIDs from the first pass.
+     *
+     * @param list<int> $contentUids Real tt_content UIDs (same order as $contentSections)
+     * @param list<array<string, mixed>> $contentSections Original content section data
+     */
+    private function createImageReferences(int $pageUid, array $contentUids, array $contentSections): void
+    {
+        $dataMap = [];
+        $refIndex = 0;
+
+        foreach ($contentSections as $index => $section) {
+            $contentUid = $contentUids[$index] ?? 0;
+            if ($contentUid === 0) {
+                continue;
+            }
+
+            $rawImageUid = $section['imageUid'] ?? 0;
+            $imageUid = is_int($rawImageUid) ? $rawImageUid : (is_numeric($rawImageUid) ? (int) $rawImageUid : 0);
+            if ($imageUid === 0) {
+                continue;
+            }
+
+            $ctype = is_string($section['ctype'] ?? null) ? $section['ctype'] : '';
+            if ($ctype === 'html') {
+                continue;
+            }
+
+            $imageField = $this->getImageFieldForCType($ctype);
+            if ($imageField === '') {
+                $imageField = 'image';
+            }
+
+            $newRefId = 'NEW_ref_' . $refIndex++;
+            $dataMap['sys_file_reference'][$newRefId] = [
+                'pid' => $pageUid,
+                'uid_local' => $imageUid,
+                'uid_foreign' => $contentUid,
+                'tablenames' => 'tt_content',
+                'fieldname' => $imageField,
+                'sorting_foreign' => 1,
+            ];
+
+            // Update tt_content to reference the new sys_file_reference
+            $dataMap['tt_content'][$contentUid] = [
+                $imageField => $newRefId,
+            ];
+        }
+
+        if ($dataMap === []) {
+            return;
+        }
+
+        try {
+            $dataHandler = $this->createDataHandler();
+            $dataHandler->start($dataMap, []);
+            $dataHandler->process_datamap();
+
+            if ($dataHandler->errorLog !== []) {
+                $this->logger?->warning('DataHandler errors during image reference creation', [
+                    'errors' => implode(', ', $dataHandler->errorLog),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            $this->logger?->error('Image reference creation failed', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     private function getImageFieldForCType(string $ctype): string
     {
         return match ($ctype) {

@@ -470,19 +470,21 @@ final class PageCreatorServiceTest extends UnitTestCase
     public function imageReferenceCreatedForTextmediaCType(): void
     {
         $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
-        $dh->expects(self::once())->method('start')
-            ->with(self::callback(function (array $dataMap): bool {
-                $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? null;
-                if ($ref === null) {
-                    return false;
+        $callIndex = 0;
+        $dh->expects(self::exactly(2))->method('start')
+            ->willReturnCallback(function (array $dataMap) use (&$callIndex): void {
+                $callIndex++;
+                if ($callIndex === 2) {
+                    $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? null;
+                    self::assertNotNull($ref, 'sys_file_reference must exist in second pass');
+                    self::assertSame(42, $ref['uid_local']);
+                    self::assertSame(10, $ref['uid_foreign']);
+                    self::assertSame(1, $ref['pid']);
+                    self::assertSame('tt_content', $ref['tablenames']);
+                    self::assertSame('assets', $ref['fieldname']);
+                    self::assertSame('NEW_ref_0', $dataMap['tt_content'][10]['assets'] ?? '');
                 }
-                return $ref['uid_local'] === 42
-                    && $ref['uid_foreign'] === 'NEW_content_0'
-                    && $ref['pid'] === 'NEW_page'
-                    && $ref['tablenames'] === 'tt_content'
-                    && $ref['fieldname'] === 'assets'
-                    && ($dataMap['tt_content']['NEW_content_0']['assets'] ?? '') === 'NEW_ref_0';
-            }), []);
+            });
 
         $service = $this->createService($dh);
         $service->createLandingPage($this->createTemplate(), 10, 'T', '/t', [], [
@@ -494,11 +496,16 @@ final class PageCreatorServiceTest extends UnitTestCase
     public function imageReferenceCreatedForImageCType(): void
     {
         $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
-        $dh->expects(self::once())->method('start')
-            ->with(self::callback(function (array $dataMap): bool {
-                $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? null;
-                return $ref !== null && $ref['fieldname'] === 'image';
-            }), []);
+        $callIndex = 0;
+        $dh->expects(self::exactly(2))->method('start')
+            ->willReturnCallback(function (array $dataMap) use (&$callIndex): void {
+                $callIndex++;
+                if ($callIndex === 2) {
+                    $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? null;
+                    self::assertNotNull($ref);
+                    self::assertSame('image', $ref['fieldname']);
+                }
+            });
 
         $service = $this->createService($dh);
         $service->createLandingPage($this->createTemplate(), 10, 'T', '/t', [], [
@@ -510,11 +517,16 @@ final class PageCreatorServiceTest extends UnitTestCase
     public function imageReferenceCreatedForTextpicCType(): void
     {
         $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
-        $dh->expects(self::once())->method('start')
-            ->with(self::callback(function (array $dataMap): bool {
-                $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? null;
-                return $ref !== null && $ref['fieldname'] === 'image';
-            }), []);
+        $callIndex = 0;
+        $dh->expects(self::exactly(2))->method('start')
+            ->willReturnCallback(function (array $dataMap) use (&$callIndex): void {
+                $callIndex++;
+                if ($callIndex === 2) {
+                    $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? null;
+                    self::assertNotNull($ref);
+                    self::assertSame('image', $ref['fieldname']);
+                }
+            });
 
         $service = $this->createService($dh);
         $service->createLandingPage($this->createTemplate(), 10, 'T', '/t', [], [
@@ -526,18 +538,21 @@ final class PageCreatorServiceTest extends UnitTestCase
     public function textCTypeWithImageIsUpgradedToTextpic(): void
     {
         $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
-        $dh->expects(self::once())->method('start')
-            ->with(self::callback(function (array $dataMap): bool {
-                // CType should be upgraded from 'text' to 'textpic'
-                $element = $dataMap['tt_content']['NEW_content_0'] ?? [];
-                if (($element['CType'] ?? '') !== 'textpic') {
-                    return false;
+        $callIndex = 0;
+        $dh->expects(self::exactly(2))->method('start')
+            ->willReturnCallback(function (array $dataMap) use (&$callIndex): void {
+                $callIndex++;
+                if ($callIndex === 1) {
+                    // CType should be upgraded from 'text' to 'textpic'
+                    $element = $dataMap['tt_content']['NEW_content_0'] ?? [];
+                    self::assertSame('textpic', $element['CType'] ?? '');
                 }
-                // Image reference should exist with field 'image' (textpic uses 'image')
-                $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? [];
-                return ($ref['uid_local'] ?? 0) === 42
-                    && ($ref['fieldname'] ?? '') === 'image';
-            }), []);
+                if ($callIndex === 2) {
+                    $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? [];
+                    self::assertSame(42, $ref['uid_local'] ?? 0);
+                    self::assertSame('image', $ref['fieldname'] ?? '');
+                }
+            });
 
         $service = $this->createService($dh);
         $service->createLandingPage($this->createTemplate(), 10, 'T', '/t', [], [
@@ -566,13 +581,17 @@ final class PageCreatorServiceTest extends UnitTestCase
     public function imageReferenceCreatedForUploadsCType(): void
     {
         $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
-        $dh->expects(self::once())->method('start')
-            ->with(self::callback(function (array $dataMap): bool {
-                $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? null;
-                return $ref !== null
-                    && $ref['fieldname'] === 'media'
-                    && ($dataMap['tt_content']['NEW_content_0']['media'] ?? '') === 'NEW_ref_0';
-            }), []);
+        $callIndex = 0;
+        $dh->expects(self::exactly(2))->method('start')
+            ->willReturnCallback(function (array $dataMap) use (&$callIndex): void {
+                $callIndex++;
+                if ($callIndex === 2) {
+                    $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? null;
+                    self::assertNotNull($ref);
+                    self::assertSame('media', $ref['fieldname']);
+                    self::assertSame('NEW_ref_0', $dataMap['tt_content'][10]['media'] ?? '');
+                }
+            });
 
         $service = $this->createService($dh);
         $service->createLandingPage($this->createTemplate(), 10, 'T', '/t', [], [
@@ -584,13 +603,19 @@ final class PageCreatorServiceTest extends UnitTestCase
     public function unknownCTypeWithImageIsUpgradedToTextpic(): void
     {
         $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10]);
-        $dh->expects(self::once())->method('start')
-            ->with(self::callback(function (array $dataMap): bool {
-                $element = $dataMap['tt_content']['NEW_content_0'] ?? [];
-                $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? [];
-                return ($element['CType'] ?? '') === 'textpic'
-                    && ($ref['fieldname'] ?? '') === 'image';
-            }), []);
+        $callIndex = 0;
+        $dh->expects(self::exactly(2))->method('start')
+            ->willReturnCallback(function (array $dataMap) use (&$callIndex): void {
+                $callIndex++;
+                if ($callIndex === 1) {
+                    $element = $dataMap['tt_content']['NEW_content_0'] ?? [];
+                    self::assertSame('textpic', $element['CType'] ?? '');
+                }
+                if ($callIndex === 2) {
+                    $ref = $dataMap['sys_file_reference']['NEW_ref_0'] ?? [];
+                    self::assertSame('image', $ref['fieldname'] ?? '');
+                }
+            });
 
         $service = $this->createService($dh);
         $service->createLandingPage($this->createTemplate(), 10, 'T', '/t', [], [
@@ -617,15 +642,18 @@ final class PageCreatorServiceTest extends UnitTestCase
     public function sysFileReferenceIncludesPidForAllCTypes(): void
     {
         $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10, 'NEW_content_1' => 11]);
-        $dh->expects(self::once())->method('start')
-            ->with(self::callback(function (array $dataMap): bool {
-                foreach ($dataMap['sys_file_reference'] ?? [] as $ref) {
-                    if (!isset($ref['pid']) || $ref['pid'] !== 'NEW_page') {
-                        return false;
+        $callIndex = 0;
+        $dh->expects(self::exactly(2))->method('start')
+            ->willReturnCallback(function (array $dataMap) use (&$callIndex): void {
+                $callIndex++;
+                if ($callIndex === 2) {
+                    $refs = $dataMap['sys_file_reference'] ?? [];
+                    self::assertCount(2, $refs);
+                    foreach ($refs as $ref) {
+                        self::assertSame(1, $ref['pid'], 'pid must be the real page UID');
                     }
                 }
-                return count($dataMap['sys_file_reference'] ?? []) === 2;
-            }), []);
+            });
 
         $service = $this->createService($dh);
         $service->createLandingPage($this->createTemplate(), 10, 'T', '/t', [], [
