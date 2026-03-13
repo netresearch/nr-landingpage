@@ -56,9 +56,10 @@ class BackendLayoutService implements LoggerAwareInterface
         $layout = $this->dataProviderCollection->getBackendLayout($backendLayoutIdentifier, $pageId);
 
         // PageTSconfig-based layouts (pagets__*) need a real page context.
-        // If pageId=0 failed, find any page that uses this layout as context.
+        // If pageId=0 failed, try: 1) a page using this layout, 2) any site root page.
         if (!$layout instanceof BackendLayout && $pageId === 0) {
-            $resolvedPageId = $this->findPageWithLayout($backendLayoutIdentifier);
+            $resolvedPageId = $this->findPageWithLayout($backendLayoutIdentifier)
+                ?: $this->findAnySiteRootPage();
             if ($resolvedPageId > 0) {
                 $layout = $this->dataProviderCollection->getBackendLayout($backendLayoutIdentifier, $resolvedPageId);
             }
@@ -130,6 +131,27 @@ class BackendLayoutService implements LoggerAwareInterface
                     $qb->expr()->eq('backend_layout', $qb->createNamedParameter($identifier)),
                     $qb->expr()->eq('backend_layout_next_level', $qb->createNamedParameter($identifier)),
                 ),
+                $qb->expr()->eq('deleted', 0),
+            )
+            ->setMaxResults(1)
+            ->executeQuery()
+            ->fetchAssociative();
+
+        return is_array($row) ? (int) ($row['uid'] ?? 0) : 0;
+    }
+
+    /**
+     * Find any site root page as fallback context for PageTSconfig resolution.
+     */
+    private function findAnySiteRootPage(): int
+    {
+        $qb = $this->connectionPool->getQueryBuilderForTable('pages');
+        $qb->getRestrictions()->removeAll();
+
+        $row = $qb->select('uid')
+            ->from('pages')
+            ->where(
+                $qb->expr()->eq('is_siteroot', 1),
                 $qb->expr()->eq('deleted', 0),
             )
             ->setMaxResults(1)
