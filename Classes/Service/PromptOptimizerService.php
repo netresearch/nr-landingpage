@@ -50,10 +50,13 @@ class PromptOptimizerService implements LoggerAwareInterface
         - Define tone of voice SPECIFIC to this template (derive from context if available)
         - Suggest a flexible content structure with 5-8 section types the AI can choose
           from based on the topic — do NOT prescribe a fixed order
-        - If the template has multiple layout columns, explain WHAT belongs in EACH column
-          (e.g. sidebar content vs main content, hero area vs footer)
+        - Include a LAYOUT SECTION that maps EVERY colPos from the template structure
+          to its purpose (e.g. "Border (colPos 3): Hero area", "Normal (colPos 0): Main content").
+          This is MANDATORY when multiple columns exist — the AI needs to know WHERE to place content.
         - Reference the available content types and encourage variety
         - Give concrete guidance for each page field (SEO titles, descriptions, etc.)
+        - If animation is enabled, mention that GSAP ScrollTrigger animations are added
+          automatically — the AI should NOT write animation code itself
         - Be specific and actionable in HOW to write, not WHAT to write about
         - Write the prompt in the OUTPUT LANGUAGE specified below
 
@@ -62,10 +65,12 @@ class PromptOptimizerService implements LoggerAwareInterface
         - Require :root CSS Custom Properties for the color scheme
         - Emphasize visual variety between sections
         - Mention that each section is a standalone HTML/CSS/SVG block
+        - Include the layout column mapping (which colPos gets which type of content)
 
         For STRUCTURED MODE templates (generation_mode = structured):
         - Focus on content type selection guidance
         - Explain when to use which CType for best results
+        - Include the layout column mapping (which colPos gets which type of content)
 
         Do NOT repeat general rules about quality, specificity, marketing style, or SEO basics
         — these are already covered by the base configuration.
