@@ -952,16 +952,14 @@ class LandingPageWizard {
                     : this.label('wizard.content.imageSearchPlaceholder');
                 imageSection.appendChild(imageLabel);
 
-                if (hasKeywords) {
-                    // Show image generation error if present
-                    const imageError = (WizardState.imageErrors || [])[index];
-                    if (imageError) {
-                        const errorAlert = document.createElement('div');
-                        errorAlert.className = 'alert alert-warning alert-sm py-1 px-2 mb-2';
-                        errorAlert.style.fontSize = '0.85em';
-                        errorAlert.textContent = this.label('wizard.content.imageGenerationError') + ' ' + imageError;
-                        imageSection.appendChild(errorAlert);
-                    }
+                // Show image generation error if present
+                const imageError = (WizardState.imageErrors || [])[index];
+                if (imageError) {
+                    const errorAlert = document.createElement('div');
+                    errorAlert.className = 'alert alert-warning alert-sm py-1 px-2 mb-2';
+                    errorAlert.style.fontSize = '0.85em';
+                    errorAlert.textContent = this.label('wizard.content.imageGenerationError') + ' ' + imageError;
+                    imageSection.appendChild(errorAlert);
                 }
 
                 const imageList = document.createElement('div');
@@ -969,13 +967,13 @@ class LandingPageWizard {
                 imageList.setAttribute('role', 'group');
                 imageList.setAttribute('aria-label', this.label('wizard.content.imageSuggestions'));
 
-                if (hasKeywords) {
+                {
                     const images = WizardState.getImages();
                     const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
                     this.renderImageCards(imageList, sectionImages, index);
 
-                    // Show info when automatic search found no images
-                    if (sectionImages.length === 0) {
+                    // Show info when automatic search found no images but keywords were present
+                    if (sectionImages.length === 0 && hasKeywords) {
                         const emptyInfo = document.createElement('div');
                         emptyInfo.className = 'alert alert-info py-2 px-3 mb-2';
                         emptyInfo.style.fontSize = '0.85em';
