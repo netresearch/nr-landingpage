@@ -644,6 +644,17 @@ final class ContentGeneratorService implements LoggerAwareInterface
             - ABER: Wenn du ein Foto willst, MUSST du den Platzhalter setzen.
               Ohne Platzhalter wird kein Bild angezeigt.
 
+            INHALTLICHE TIEFE (KRITISCH):
+            Design ist wichtig, aber OHNE substanziellen Text ist die Seite wertlos.
+            Jede Haupt-Section MUSS echten, ausfuehrlichen Inhalt haben:
+            - Mehrere Absaetze (<p>) mit konkreten Informationen, Argumenten, Beispielen
+            - NICHT nur eine Ueberschrift mit einem Satz darunter
+            - Listen (<ul>/<ol>) ergaenzen den Fliesstext, ersetzen ihn nicht
+            - Die gewuenschte Textlaenge ergibt sich aus dem System-Prompt des Templates.
+              Wenn dort keine Angabe steht: mindestens 80-150 Woerter Text pro Haupt-Section.
+            - Sidebar/Footer-Sections duerfen kompakter sein (30-60 Woerter)
+            Der Text muss ZUERST stimmen — das CSS drum herum ist zweitrangig.
+
             TECHNISCHE REGELN:
             1. Verwende CSS-Klassen mit eindeutigem Praefix pro Section (z.B. .hero-*, .feat-*).
             2. KEIN CSS url() — keine externen Ressourcen.
