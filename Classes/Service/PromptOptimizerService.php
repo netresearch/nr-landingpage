@@ -12,47 +12,74 @@ use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Throwable;
 
+/**
+ * Generates optimized system prompts for templates using a meta-prompt approach.
+ *
+ * The optimizer sends the template's structural context (layout, CTypes, colors,
+ * generation mode) plus optional editor hints to an LLM, which produces
+ * a reusable system prompt tailored to the template configuration.
+ */
+
 class PromptOptimizerService implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
     private const DEFAULT_META_PROMPT = <<<'PROMPT'
-        You are an expert prompt engineer specializing in conversion-optimized landing pages.
-        Your task is to generate a reusable system prompt for an AI that creates landing page
-        content within a TYPO3 CMS.
+        You are an expert prompt engineer. Your task is to generate a reusable system prompt
+        for an AI that creates web page content within a TYPO3 CMS.
 
         CRITICAL: The system prompt you write must be TOPIC-NEUTRAL. It will be used as a
         template for many different topics — the actual topic comes later from the editor.
         Do NOT invent, assume, or embed any specific topic, industry, city, product, or theme.
         Use placeholders like "the given topic" or "the editor's briefing" where needed.
 
+        IMPORTANT: There is already a BASE SYSTEM PROMPT in the LLM configuration that covers
+        general quality rules, style guidelines, SEO basics, and language preferences.
+        Do NOT repeat these — they are always active. Focus the template prompt on what is
+        SPECIFIC to this template: its purpose, target audience, layout structure, content types,
+        and generation mode.
+
         Based on the template structure below, write a system prompt that produces
-        high-converting, well-structured landing page content for ANY topic.
+        well-structured, high-quality content for ANY topic.
 
         The system prompt you write MUST:
         - Be topic-neutral — work equally well for technology, travel, food, B2B, events, etc.
-        - Define tone of voice and language style (derive from template context if available)
+        - Define the template's specific PURPOSE (landing page, blog post, product page, etc.)
+        - Define tone of voice SPECIFIC to this template (derive from context if available)
         - Suggest a flexible content structure with 5-8 section types the AI can choose
-          from based on the topic (e.g. Hero, Problem/Pain, Solution, Features, Social Proof,
-          Workflow, Comparison, FAQ, Pricing, Team, CTA) — do NOT prescribe a fixed order
-        - Reference the available content types and explain when to use each
+          from based on the topic — do NOT prescribe a fixed order
+        - If the template has multiple layout columns, explain WHAT belongs in EACH column
+          (e.g. sidebar content vs main content, hero area vs footer)
+        - Reference the available content types and encourage variety
         - Give concrete guidance for each page field (SEO titles, descriptions, etc.)
-        - Emphasize benefit-driven copy over feature lists
-        - Include instructions for writing compelling headlines and subheadlines
-        - Consider the backend layout structure when suggesting content sections
         - Be specific and actionable in HOW to write, not WHAT to write about
+        - Write the prompt in GERMAN (the content will be generated in German)
+
+        For CREATIVE MODE templates (generation_mode = creative):
+        - Include CSS technique guidance (Grid, Flexbox, Gradients, SVG, clip-path)
+        - Require :root CSS Custom Properties for the color scheme
+        - Emphasize visual variety between sections
+        - Mention that each section is a standalone HTML/CSS/SVG block
+
+        For STRUCTURED MODE templates (generation_mode = structured):
+        - Focus on content type selection guidance
+        - Explain when to use which CType for best results
+
+        Do NOT repeat general rules about quality, specificity, marketing style, or SEO basics
+        — these are already covered by the base configuration.
 
         The system prompt will be reused across many different topics and editors,
         so it must be self-contained, topic-agnostic, and produce consistent,
         high-quality results regardless of the subject matter.
 
-        Respond with ONLY the system prompt text. No explanations, no markdown formatting.
+        Respond with ONLY the system prompt text in German. No explanations, no markdown formatting.
         PROMPT;
 
     public function __construct(
         private readonly CompletionService $completionService,
         private readonly LlmServiceManagerInterface $llmServiceManager,
         private readonly LlmConfigurationRepository $configurationRepository,
+        private readonly BackendLayoutService $backendLayoutService,
     ) {}
 
     public function generateOptimizedPrompt(Template $template): string
@@ -92,6 +119,10 @@ class PromptOptimizerService implements LoggerAwareInterface
     {
         $lines = [];
         $lines[] = 'Template: ' . $template->title;
+        $lines[] = 'Generation Mode: ' . $template->generationMode
+            . ($template->isCreativeMode()
+                ? ' (each section is a standalone HTML/CSS/SVG block, CType "html")'
+                : ' (standard TYPO3 content elements)');
 
         if ($template->allowedCTypes !== []) {
             $lines[] = 'Allowed Content Types: ' . implode(', ', $template->allowedCTypes);
@@ -103,9 +134,17 @@ class PromptOptimizerService implements LoggerAwareInterface
 
         if ($template->backendLayout !== '') {
             $lines[] = 'Backend Layout: ' . $template->backendLayout;
+            $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout);
+            if (count($columnMap) > 1) {
+                $lines[] = 'Layout Columns:';
+                foreach ($columnMap as $colPos => $name) {
+                    $lines[] = '  - colPos ' . $colPos . ': ' . $name;
+                }
+            }
         }
 
         $lines[] = 'Briefing Mode: ' . $template->briefingMode;
+        $lines[] = 'Animation: ' . ($template->isAnimationEnabled() ? 'enabled (GSAP ScrollTrigger)' : 'disabled');
         $lines[] = 'Color Scheme: Primary=' . $template->colorPrimary
             . ', Secondary=' . $template->colorSecondary
             . ', Background=' . $template->colorBackground
@@ -115,9 +154,20 @@ class PromptOptimizerService implements LoggerAwareInterface
             $lines[] = 'Reference Pages: ' . implode(', ', $template->referencePages);
         }
 
+        // Include base LLM config system prompt summary so the optimizer knows what's already covered
+        if ($template->llmConfiguration > 0) {
+            $llmConfig = $this->configurationRepository->findByUid($template->llmConfiguration);
+            $basePrompt = $llmConfig?->getSystemPrompt() ?? '';
+            if ($basePrompt !== '') {
+                $lines[] = '';
+                $lines[] = 'Base LLM Configuration System Prompt (already active, do NOT repeat):';
+                $lines[] = $basePrompt;
+            }
+        }
+
         if ($template->systemPrompt !== '') {
             $lines[] = '';
-            $lines[] = 'Current System Prompt (for reference):';
+            $lines[] = 'Current System Prompt (for reference/improvement):';
             $lines[] = $template->systemPrompt;
         }
 
