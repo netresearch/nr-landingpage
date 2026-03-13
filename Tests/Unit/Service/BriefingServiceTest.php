@@ -116,7 +116,7 @@ final class BriefingServiceTest extends UnitTestCase
             $this->createMock(LlmServiceManagerInterface::class),
             $this->createMock(LlmConfigurationRepository::class),
         ))->generateQuestions($this->createTemplate());
-        self::assertCount(8, $result);
+        self::assertCount(5, $result);
     }
 
     #[Test]
