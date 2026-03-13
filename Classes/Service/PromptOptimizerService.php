@@ -59,9 +59,13 @@ class PromptOptimizerService implements LoggerAwareInterface
         - Include a CONTENT DEPTH section that specifies how long each section's bodytext should be.
           This is CRITICAL — without it, the AI writes too little text. The depth depends on the
           template's purpose:
-          * Blog/article templates: 300-600 words per section (detailed, explanatory, argumentative)
+          * Blog/article/editorial templates: 500-800 words per section. These are long-form content
+            pieces — each section should read like a chapter of an article with proper argumentation,
+            examples, context, and transitions. Multiple paragraphs, subheadings within a section,
+            and detailed explanations are expected. A blog post section with only 2-3 sentences is
+            ALWAYS too short.
           * Landing pages: 100-200 words per section (concise, benefit-focused, scannable)
-          * Product pages: 150-300 words per section (feature descriptions, use cases)
+          * Product pages: 200-400 words per section (feature descriptions, use cases, comparisons)
           State clearly that this length applies PER SECTION, not per page. Also state that
           header elements (ctype=header) may be short, but text/textmedia/textpic sections
           must have real substance — no placeholder text, no single-sentence sections.
