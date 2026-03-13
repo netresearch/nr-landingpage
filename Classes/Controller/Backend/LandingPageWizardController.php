@@ -473,10 +473,16 @@ final class LandingPageWizardController implements LoggerAwareInterface
             $images = $this->imageProviderService->resolveImagesForSections($template, $contentSections);
             $imageErrors = $this->imageProviderService->getImageErrors();
 
+            $pageFields = [];
+            if ($template->pageFields !== []) {
+                $pageFields = $this->contentGeneratorService->generatePageFields($template, $briefingAnswers);
+            }
+
             return new JsonResponse(['success' => true, 'data' => [
                 'sections' => $contentSections,
                 'images' => $images,
                 'imageErrors' => $imageErrors,
+                'pageFields' => $pageFields,
                 'aiGenerationAvailable' => $this->imageProviderService->isAiGenerationAvailable(),
                 'generationMode' => $template->generationMode,
             ]]);

@@ -132,13 +132,32 @@ class TestGenerate {
 
     html += '<p class="text-body-secondary small">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.sampleTopic', 'Sample topic: ')) + '<strong>' + this.escapeHtml(sampleTitle) + '</strong></p>';
 
+    // Page fields (SEO, OG, etc.)
+    const pageFields = data.pageFields || {};
+    const pageFieldKeys = Object.keys(pageFields);
+    if (pageFieldKeys.length > 0) {
+      html += '<div class="card mb-3 border-info">';
+      html += '<div class="card-header bg-info bg-opacity-10"><strong>' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.pageFields', 'Page Fields')) + '</strong></div>';
+      html += '<div class="card-body"><table class="table table-sm table-borderless mb-0">';
+      pageFieldKeys.forEach(key => {
+        html += '<tr><td class="text-body-secondary fw-bold" style="width:140px;">' + this.escapeHtml(key) + '</td>'
+          + '<td>' + this.escapeHtml(pageFields[key]) + '</td></tr>';
+      });
+      html += '</table></div></div>';
+    }
+
     sections.forEach((section, index) => {
       const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
 
       html += '<div class="card mb-3">';
       html += '<div class="card-header d-flex justify-content-between align-items-center">';
       html += '<strong>' + this.escapeHtml(section.section || this.lang('fieldControl.testGenerate.preview.section', 'Section')) + '</strong>';
+      html += '<div>';
+      if (section.colPos !== undefined) {
+        html += '<span class="badge bg-info me-1">colPos ' + this.escapeHtml(String(section.colPos)) + '</span>';
+      }
       html += '<span class="badge bg-secondary">' + this.escapeHtml(section.ctype || this.lang('fieldControl.testGenerate.preview.text', 'text')) + '</span>';
+      html += '</div>';
       html += '</div>';
       html += '<div class="card-body">';
 
