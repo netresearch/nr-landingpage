@@ -66,6 +66,14 @@ class PromptOptimizerService implements LoggerAwareInterface
           is a standalone HTML/CSS/SVG block
         - Structured mode: add content type selection guidance — explain when to use which CType
 
+        CRITICAL — NO INFORMATION LOSS:
+        If a "Current System Prompt" is provided in the template structure, treat it as the
+        BASELINE. Your output must contain ALL guidance from the current prompt — every layout
+        mapping, every colPos, every CType hint, every design rule. You may restructure,
+        improve wording, and add missing pieces, but you must NOT drop any existing guidance.
+        If the current prompt mentions specific colPos numbers, layout areas, animation behavior,
+        or content type rules, these MUST appear in your output.
+
         Do NOT repeat general rules about quality, specificity, marketing style, or SEO basics
         — these are already covered by the base configuration.
 
@@ -172,7 +180,7 @@ class PromptOptimizerService implements LoggerAwareInterface
 
         if ($template->systemPrompt !== '') {
             $lines[] = '';
-            $lines[] = 'Current System Prompt (for reference/improvement):';
+            $lines[] = 'Current System Prompt (BASELINE — improve but do NOT lose any guidance):';
             $lines[] = $template->systemPrompt;
         }
 

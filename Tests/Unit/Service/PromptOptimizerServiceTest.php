@@ -178,7 +178,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
 
         $context = $service->buildStructuralContext($template);
 
-        self::assertStringContainsString('Current System Prompt (for reference/improvement):', $context);
+        self::assertStringContainsString('Current System Prompt (BASELINE', $context);
         self::assertStringContainsString('Write formal content', $context);
     }
 
