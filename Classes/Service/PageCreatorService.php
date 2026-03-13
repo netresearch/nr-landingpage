@@ -402,8 +402,17 @@ class PageCreatorService implements LoggerAwareInterface
             ];
 
             // Update tt_content to reference the new sys_file_reference
+            // and set image layout properties from LLM response
+            $rawOrient = $section['imageorient'] ?? 0;
+            $imageorient = is_int($rawOrient) ? $rawOrient : (is_numeric($rawOrient) ? (int) $rawOrient : 0);
+
             $dataMap['tt_content'][$contentUid] = [
                 $imageField => $newRefId,
+                'imageorient' => $imageorient,
+                'imagecols' => 1,
+                // Consistent image width per orientation type:
+                // in-text float (17/18) gets fixed width, others use full column width
+                'imagewidth' => in_array($imageorient, [17, 18], true) ? 400 : 0,
             ];
         }
 

@@ -364,6 +364,9 @@ final class LandingPageWizardController implements LoggerAwareInterface
                     );
                 }
 
+                $rawImageorient = $section['imageorient'] ?? 0;
+                $imageorient = is_numeric($rawImageorient) ? (int) $rawImageorient : 0;
+
                 $typedSections[] = [
                     'section' => is_string($section['section'] ?? null) ? $section['section'] : '',
                     'ctype' => $ctype,
@@ -371,6 +374,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
                     'subheader' => is_string($section['subheader'] ?? null) ? $section['subheader'] : '',
                     'bodytext' => $bodytext,
                     'imageUid' => $imageUid,
+                    'imageorient' => $imageorient,
                     'colPos' => $colPos,
                 ];
             }

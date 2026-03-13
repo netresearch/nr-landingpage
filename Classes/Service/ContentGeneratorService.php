@@ -22,6 +22,8 @@ final class ContentGeneratorService implements LoggerAwareInterface
     use LoggerAwareTrait;
     use LlmCompletionTrait;
 
+    private const VALID_IMAGEORIENT = [0, 1, 2, 8, 9, 10, 17, 18, 25, 26];
+
     private ?Sanitizer $sanitizer = null;
 
     private function sanitizeHtml(string $html): string
@@ -244,6 +246,15 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Bilder werden separat aus der CMS-Mediathek zugeordnet.
             Der bodytext soll ausschliesslich Text-HTML enthalten (p, ul, ol, h2-h4, strong, em, a).
 
+            BILD-LAYOUT pro Section (imageorient):
+            Waehle pro Section eine passende Bildposition fuer Abwechslung:
+            - 0: Bild oben zentriert (gut fuer Hero, breite Bilder)
+            - 17: Bild rechts im Text (Textumfluss)
+            - 18: Bild links im Text (Textumfluss)
+            - 25: Bild rechts neben Text (50/50 Layout)
+            - 26: Bild links neben Text (50/50 Layout)
+            Variiere die Position zwischen Sections — nicht jedes Bild oben!
+
             Fuer jede Section: Schlage 3-5 Suchbegriffe vor (imageKeywords), mit denen
             passende Bilder in einer Mediathek gefunden werden koennen.
             Verwende konkrete, beschreibende Einzelwoerter oder kurze Phrasen auf Englisch
@@ -348,7 +359,8 @@ final class ContentGeneratorService implements LoggerAwareInterface
               {"section": "string", "ctype": "one of [{$cTypes}]", "colPos": 0,
                "header": "string", "subheader": "string", "bodytext": "HTML string",
                "imageKeywords": ["keyword1", "keyword2", "keyword3"],
-               "imagePrompt": "A detailed description of an image suitable for this section"{$animationField}}
+               "imagePrompt": "A detailed description of an image suitable for this section",
+               "imageorient": 0{$animationField}}
             ]
             JSON;
         }
@@ -357,7 +369,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         foreach ($columnMap as $colPos => $name) {
             $examples[] = '  {"section": "Inhalt fuer ' . $name . '", "ctype": "one of [' . $cTypes . ']", "colPos": ' . $colPos . ',' . "\n"
                 . '   "header": "string", "subheader": "string", "bodytext": "HTML string",' . "\n"
-                . '   "imageKeywords": ["keyword1", "keyword2"], "imagePrompt": "..."' . $animationField . '}';
+                . '   "imageKeywords": ["keyword1", "keyword2"], "imagePrompt": "...", "imageorient": 25' . $animationField . '}';
         }
 
         return "[\n" . implode(",\n", $examples) . "\n]";
@@ -372,6 +384,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
     {
         return implode(', ', array_keys($columnMap));
     }
+
 
     /**
      * @param array<string, string> $briefingAnswers
@@ -470,6 +483,12 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 $colPos = $validColPositions[0];
             }
 
+            $rawImageorient = $item['imageorient'] ?? 0;
+            $imageorient = is_int($rawImageorient) ? $rawImageorient : (is_numeric($rawImageorient) ? (int) $rawImageorient : 0);
+            if (!in_array($imageorient, self::VALID_IMAGEORIENT, true)) {
+                $imageorient = 0;
+            }
+
             $validated[] = [
                 'section' => $item['section'],
                 'ctype' => $ctype,
@@ -479,6 +498,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 'bodytext' => $this->sanitizeHtml($bodytext),
                 'imageKeywords' => $imageKeywords,
                 'imagePrompt' => is_string($item['imagePrompt'] ?? null) ? $item['imagePrompt'] : '',
+                'imageorient' => $imageorient,
                 'animation' => $this->validateAnimation($item['animation'] ?? null),
             ];
         }
