@@ -66,13 +66,14 @@ class PromptOptimizerService implements LoggerAwareInterface
           is a standalone HTML/CSS/SVG block
         - Structured mode: add content type selection guidance — explain when to use which CType
 
-        CRITICAL — NO INFORMATION LOSS:
-        If a "Current System Prompt" is provided in the template structure, treat it as the
-        BASELINE. Your output must contain ALL guidance from the current prompt — every layout
-        mapping, every colPos, every CType hint, every design rule. You may restructure,
-        improve wording, and add missing pieces, but you must NOT drop any existing guidance.
-        If the current prompt mentions specific colPos numbers, layout areas, animation behavior,
-        or content type rules, these MUST appear in your output.
+        CRITICAL — TEMPLATE STRUCTURE IS YOUR PRIMARY SOURCE:
+        The TEMPLATE STRUCTURE block below contains the authoritative technical configuration:
+        layout columns (colPos numbers and names), generation mode, allowed content types,
+        page fields, animation settings, and color scheme. You MUST incorporate ALL of this
+        into the system prompt you write. Every colPos must be mapped to a purpose. Every
+        page field must have guidance. Animation and color scheme must be addressed.
+        The current system prompt (if provided) is a BASELINE to improve upon — retain its
+        guidance and intent, but enrich it with any structural information it is missing.
 
         Do NOT repeat general rules about quality, specificity, marketing style, or SEO basics
         — these are already covered by the base configuration.
