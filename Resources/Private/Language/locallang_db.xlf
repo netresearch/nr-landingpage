@@ -99,6 +99,12 @@
             <trans-unit id="tx_nrlandingpage_domain_model_template.backend_layout.none" resname="tx_nrlandingpage_domain_model_template.backend_layout.none">
                 <source>-- Inherit from parent page --</source>
             </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.content_columns" resname="tx_nrlandingpage_domain_model_template.content_columns">
+                <source>Content Columns</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.content_columns.description" resname="tx_nrlandingpage_domain_model_template.content_columns.description">
+                <source>Select which layout columns should be filled with generated content. Leave empty to use all columns.</source>
+            </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task" resname="tx_nrlandingpage_domain_model_template.image_task">
                 <source>Image Source</source>
             </trans-unit>

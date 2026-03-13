@@ -203,6 +203,7 @@ final class TemplateServiceTest extends FunctionalTestCase
             'prompt_optimizer_context' => 'Brand: Test',
             'prompt_optimizer_meta_prompt' => 'Custom meta',
             'image_task' => 42,
+            'content_columns' => '0,1',
         ]);
 
         $this->setUpBackendUser(1);
@@ -244,5 +245,21 @@ final class TemplateServiceTest extends FunctionalTestCase
         self::assertNotNull($template);
         self::assertSame(0, $template->imageTask);
         self::assertFalse($template->hasImageTask());
+    }
+
+    #[Test]
+    public function loadByUidParsesContentColumnsCorrectly(): void
+    {
+        $template = $this->subject->loadByUid(1);
+        self::assertNotNull($template);
+        self::assertSame([0, 1], $template->contentColumns);
+    }
+
+    #[Test]
+    public function loadByUidDefaultsEmptyContentColumns(): void
+    {
+        $template = $this->subject->loadByUid(2);
+        self::assertNotNull($template);
+        self::assertSame([], $template->contentColumns);
     }
 }
