@@ -11,6 +11,7 @@ final readonly class Template
      * @param list<string> $pageFields
      * @param list<int> $referencePages
      * @param list<int> $beGroups
+     * @param list<int> $contentColumns
      */
     public function __construct(
         public int $uid,
@@ -35,6 +36,7 @@ final readonly class Template
         public string $colorBackground = '',
         public string $colorText = '',
         public bool $animationEnabled = true,
+        public array $contentColumns = [],
     ) {}
 
     /**
@@ -67,6 +69,7 @@ final readonly class Template
             colorBackground: $this->colorBackground !== '' ? $this->colorBackground : ($defaults['colorBackground'] ?? '#ffffff'),
             colorText: $this->colorText !== '' ? $this->colorText : ($defaults['colorText'] ?? '#333333'),
             animationEnabled: $this->animationEnabled,
+            contentColumns: $this->contentColumns,
         );
     }
 
@@ -119,6 +122,8 @@ final readonly class Template
         sort($fields);
         $refs = $this->referencePages;
         sort($refs);
+        $cols = $this->contentColumns;
+        sort($cols);
 
         $data = implode('|', [
             $this->systemPrompt,
@@ -131,6 +136,7 @@ final readonly class Template
             (string) $this->imageTask,
             $this->generationMode,
             $this->animationEnabled ? '1' : '0',
+            implode(',', $cols),
         ]);
 
         return hash('sha256', $data);

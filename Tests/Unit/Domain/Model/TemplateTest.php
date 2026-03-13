@@ -266,4 +266,26 @@ final class TemplateTest extends UnitTestCase
         $template = new Template(uid: 1, title: 'T', identifier: 't');
         self::assertTrue($template->isAnimationEnabled());
     }
+
+    #[Test]
+    public function contentColumnsDefaultsToEmptyArray(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't');
+        self::assertSame([], $template->contentColumns);
+    }
+
+    #[Test]
+    public function contentColumnsAcceptsValues(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', contentColumns: [0, 2]);
+        self::assertSame([0, 2], $template->contentColumns);
+    }
+
+    #[Test]
+    public function configHashChangesWhenContentColumnsChange(): void
+    {
+        $a = new Template(uid: 1, title: 'T', identifier: 't', contentColumns: [0]);
+        $b = new Template(uid: 1, title: 'T', identifier: 't', contentColumns: [0, 1]);
+        self::assertNotSame($a->getConfigHash(), $b->getConfigHash());
+    }
 }
