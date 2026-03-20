@@ -430,7 +430,7 @@ class PageCreatorService implements LoggerAwareInterface
                     'errors' => implode(', ', array_map(static fn(mixed $v): string => is_string($v) ? $v : var_export($v, true), $dataHandler->errorLog)),
                 ]);
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger?->error('Image reference creation failed', [
                 'error' => $e->getMessage(),
             ]);
