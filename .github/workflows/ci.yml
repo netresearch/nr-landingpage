@@ -34,7 +34,10 @@ jobs:
       - name: PHP-CS-Fixer
         run: composer ci:cgl
 
-      - name: PHPUnit
+      - name: Unit tests
         run: composer ci:tests
+
+      - name: Functional tests
+        run: composer ci:tests:functional
         env:
           typo3DatabaseDriver: pdo_sqlite

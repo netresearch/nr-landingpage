@@ -2,16 +2,15 @@
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          backupGlobals="true"
-         bootstrap=".Build/vendor/autoload.php"
+         bootstrap=".Build/vendor/typo3/testing-framework/Resources/Core/Build/FunctionalTestsBootstrap.php"
          cacheResult="false"
          colors="true"
          failOnRisky="true"
          failOnWarning="true">
     <testsuites>
-        <testsuite name="unit">
-            <directory>Tests/Unit</directory>
+        <testsuite name="functional">
+            <directory>Tests/Functional</directory>
         </testsuite>
-        <!-- Architecture tests (PHPat) run via PHPStan, not PHPUnit -->
     </testsuites>
     <source>
         <include>
