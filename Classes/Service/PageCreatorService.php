@@ -134,7 +134,7 @@ class PageCreatorService implements LoggerAwareInterface
         $dataHandler->process_datamap();
 
         if ($dataHandler->errorLog !== []) {
-            $errors = implode(', ', $dataHandler->errorLog);
+            $errors = implode(', ', array_map('strval', $dataHandler->errorLog));
             $this->logger?->error('DataHandler errors during page creation', ['errors' => $errors]);
             throw new RuntimeException('Page creation failed: ' . $errors);
         }
@@ -427,7 +427,7 @@ class PageCreatorService implements LoggerAwareInterface
 
             if ($dataHandler->errorLog !== []) {
                 $this->logger?->warning('DataHandler errors during image reference creation', [
-                    'errors' => implode(', ', $dataHandler->errorLog),
+                    'errors' => implode(', ', array_map('strval', $dataHandler->errorLog)),
                 ]);
             }
         } catch (\Throwable $e) {
@@ -505,7 +505,7 @@ class PageCreatorService implements LoggerAwareInterface
 
             if ($dataHandler->errorLog !== []) {
                 $this->logger?->warning('GSAP elements creation failed', [
-                    'errors' => implode(', ', $dataHandler->errorLog),
+                    'errors' => implode(', ', array_map('strval', $dataHandler->errorLog)),
                 ]);
             }
         } catch (Throwable $e) {

@@ -233,7 +233,7 @@ class PromptOptimizerService implements LoggerAwareInterface
         // Use intl extension to get the display name (e.g. "de" → "German", "fr" → "French")
         $displayName = Locale::getDisplayLanguage($localeString, 'en');
 
-        return $displayName !== '' && $displayName !== $localeString ? $displayName : 'English';
+        return is_string($displayName) && $displayName !== '' && $displayName !== $localeString ? $displayName : 'English';
     }
 
     private function completeTextWithTemplate(Template $template, string $prompt): string
