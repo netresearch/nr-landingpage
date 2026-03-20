@@ -137,7 +137,12 @@ class BackendLayoutService implements LoggerAwareInterface
             ->executeQuery()
             ->fetchAssociative();
 
-        return is_array($row) && isset($row['uid']) ? (int) $row['uid'] : 0;
+        if (is_array($row) && isset($row['uid'])) {
+            \assert(is_int($row['uid']) || is_string($row['uid']));
+            return (int) $row['uid'];
+        }
+
+        return 0;
     }
 
     /**
@@ -158,7 +163,12 @@ class BackendLayoutService implements LoggerAwareInterface
             ->executeQuery()
             ->fetchAssociative();
 
-        return is_array($row) && isset($row['uid']) ? (int) $row['uid'] : 0;
+        if (is_array($row) && isset($row['uid'])) {
+            \assert(is_int($row['uid']) || is_string($row['uid']));
+            return (int) $row['uid'];
+        }
+
+        return 0;
     }
 
     private function resolveLabel(string $label, LanguageService $languageService): string
