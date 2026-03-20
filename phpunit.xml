@@ -14,9 +14,8 @@
         <testsuite name="functional">
             <directory>Tests/Functional</directory>
         </testsuite>
-        <testsuite name="architecture">
-            <directory>Tests/Architecture</directory>
-        </testsuite>
+        <!-- Architecture tests (PHPat) run via PHPStan, not PHPUnit -->
+
     </testsuites>
     <source>
         <include>

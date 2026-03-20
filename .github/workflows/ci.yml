@@ -36,3 +36,5 @@ jobs:
 
       - name: PHPUnit
         run: composer ci:tests
+        env:
+          typo3DatabaseDriver: pdo_sqlite
