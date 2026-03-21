@@ -6,7 +6,6 @@ namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Throwable;
-use Netresearch\NrLandingpage\Service\BackendLayoutService;
 use TYPO3\CMS\Backend\View\BackendLayoutView;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\Connection;
@@ -583,10 +582,12 @@ final readonly class TemplateService
      */
     public function getAvailableContentColumns(array &$params): void
     {
-        $rawLayout = $params['row']['backend_layout'] ?? '';
+        $row = $params['row'] ?? [];
+        $rawLayout = is_array($row) ? ($row['backend_layout'] ?? '') : '';
         // TCA form engine may pass the value as single-element array in some contexts
         if (is_array($rawLayout)) {
-            $rawLayout = (string) ($rawLayout[0] ?? '');
+            $firstElement = $rawLayout[0] ?? '';
+            $rawLayout = is_string($firstElement) || is_int($firstElement) ? (string) $firstElement : '';
         }
         $backendLayout = is_string($rawLayout) ? $rawLayout : '';
 
@@ -596,12 +597,15 @@ final readonly class TemplateService
 
         $columnMap = $this->backendLayoutService->getColumnMap($backendLayout);
 
+        /** @var list<array{label?: string, value?: string|int, group?: string}> $items */
+        $items = is_array($params['items'] ?? null) ? $params['items'] : [];
         foreach ($columnMap as $colPos => $name) {
-            $params['items'][] = [
+            $items[] = [
                 'label' => $name . ' (colPos ' . $colPos . ')',
                 'value' => $colPos,
             ];
         }
+        $params['items'] = $items;
     }
 
     /**

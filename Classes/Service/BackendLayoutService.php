@@ -8,7 +8,6 @@ use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Backend\View\BackendLayout\BackendLayout;
 use TYPO3\CMS\Backend\View\BackendLayout\DataProviderCollection;
-use TYPO3\CMS\Backend\View\BackendLayout\DataProviderContext;
 use TYPO3\CMS\Backend\View\BackendLayoutView;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -137,7 +136,12 @@ class BackendLayoutService implements LoggerAwareInterface
             ->executeQuery()
             ->fetchAssociative();
 
-        return is_array($row) ? (int) ($row['uid'] ?? 0) : 0;
+        if (is_array($row) && isset($row['uid'])) {
+            \assert(is_int($row['uid']) || is_string($row['uid']));
+            return (int) $row['uid'];
+        }
+
+        return 0;
     }
 
     /**
@@ -158,7 +162,12 @@ class BackendLayoutService implements LoggerAwareInterface
             ->executeQuery()
             ->fetchAssociative();
 
-        return is_array($row) ? (int) ($row['uid'] ?? 0) : 0;
+        if (is_array($row) && isset($row['uid'])) {
+            \assert(is_int($row['uid']) || is_string($row['uid']));
+            return (int) $row['uid'];
+        }
+
+        return 0;
     }
 
     private function resolveLabel(string $label, LanguageService $languageService): string
