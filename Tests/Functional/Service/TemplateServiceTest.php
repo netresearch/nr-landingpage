@@ -250,6 +250,8 @@ final class TemplateServiceTest extends FunctionalTestCase
     #[Test]
     public function loadByUidParsesContentColumnsCorrectly(): void
     {
+        $this->setUpBackendUser(1);
+
         $template = $this->subject->loadByUid(1);
         self::assertNotNull($template);
         self::assertSame([0, 1], $template->contentColumns);
@@ -258,6 +260,8 @@ final class TemplateServiceTest extends FunctionalTestCase
     #[Test]
     public function loadByUidDefaultsEmptyContentColumns(): void
     {
+        $this->setUpBackendUser(1);
+
         $template = $this->subject->loadByUid(2);
         self::assertNotNull($template);
         self::assertSame([], $template->contentColumns);
