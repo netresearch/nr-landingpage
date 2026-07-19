@@ -7,7 +7,7 @@ namespace Netresearch\NrLandingpage\Service;
 use Locale;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
-use Netresearch\NrLlm\Service\Feature\CompletionService;
+use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
@@ -110,7 +110,7 @@ class PromptOptimizerService implements LoggerAwareInterface
         PROMPT;
 
     public function __construct(
-        private readonly CompletionService $completionService,
+        private readonly CompletionServiceInterface $completionService,
         private readonly LlmServiceManagerInterface $llmServiceManager,
         private readonly LlmConfigurationRepository $configurationRepository,
         private readonly BackendLayoutService $backendLayoutService,

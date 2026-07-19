@@ -16,7 +16,7 @@ use Netresearch\NrLandingpage\Service\PageCreatorService;
 use Netresearch\NrLandingpage\Service\PromptOptimizerService;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
-use Netresearch\NrLlm\Service\Feature\CompletionService;
+use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -38,7 +38,7 @@ use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 #[CoversClass(LandingPageWizardController::class)]
 final class LandingPageWizardControllerTest extends UnitTestCase
 {
-    private CompletionService&MockObject $completionService;
+    private CompletionServiceInterface&MockObject $completionService;
     private ConnectionPool&MockObject $connectionPool;
     private ImageSearchService&MockObject $imageSearchService;
     private ImageProviderService&MockObject $imageProviderService;
@@ -50,7 +50,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
     {
         parent::setUp();
 
-        $this->completionService = $this->createMock(CompletionService::class);
+        $this->completionService = $this->createMock(CompletionServiceInterface::class);
         $this->connectionPool = $this->createMock(ConnectionPool::class);
 
         // ModuleTemplateFactory is final — instantiate without constructor since AJAX actions never use it

@@ -10,7 +10,7 @@ use Netresearch\NrLandingpage\Service\ContentGeneratorService;
 use Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer;
 use Netresearch\NrLandingpage\Service\CTypeMetadataService;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
-use Netresearch\NrLlm\Service\Feature\CompletionService;
+use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -21,7 +21,7 @@ use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 #[CoversClass(ContentGeneratorService::class)]
 final class ContentGeneratorServiceTest extends UnitTestCase
 {
-    private function createService(CompletionService $completionService): ContentGeneratorService
+    private function createService(CompletionServiceInterface $completionService): ContentGeneratorService
     {
         $cTypeMetadataService = $this->createMock(CTypeMetadataService::class);
         $cTypeMetadataService->method('buildCTypeDescription')->willReturn('');
@@ -59,7 +59,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         );
     }
 
-    private function createServiceWithColumnMap(CompletionService $completionService, array $columnMap): ContentGeneratorService
+    private function createServiceWithColumnMap(CompletionServiceInterface $completionService, array $columnMap): ContentGeneratorService
     {
         $cTypeMetadataService = $this->createMock(CTypeMetadataService::class);
         $cTypeMetadataService->method('buildCTypeDescription')->willReturn('');
@@ -98,7 +98,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -116,7 +116,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     #[Test]
     public function promptContainsBriefingAndCTypes(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(
@@ -136,7 +136,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     #[Test]
     public function promptContainsSystemPrompt(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(
@@ -164,7 +164,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -182,7 +182,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'Invalid', 'ctype' => 'html', 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -203,7 +203,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             'not-an-array',
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -216,7 +216,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     #[Test]
     public function generateContentThrowsOnLlmException(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')
             ->willThrowException(new RuntimeException('LLM failed'));
 
@@ -236,7 +236,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             'description' => 'A short description',
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -258,7 +258,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             'another_extra' => 'Also ignored',
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -279,7 +279,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             'custom_field' => 'Custom Value',
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -293,7 +293,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     #[Test]
     public function pageFieldsPromptUsesDefaultFieldsWhenEmpty(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(
@@ -308,7 +308,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     #[Test]
     public function generatePageFieldsReturnsEmptyOnException(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')
             ->willThrowException(new RuntimeException('LLM failed'));
 
@@ -329,7 +329,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -352,7 +352,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -366,7 +366,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     #[Test]
     public function generatePageFieldsLogsOnError(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')
             ->willThrowException(new RuntimeException('LLM exploded'));
 
@@ -392,7 +392,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             'description' => ['not', 'a', 'string'],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -413,7 +413,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'Good', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>ok</p>'],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -430,7 +430,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'S', 'ctype' => 'text', 'header' => 123, 'subheader' => ['array'], 'bodytext' => null],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -445,7 +445,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     #[Test]
     public function pageFieldsPromptContainsFieldNames(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(
@@ -468,7 +468,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'Custom', 'ctype' => 'html', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>c</p>'],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -487,7 +487,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'Hero', 'ctype' => 'html', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>a</p>'],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -500,7 +500,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     #[Test]
     public function promptUsesDefaultCTypesWhenAllowedCTypesEmpty(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(
@@ -516,7 +516,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
     #[Test]
     public function formatsBriefingAsKeyValueLines(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(
@@ -540,7 +540,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'Sidebar', 'ctype' => 'text', 'colPos' => 1, 'header' => 'S', 'subheader' => '', 'bodytext' => '<p>b</p>'],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $backendLayoutService = $this->createMock(BackendLayoutService::class);
@@ -572,7 +572,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'Hero', 'ctype' => 'text', 'colPos' => 99, 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>a</p>'],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $backendLayoutService = $this->createMock(BackendLayoutService::class);
@@ -603,7 +603,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>a</p>'],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createService($completionService);
@@ -619,7 +619,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'Hero', 'ctype' => 'text', 'colPos' => '1', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>a</p>'],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $backendLayoutService = $this->createMock(BackendLayoutService::class);
@@ -653,7 +653,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'C', 'ctype' => 'text', 'colPos' => 2, 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createServiceWithColumnMap($completionService, [0 => 'Main', 1 => 'Sidebar', 2 => 'Footer']);
@@ -680,7 +680,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'C', 'ctype' => 'text', 'colPos' => 2, 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createServiceWithColumnMap($completionService, [0 => 'Main', 1 => 'Sidebar', 2 => 'Footer']);
@@ -706,7 +706,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'A', 'ctype' => 'text', 'colPos' => 0, 'header' => 'H', 'subheader' => '', 'bodytext' => ''],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createServiceWithColumnMap($completionService, [0 => 'Main']);
@@ -731,7 +731,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'Sidebar', 'colPos' => 1, 'header' => 'Side', 'bodytext' => '<p>side</p>'],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createServiceWithColumnMap($completionService, [0 => 'Main', 1 => 'Sidebar']);
@@ -755,7 +755,7 @@ final class ContentGeneratorServiceTest extends UnitTestCase
             ['section' => 'Sidebar', 'colPos' => 1, 'header' => 'Side', 'bodytext' => '<p>side</p>'],
         ];
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = $this->createServiceWithColumnMap($completionService, [0 => 'Main', 1 => 'Sidebar']);

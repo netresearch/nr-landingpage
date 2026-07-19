@@ -6,7 +6,7 @@ namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
-use Netresearch\NrLlm\Service\Feature\CompletionService;
+use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Netresearch\NrLlm\Service\Option\ChatOptions;
 use RuntimeException;
@@ -18,7 +18,7 @@ use TYPO3\CMS\Core\Core\Environment;
  * using a template's configured LlmConfiguration record.
  *
  * Requires the using class to have:
- * - $this->completionService (CompletionService)
+ * - $this->completionService (CompletionServiceInterface)
  * - $this->llmServiceManager (LlmServiceManagerInterface)
  * - $this->configurationRepository (LlmConfigurationRepository)
  * - $this->logger (LoggerInterface|null)

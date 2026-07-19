@@ -10,7 +10,7 @@ use Netresearch\NrLlm\Domain\Model\CompletionResponse;
 use Netresearch\NrLlm\Domain\Model\LlmConfiguration;
 use Netresearch\NrLlm\Domain\Model\UsageStatistics;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
-use Netresearch\NrLlm\Service\Feature\CompletionService;
+use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -22,7 +22,7 @@ use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 #[CoversClass(LlmCompletionTrait::class)]
 final class LlmCompletionTraitTest extends UnitTestCase
 {
-    private CompletionService&MockObject $completionService;
+    private CompletionServiceInterface&MockObject $completionService;
     private LlmServiceManagerInterface&MockObject $llmServiceManager;
     private LlmConfigurationRepository&MockObject $configurationRepository;
     private LoggerInterface&MockObject $logger;
@@ -31,7 +31,7 @@ final class LlmCompletionTraitTest extends UnitTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->completionService = $this->createMock(CompletionService::class);
+        $this->completionService = $this->createMock(CompletionServiceInterface::class);
         $this->llmServiceManager = $this->createMock(LlmServiceManagerInterface::class);
         $this->configurationRepository = $this->createMock(LlmConfigurationRepository::class);
         $this->logger = $this->createMock(LoggerInterface::class);
@@ -45,7 +45,7 @@ final class LlmCompletionTraitTest extends UnitTestCase
             use LlmCompletionTrait;
 
             public function __construct(
-                private readonly CompletionService $completionService,
+                private readonly CompletionServiceInterface $completionService,
                 private readonly LlmServiceManagerInterface $llmServiceManager,
                 private readonly LlmConfigurationRepository $configurationRepository,
                 private readonly ?LoggerInterface $logger,
