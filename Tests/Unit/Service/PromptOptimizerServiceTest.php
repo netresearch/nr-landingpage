@@ -11,7 +11,7 @@ use Netresearch\NrLlm\Domain\Model\CompletionResponse;
 use Netresearch\NrLlm\Domain\Model\LlmConfiguration;
 use Netresearch\NrLlm\Domain\Model\UsageStatistics;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
-use Netresearch\NrLlm\Service\Feature\CompletionService;
+use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -69,13 +69,13 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     }
 
     private function createService(
-        ?CompletionService $completionService = null,
+        ?CompletionServiceInterface $completionService = null,
         ?LlmServiceManagerInterface $llmManager = null,
         ?LlmConfigurationRepository $configRepo = null,
         ?BackendLayoutService $backendLayoutService = null,
     ): PromptOptimizerService {
         return new PromptOptimizerService(
-            $completionService ?? $this->createMock(CompletionService::class),
+            $completionService ?? $this->createMock(CompletionServiceInterface::class),
             $llmManager ?? $this->createMock(LlmServiceManagerInterface::class),
             $configRepo ?? $this->createMock(LlmConfigurationRepository::class),
             $backendLayoutService ?? $this->createBackendLayoutService(),
@@ -207,7 +207,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     #[Test]
     public function generateOptimizedPromptUsesDefaultCompletionService(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('complete')
             ->with(self::callback(
@@ -226,7 +226,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     #[Test]
     public function generateOptimizedPromptIncludesStyleHintsWithDefaultMetaPrompt(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('complete')
             ->with(self::callback(
@@ -248,7 +248,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     #[Test]
     public function generateOptimizedPromptIncludesAdditionalContext(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('complete')
             ->with(self::callback(
@@ -269,7 +269,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     #[Test]
     public function generateOptimizedPromptOmitsAdditionalContextWhenEmpty(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('complete')
             ->with(self::callback(
@@ -315,7 +315,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
         $configRepo = $this->createMock(LlmConfigurationRepository::class);
         $configRepo->method('findByUid')->with(99)->willReturn(null);
 
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('complete')
             ->willReturn($this->createCompletionResponse('Fallback result'));
@@ -330,7 +330,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     #[Test]
     public function generateOptimizedPromptLogsAndRethrowsOnException(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('complete')
             ->willThrowException(new RuntimeException('LLM failed'));
 
@@ -354,7 +354,7 @@ final class PromptOptimizerServiceTest extends UnitTestCase
     #[Test]
     public function generateOptimizedPromptTrimsWhitespace(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('complete')
             ->willReturn($this->createCompletionResponse("  \n  Trimmed result  \n  "));
 

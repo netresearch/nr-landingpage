@@ -7,7 +7,7 @@ namespace Netresearch\NrLandingpage\Tests\Unit\Service;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
-use Netresearch\NrLlm\Service\Feature\CompletionService;
+use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -30,7 +30,7 @@ final class BriefingServiceTest extends UnitTestCase
             ['id' => 'audience', 'label' => 'Zielgruppe', 'type' => 'text', 'required' => true, 'placeholder' => 'B2B'],
             ['id' => 'date', 'label' => 'Datum', 'type' => 'text', 'required' => false, 'placeholder' => ''],
         ];
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($llmResponse);
 
         $service = new BriefingService(
@@ -51,7 +51,7 @@ final class BriefingServiceTest extends UnitTestCase
     #[Test]
     public function promptContainsJsonFormatInstruction(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(
@@ -69,7 +69,7 @@ final class BriefingServiceTest extends UnitTestCase
     #[Test]
     public function promptContainsTemplateSystemPrompt(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(
@@ -89,7 +89,7 @@ final class BriefingServiceTest extends UnitTestCase
     #[Test]
     public function returnsEmptyArrayOnLlmException(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')
             ->willThrowException(new RuntimeException('LLM failed'));
 
@@ -108,7 +108,7 @@ final class BriefingServiceTest extends UnitTestCase
             fn(int $i) => ['id' => "q$i", 'label' => "Q$i", 'type' => 'text', 'required' => false, 'placeholder' => ''],
             range(1, 15),
         );
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn($questions);
 
         $result = (new BriefingService(
@@ -122,7 +122,7 @@ final class BriefingServiceTest extends UnitTestCase
     #[Test]
     public function skipsInvalidQuestionsInResponse(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn([
             ['id' => 'valid', 'label' => 'Valid', 'type' => 'text'],
             ['broken' => 'data'],
@@ -141,7 +141,7 @@ final class BriefingServiceTest extends UnitTestCase
     #[Test]
     public function normalizesInvalidTypeToText(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn([
             ['id' => 'q1', 'label' => 'Q1', 'type' => 'invalid_type'],
         ]);
@@ -157,7 +157,7 @@ final class BriefingServiceTest extends UnitTestCase
     #[Test]
     public function parsesSelectOptionsCorrectly(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn([
             ['id' => 'style', 'label' => 'Stil', 'type' => 'select', 'options' => ['formal', 'casual']],
         ]);
@@ -174,7 +174,7 @@ final class BriefingServiceTest extends UnitTestCase
     #[Test]
     public function returnsEmptyArrayWhenLlmReturnsUnexpectedStructure(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         // Return an array with no valid question items (all entries are scalar or missing required keys)
         $completionService->method('completeJson')->willReturn([
             'unexpected' => 'structure',
@@ -193,7 +193,7 @@ final class BriefingServiceTest extends UnitTestCase
     #[Test]
     public function logsErrorOnException(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')
             ->willThrowException(new RuntimeException('LLM exploded'));
 
@@ -217,7 +217,7 @@ final class BriefingServiceTest extends UnitTestCase
     #[Test]
     public function skipsItemsWithNonStringIdOrLabel(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn([
             ['id' => 123, 'label' => 'Numeric ID', 'type' => 'text'],
             ['id' => 'valid', 'label' => ['array'], 'type' => 'text'],
@@ -238,7 +238,7 @@ final class BriefingServiceTest extends UnitTestCase
     #[Test]
     public function optionsWithNonScalarValuesAreConvertedToEmptyStrings(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->method('completeJson')->willReturn([
             ['id' => 'q', 'label' => 'Q', 'type' => 'select', 'options' => ['valid', ['nested'], 42]],
         ]);
@@ -254,7 +254,7 @@ final class BriefingServiceTest extends UnitTestCase
     #[Test]
     public function handlesEmptySystemPrompt(): void
     {
-        $completionService = $this->createMock(CompletionService::class);
+        $completionService = $this->createMock(CompletionServiceInterface::class);
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(

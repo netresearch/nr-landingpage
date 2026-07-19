@@ -8,7 +8,7 @@ use Netresearch\NrLandingpage\Service\BackendLayoutService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
 use Netresearch\NrLandingpage\Service\CTypeMetadataService;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
-use Netresearch\NrLlm\Service\Feature\CompletionService;
+use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -54,7 +54,7 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
         );
 
         $this->subject = new ContentGeneratorService(
-            $this->createMock(CompletionService::class),
+            $this->createMock(CompletionServiceInterface::class),
             $this->createMock(LlmServiceManagerInterface::class),
             $this->createMock(LlmConfigurationRepository::class),
             $this->createMock(CTypeMetadataService::class),
