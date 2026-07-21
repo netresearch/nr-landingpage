@@ -15,7 +15,9 @@ return [
         'security' => [
             'ignorePageTypeRestriction' => true,
         ],
-        'iconfile' => 'EXT:nr_landingpage/Resources/Public/Icons/Extension.svg',
+        'typeicon_classes' => [
+            'default' => 'nr-landingpage-template',
+        ],
         'searchFields' => 'title,identifier,description',
     ],
     'types' => [
