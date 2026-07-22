@@ -1,8 +1,19 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 permissions: {}
+
+# The reusable expands to a 23-job graph. Without these two guards the old
+# `on: [push, pull_request]` ran the whole graph TWICE for every PR commit
+# (once for the branch push, once for the PR event); restricting push to main
+# plus cancelling superseded runs keeps it to one graph per commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   tests:
