@@ -5,7 +5,7 @@
     "license": "GPL-2.0-or-later",
     "require": {
         "php": "^8.2",
-        "netresearch/nr-llm": "^0.22",
+        "netresearch/nr-llm": "^0.22 || ^0.23",
         "typo3/cms-core": "^13.4 || ^14.0",
         "typo3/cms-backend": "^13.4 || ^14.0"
     },
