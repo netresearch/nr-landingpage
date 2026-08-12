@@ -292,8 +292,8 @@ final class ContentGeneratorService implements LoggerAwareInterface
             - Perspektive und Komposition
             Beispiel: "Overhead view of a modern coworking space with diverse professionals collaborating around laptops, natural daylight, warm tones, shallow depth of field"
             {$animationBlock}
-            Antworte ausschliesslich als JSON-Array:
-            {$jsonExample}
+            Antworte ausschliesslich als JSON-Objekt mit dem Schluessel "sections":
+            {"sections": {$jsonExample}}
             PROMPT;
     }
 
@@ -496,8 +496,8 @@ final class ContentGeneratorService implements LoggerAwareInterface
         }
 
         $validated = [];
-        foreach ($response as $item) {
-            if (!is_array($item) || !isset($item['section'], $item['ctype'])) {
+        foreach ($this->normalizeToItemList($response, ['section', 'ctype']) as $item) {
+            if (!isset($item['section'], $item['ctype'])) {
                 continue;
             }
 
@@ -667,13 +667,13 @@ final class ContentGeneratorService implements LoggerAwareInterface
             - Pro Section max. 150 Zeilen HTML+CSS. Qualitaet vor Quantitaet.
             - Sidebar/Footer-Spalten besonders kompakt (max. 50 Zeilen).
 
-            Antworte ausschliesslich als JSON-Array:
-            [
+            Antworte ausschliesslich als JSON-Objekt mit dem Schluessel "sections":
+            {"sections": [
               {"section": "Hero", "colPos": 0, "header": "Titel",
                "bodytext": "<style>.hero { ... }</style><section class='hero'><img data-image-slot=\"0\" alt=\"Hero image\"><h1>...</h1></section>{$this->buildCreativeBodytextExample($template)}",
                "imageKeywords": ["keyword1", "keyword2"],
                "imagePrompt": "Detailed English image description"}
-            ]
+            ]}
 
             Das bodytext-Feld enthaelt das komplette HTML inkl. <style>-Block.
             Jede Section mit <img data-image-slot="0"> MUSS imageKeywords (3-5 englische
@@ -698,8 +698,8 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $validColPositions = array_keys($columnMap);
         $validated = [];
 
-        foreach ($response as $item) {
-            if (!is_array($item) || !isset($item['section'])) {
+        foreach ($this->normalizeToItemList($response, ['section']) as $item) {
+            if (!isset($item['section'])) {
                 continue;
             }
             if (!is_string($item['section'])) {

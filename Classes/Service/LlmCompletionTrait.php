@@ -26,6 +26,45 @@ use TYPO3\CMS\Core\Core\Environment;
 trait LlmCompletionTrait
 {
     /**
+     * Restore a list of items from a decoded JSON response.
+     *
+     * Templates without their own LlmConfiguration fall back to
+     * CompletionService::completeJson(), which sets response_format json_object.
+     * That mode forbids a top-level array, so a prompt asking for a list never
+     * gets one back. Measured against the live instance, the model answers with
+     * a single item flattened to the top level; wrapping it in an envelope is
+     * the other shape it produces. Both are turned back into a list here.
+     *
+     * A response that already is a list passes through - the path with a
+     * configured LlmConfiguration sends no response_format and can return one.
+     *
+     * @param array<mixed> $decoded
+     * @param list<string> $itemKeys Keys that identify a single item
+     *
+     * @return list<array<mixed>>
+     */
+    private function normalizeToItemList(array $decoded, array $itemKeys): array
+    {
+        if (array_is_list($decoded)) {
+            return array_values(array_filter($decoded, is_array(...)));
+        }
+
+        // One item, flattened to the top level.
+        if ($itemKeys !== [] && array_diff($itemKeys, array_keys($decoded)) === []) {
+            return [$decoded];
+        }
+
+        // An envelope such as {"questions": [...]} - take the list it carries.
+        foreach ($decoded as $value) {
+            if (is_array($value) && array_is_list($value)) {
+                return array_values(array_filter($value, is_array(...)));
+            }
+        }
+
+        return [];
+    }
+
+    /**
      * Complete a JSON prompt using the template's LLM configuration if available,
      * falling back to the default CompletionService.
      *

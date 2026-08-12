@@ -47,13 +47,17 @@ final class BriefingService implements LoggerAwareInterface
 
     private function buildPrompt(Template $template): string
     {
+        // A heredoc interpolates variables, not class constants: the previous
+        // {self::MAX_QUESTIONS} reached the model as that literal text.
+        $maxQuestions = self::MAX_QUESTIONS;
+
         return <<<PROMPT
             {$template->systemPrompt}
 
             --- ANWEISUNGEN ZUR AUSGABE ---
 
             Stelle dem Redakteur die wichtigsten Fragen, um eine effektive Seite zu erstellen.
-            Maximal {self::MAX_QUESTIONS} Fragen, fokussiert auf INHALTLICHE Informationen.
+            Maximal {$maxQuestions} Fragen, fokussiert auf INHALTLICHE Informationen.
 
             WICHTIG:
             - Der Seitentitel / das Thema wird bereits in einem separaten Feld abgefragt.
@@ -72,12 +76,14 @@ final class BriefingService implements LoggerAwareInterface
             Verwende kurze, verstaendliche Labels. Nutze type=textarea fuer offene Fragen.
             Nutze type=select nur wenn es wenige klare Alternativen gibt (z.B. Du/Sie Ansprache).
 
-            Antworte ausschliesslich als JSON-Array:
-            [
-              {"id": "string", "label": "string", "type": "text|textarea|select",
-               "required": true|false, "placeholder": "string",
-               "options": ["nur bei type=select"]}
-            ]
+            Antworte ausschliesslich als JSON-Objekt mit dem Schluessel "questions":
+            {
+              "questions": [
+                {"id": "string", "label": "string", "type": "text|textarea|select",
+                 "required": true|false, "placeholder": "string",
+                 "options": ["nur bei type=select"]}
+              ]
+            }
             PROMPT;
     }
 
@@ -91,8 +97,8 @@ final class BriefingService implements LoggerAwareInterface
         }
 
         $validated = [];
-        foreach ($response as $item) {
-            if (!is_array($item) || !isset($item['id'], $item['label'], $item['type'])) {
+        foreach ($this->normalizeToItemList($response, ['id', 'label', 'type']) as $item) {
+            if (!isset($item['id'], $item['label'], $item['type'])) {
                 continue;
             }
 
