@@ -69,6 +69,59 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
         parent::tearDown();
     }
 
+    /**
+     * response_format json_object forbids a top-level array, so the fallback
+     * path receives either an envelope or a single section flattened to the top
+     * level. Both used to be discarded, which is what produced "No content
+     * sections were generated" instead of an error.
+     */
+    #[Test]
+    public function validateSectionsAcceptsAnEnvelope(): void
+    {
+        $response = [
+            'sections' => [
+                ['section' => 'Hero', 'ctype' => 'text', 'colPos' => 0, 'header' => 'H', 'bodytext' => ''],
+                ['section' => 'Body', 'ctype' => 'text', 'colPos' => 0, 'header' => 'B', 'bodytext' => ''],
+            ],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateSections');
+        $result = $method->invoke($this->subject, $response, [], [0]);
+
+        self::assertCount(2, $result);
+        self::assertSame('Hero', $result[0]['section']);
+        self::assertSame('Body', $result[1]['section']);
+    }
+
+    #[Test]
+    public function validateSectionsAcceptsASingleSectionFlattenedToTheTopLevel(): void
+    {
+        $response = ['section' => 'Hero', 'ctype' => 'text', 'colPos' => 0, 'header' => 'H', 'bodytext' => ''];
+
+        $method = new ReflectionMethod($this->subject, 'validateSections');
+        $result = $method->invoke($this->subject, $response, [], [0]);
+
+        self::assertCount(1, $result);
+        self::assertSame('Hero', $result[0]['section']);
+    }
+
+    #[Test]
+    public function validateCreativeSectionsAcceptsAnEnvelope(): void
+    {
+        $response = [
+            'sections' => [
+                ['section' => 'Hero', 'colPos' => 0, 'header' => 'H', 'bodytext' => '<p>x</p>'],
+            ],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main']);
+
+        self::assertCount(1, $result);
+        self::assertSame('Hero', $result[0]['section']);
+        self::assertSame('html', $result[0]['ctype']);
+    }
+
     #[Test]
     public function validateSectionsCoercesInvalidColPosToFirstValid(): void
     {

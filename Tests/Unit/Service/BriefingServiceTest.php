@@ -55,7 +55,10 @@ final class BriefingServiceTest extends UnitTestCase
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(
-                fn(string $p): bool => str_contains($p, 'JSON-Array') && str_contains($p, '"id"') && str_contains($p, '"type"'),
+                fn(string $p): bool => str_contains($p, 'JSON-Objekt')
+                    && str_contains($p, '"questions"')
+                    && str_contains($p, '"id"')
+                    && str_contains($p, '"type"'),
             ))
             ->willReturn([]);
 
@@ -64,6 +67,80 @@ final class BriefingServiceTest extends UnitTestCase
             $this->createMock(LlmServiceManagerInterface::class),
             $this->createMock(LlmConfigurationRepository::class),
         ))->generateQuestions($this->createTemplate());
+    }
+
+    /**
+     * The heredoc used to carry {self::MAX_QUESTIONS}, which PHP does not
+     * interpolate, so the model was told the literal text instead of a number.
+     */
+    #[Test]
+    public function promptStatesTheQuestionLimitAsANumber(): void
+    {
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->expects(self::once())
+            ->method('completeJson')
+            ->with(self::callback(
+                fn(string $p): bool => str_contains($p, 'Maximal 5 Fragen')
+                    && !str_contains($p, 'MAX_QUESTIONS'),
+            ))
+            ->willReturn([]);
+
+        (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions($this->createTemplate());
+    }
+
+    /**
+     * response_format json_object forbids a top-level array, so the fallback
+     * path never receives the list the prompt asks for. Measured against the
+     * live instance: a single question flattened to the top level, which the
+     * old validator iterated over character by key and discarded entirely.
+     */
+    #[Test]
+    public function generateQuestionsAcceptsASingleQuestionFlattenedToTheTopLevel(): void
+    {
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->method('completeJson')->willReturn([
+            'id'          => 'zielgruppe_beduerfnisse',
+            'label'       => 'Zielgruppe & Bedarf',
+            'type'        => 'textarea',
+            'required'    => true,
+            'placeholder' => 'Wer soll die Seite lesen?',
+        ]);
+
+        $questions = (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions($this->createTemplate());
+
+        self::assertCount(1, $questions);
+        self::assertSame('zielgruppe_beduerfnisse', $questions[0]['id']);
+        self::assertSame('textarea', $questions[0]['type']);
+    }
+
+    #[Test]
+    public function generateQuestionsAcceptsAnEnvelope(): void
+    {
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->method('completeJson')->willReturn([
+            'questions' => [
+                ['id' => 'audience', 'label' => 'Zielgruppe', 'type' => 'text'],
+                ['id' => 'usp', 'label' => 'USP', 'type' => 'textarea'],
+            ],
+        ]);
+
+        $questions = (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions($this->createTemplate());
+
+        self::assertCount(2, $questions);
+        self::assertSame('audience', $questions[0]['id']);
+        self::assertSame('usp', $questions[1]['id']);
     }
 
     #[Test]
@@ -258,7 +335,7 @@ final class BriefingServiceTest extends UnitTestCase
         $completionService->expects(self::once())
             ->method('completeJson')
             ->with(self::callback(
-                fn(string $p): bool => str_contains($p, 'JSON-Array')
+                fn(string $p): bool => str_contains($p, 'JSON-Objekt')
                     && str_contains($p, 'ANWEISUNGEN ZUR AUSGABE'),
             ))
             ->willReturn([]);
