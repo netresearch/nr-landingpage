@@ -116,6 +116,18 @@ class LandingPageWizard {
      * @param {Object|null} preSelectTemplate  Template object to skip selection step
      */
     open(parentPageId = 0, regeneratePageUid = 0, preSelectTemplate = null) {
+        // The core clears its own slide stack on `wizard-dismissed`, and that
+        // handler is only bound inside initializeEvents(), which runs after a
+        // dynamic import resolves. A modal closed before that — or dismissed
+        // from outside — leaves both the stack and the cached carousel in place.
+        // getComponent()/generateSlides() then return the previous run's
+        // carousel unchanged, so every addSlide() below is silently ignored and
+        // the user sees the last run's slide with only Cancel/Previous/Next.
+        // Our own state is reset below; this resets the part the core owns.
+        MultiStepWizard.setup.slides = [];
+        MultiStepWizard.setup.$carousel = null;
+        MultiStepWizard.setup.carousel = null;
+
         WizardState.reset();
         this._briefingForm = null;
         this._briefingQuestions = null;

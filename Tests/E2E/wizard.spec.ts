@@ -507,4 +507,64 @@ test.describe('Landing Page Wizard', () => {
         // Section 1 (Products, ctype=textmedia) should have imageUid=3
         expect(sections[1].imageUid).toBe(3);
     });
+
+    /**
+     * The core MultiStepWizard clears its own slide stack on `wizard-dismissed`,
+     * and that handler is bound inside initializeEvents(), which runs only after
+     * a dynamic import resolves. A modal closed before that — or dismissed from
+     * outside — leaves the stack behind, and the next open() appends to it
+     * instead of starting fresh, so the user sees the previous run's slide.
+     *
+     * The leftover state is seeded directly rather than raced into existence:
+     * the race is what makes the bug hard to hit, not what the fix addresses.
+     * The fix's contract is that open() starts from an empty stack whatever was
+     * left there, and that is what this asserts.
+     */
+    test('a fresh open discards a slide stack left behind by a previous run', async ({ authenticatedPage: page }) => {
+        const frame = await navigateToModule(page);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', sampleBriefingQuestions);
+
+        // The core singleton is created wherever multi-step-wizard.js is first
+        // imported, which is our module iframe unless the backend shell got
+        // there first. Open once so it exists, then close through Cancel — the
+        // path that does reset — so the seeding below is the only leftover.
+        const first = await openWizard(page, frame);
+        await first.locator('button[name="cancel"]').click();
+        await page.locator('dialog').waitFor({ state: 'hidden', timeout: 15000 });
+
+        const STALE = 'STALE-SLIDE-FROM-A-PREVIOUS-RUN';
+        const seeded = await Promise.all(
+            page.frames().map((f) =>
+                f.evaluate((marker) => {
+                    const wizard = (globalThis as unknown as {
+                        TYPO3?: { MultiStepWizard?: { setup: Record<string, unknown> } };
+                    }).TYPO3?.MultiStepWizard;
+                    if (!wizard) {
+                        return false;
+                    }
+                    wizard.setup.slides = [{
+                        identifier: 'stale-slide',
+                        title: marker,
+                        content: marker,
+                        severity: 0,
+                        progressBarTitle: marker,
+                        callback: null,
+                    }];
+                    return true;
+                }, STALE).catch(() => false),
+            ),
+        );
+        // A test that seeded nothing would pass without proving anything.
+        expect(seeded.some(Boolean), 'no frame exposes TYPO3.MultiStepWizard — the premise is wrong').toBe(true);
+
+        const modal = await openWizard(page, frame);
+
+        // The stale slide must not survive into this run in any form.
+        await expect(modal).not.toContainText(STALE);
+
+        // And the wizard must actually be usable, not merely free of the marker:
+        // the first step has to render its own content.
+        await expect(modal.locator('.template-card').first()).toBeVisible({ timeout: 15000 });
+    });
 });
