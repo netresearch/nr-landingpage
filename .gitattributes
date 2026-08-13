@@ -1,0 +1,26 @@
+# Normalize line endings.
+* text=auto
+
+# Exclude development-only paths from `git archive`, which is what composer dist
+# downloads and TER packages are built from. Without this file every one of them
+# carried the CI workflows, the Playwright suite and the planning notes.
+#
+# Runtime code is deliberately NOT listed, so it stays in the package: Classes,
+# Configuration, Resources, Documentation, ext_*, composer.json, LICENSE and
+# README.md.
+/.ddev/                 export-ignore
+/.github/               export-ignore
+/Build/                 export-ignore
+/Tests/                 export-ignore
+/docs/                  export-ignore
+/.editorconfig          export-ignore
+/.gitattributes         export-ignore
+/.gitignore             export-ignore
+/.php-cs-fixer.dist.php export-ignore
+/AGENTS.md              export-ignore
+/CONTRIBUTING.md        export-ignore
+/Makefile               export-ignore
+/phpstan.neon           export-ignore
+/phpunit.xml            export-ignore
+/phpunit.functional.xml export-ignore
+/rector.php             export-ignore
