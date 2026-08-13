@@ -1,0 +1,136 @@
+name: E2E
+
+# The Playwright suite covers the wizard end to end with mocked AJAX, and it is
+# the only test surface below the PHP layer — this extension has no JavaScript
+# unit tests. Until this workflow existed the suite ran only when somebody
+# started it by hand, which meant a fix could be reverted without anything
+# noticing (#22).
+#
+# A full TYPO3 is stood up per run rather than reusing a fixture: the suite
+# drives the real backend (module menu, MultiStepWizard, iframes), and only the
+# AJAX responses are intercepted.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      db:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: t3
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+    env:
+      TYPO3_BASE_URL: http://127.0.0.1:8080
+      TYPO3_USERNAME: admin
+      # Test-only credential for a throwaway instance that exists for the length
+      # of this job and is never reachable from outside the runner.
+      TYPO3_PASSWORD: Joh316!!TestOnly
+      INSTALL_DIR: ${{ github.workspace }}/.t3
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: extension
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mysqli, pdo_mysql, intl, gd, zip
+          coverage: none
+
+      - name: Install TYPO3 and the extension
+        run: |
+          mkdir -p "$INSTALL_DIR"
+          cd "$INSTALL_DIR"
+          composer create-project typo3/cms-base-distribution:^14 . --no-interaction --no-progress
+          # The distribution pins a platform php that can be older than the one
+          # this job runs; unset it so the extension resolves against 8.3.
+          composer config --unset platform.php || true
+          composer config repositories.nr_landingpage path "${{ github.workspace }}/extension"
+          composer require netresearch/nr-landingpage:@dev --no-interaction --no-progress
+
+      - name: Set up TYPO3
+        working-directory: ${{ env.INSTALL_DIR }}
+        env:
+          TYPO3_SETUP_ADMIN_PASSWORD: ${{ env.TYPO3_PASSWORD }}
+        run: |
+          vendor/bin/typo3 setup -n \
+            --driver=mysqli \
+            --host=127.0.0.1 \
+            --port=3306 \
+            --dbname=t3 \
+            --username=root \
+            --password=root \
+            --admin-username="$TYPO3_USERNAME" \
+            --admin-user-password="$TYPO3_SETUP_ADMIN_PASSWORD" \
+            --admin-email=admin@example.com \
+            --project-name="E2E" \
+            --no-interaction
+          mkdir -p config/system
+          # No cookie tweak needed: SetCookieService derives the secure flag from
+          # the request (isHttps), not from configuration, so plain http on the
+          # runner yields a non-secure cookie and the login works. An earlier
+          # draft set BE/cookieSecure here — that key does not exist.
+          cat > config/system/additional.php <<'PHP'
+          <?php
+          $GLOBALS['TYPO3_CONF_VARS']['SYS']['trustedHostsPattern'] = '.*';
+          $GLOBALS['TYPO3_CONF_VARS']['SYS']['displayErrors'] = 1;
+          PHP
+
+      - name: Serve TYPO3
+        working-directory: ${{ env.INSTALL_DIR }}
+        run: |
+          php -S 127.0.0.1:8080 -t public public/index.php > "$RUNNER_TEMP/php-server.log" 2>&1 &
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$TYPO3_BASE_URL/typo3/login" || true)
+            [ "$code" = "200" ] && { echo "backend answered after ${i}s"; exit 0; }
+            sleep 1
+          done
+          echo "::error::the backend never answered on $TYPO3_BASE_URL"
+          tail -50 "$RUNNER_TEMP/php-server.log"
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        working-directory: extension/Tests/E2E
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install chromium --with-deps
+
+      - name: Run the suite
+        working-directory: extension/Tests/E2E
+        run: npx playwright test --reporter=line
+
+      - name: Upload the report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            extension/Tests/E2E/test-results
+            extension/Tests/E2E/playwright-report
+          retention-days: 7
