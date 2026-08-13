@@ -91,6 +91,7 @@ jobs:
             --admin-user-password="$TYPO3_SETUP_ADMIN_PASSWORD" \
             --admin-email=admin@example.com \
             --project-name="E2E" \
+            --server-type=other \
             --no-interaction
           mkdir -p config/system
           # No cookie tweak needed: SetCookieService derives the secure flag from
