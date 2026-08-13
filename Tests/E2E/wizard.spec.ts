@@ -100,19 +100,21 @@ test.describe('Landing Page Wizard', () => {
     /**
      * The core race that empties the first step.
      *
-     * TYPO3 v14's ModalElement calls the Modal.advanced() callback one animation
-     * frame before `typo3-modal-show` assigns Modal.currentModal, and
-     * MultiStepWizard.initializeEvents() ends by reading that property. Whether
-     * it throws depends on which resolves first: the progress-tracker import it
-     * awaits, or the frame. Every other test in this file opens the wizard once
-     * in a fresh context, so the import is fetched cold and loses — which is why
-     * none of them catch it.
+     * TYPO3 v14 calls the Modal.advanced() callback one animation frame before
+     * `typo3-modal-show` assigns Modal.currentModal, and
+     * MultiStepWizard.initializeEvents() ends by reading that property. Which
+     * side wins depends on whether the progress-tracker import the callback
+     * awaits resolves before the frame does.
      *
-     * Opening twice in the same page makes the second open take the import from
-     * cache, i.e. the losing side for us. The assertion is that the first slide
-     * still renders and no TypeError reaches the console.
+     * Hoping for the losing side is not a test: opening the wizard twice was
+     * tried first and passed without the fix. The import is therefore forced
+     * into the module registry beforehand, so it resolves as a microtask and
+     * the frame always loses — the reported failure, on demand.
+     *
+     * The assertion is that the first slide still renders and no TypeError
+     * reaches the console.
      */
-    test('opening the wizard a second time still renders the first step', async ({ authenticatedPage: page }) => {
+    test('renders the first step when the modal callback wins the race', async ({ authenticatedPage: page }) => {
         await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
 
         const errors: string[] = [];
@@ -125,13 +127,13 @@ test.describe('Landing Page Wizard', () => {
 
         const frame = await navigateToModule(page);
 
-        const first = await openWizard(page, frame);
-        await expect(first.locator('.template-card')).toBeVisible({ timeout: 10000 });
-        await first.locator('button[name="cancel"]').click();
-        await first.waitFor({ state: 'hidden', timeout: 10000 });
+        // Evaluate in the top frame, which is where the modal lives.
+        await page.evaluate(async () => {
+            await import('@typo3/backend/element/progress-tracker-element.js');
+        });
 
-        const second = await openWizard(page, frame);
-        await expect(second.locator('.template-card')).toBeVisible({ timeout: 10000 });
+        const modal = await openWizard(page, frame);
+        await expect(modal.locator('.template-card')).toBeVisible({ timeout: 10000 });
 
         expect(errors.filter((message) => message.includes('addEventListener'))).toEqual([]);
     });
