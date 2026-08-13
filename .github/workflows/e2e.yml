@@ -1,0 +1,210 @@
+name: E2E
+
+# The Playwright suite covers the wizard end to end with mocked AJAX, and it is
+# the only test surface below the PHP layer — this extension has no JavaScript
+# unit tests. Until this workflow existed the suite ran only when somebody
+# started it by hand, which meant a fix could be reverted without anything
+# noticing (#22).
+#
+# A full TYPO3 is stood up per run rather than reusing a fixture: the suite
+# drives the real backend (module menu, MultiStepWizard, iframes), and only the
+# AJAX responses are intercepted.
+#
+# netresearch/typo3-ci-workflows ships an e2e.yml that does the same thing, but
+# it runs npm from the repository root while this suite lives in Tests/E2E with
+# its own manifest. Moving the manifest changes the layout of the suite, which
+# is a different change than making it run at all — tracked in #26.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      db:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: t3
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+    env:
+      TYPO3_BASE_URL: http://127.0.0.1:8080
+      TYPO3_USERNAME: admin
+      # Test-only credential for a throwaway instance that exists for the length
+      # of this job and is never reachable from outside the runner.
+      TYPO3_PASSWORD: Joh316!!TestOnly
+      INSTALL_DIR: ${{ github.workspace }}/.t3
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: extension
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.3'
+          extensions: mysqli, pdo_mysql, intl, gd, zip
+          coverage: none
+
+      - name: Install TYPO3 and the extension
+        run: |
+          mkdir -p "$INSTALL_DIR"
+          cd "$INSTALL_DIR"
+          composer create-project typo3/cms-base-distribution:^14 . --no-interaction --no-progress
+          # The distribution pins a platform php that can be older than the one
+          # this job runs; unset it so the extension resolves against 8.3.
+          composer config --unset platform.php || true
+          composer config repositories.nr_landingpage path "${{ github.workspace }}/extension"
+          composer require netresearch/nr-landingpage:@dev --no-interaction --no-progress
+
+      - name: Set up TYPO3
+        working-directory: ${{ env.INSTALL_DIR }}
+        env:
+          TYPO3_SETUP_ADMIN_PASSWORD: ${{ env.TYPO3_PASSWORD }}
+        run: |
+          vendor/bin/typo3 setup -n \
+            --driver=mysqli \
+            --host=127.0.0.1 \
+            --port=3306 \
+            --dbname=t3 \
+            --username=root \
+            --password=root \
+            --admin-username="$TYPO3_USERNAME" \
+            --admin-user-password="$TYPO3_SETUP_ADMIN_PASSWORD" \
+            --admin-email=admin@example.com \
+            --project-name="E2E" \
+            --server-type=other \
+            --no-interaction
+          # Imports the extension's tables and runs its setup. Composer mode has
+          # no activation step, but the schema still has to be applied.
+          vendor/bin/typo3 extension:setup --no-interaction
+          mkdir -p config/system
+          # No cookie tweak needed: SetCookieService derives the secure flag from
+          # the request (isHttps), not from configuration, so plain http on the
+          # runner yields a non-secure cookie and the login works. An earlier
+          # draft set BE/cookieSecure here — that key does not exist.
+          cat > config/system/additional.php <<'PHP'
+          <?php
+          $GLOBALS['TYPO3_CONF_VARS']['SYS']['trustedHostsPattern'] = '.*';
+          $GLOBALS['TYPO3_CONF_VARS']['SYS']['displayErrors'] = 1;
+          PHP
+
+      - name: Serve TYPO3
+        working-directory: ${{ env.INSTALL_DIR }}
+        run: |
+          # A router script, not `-t public public/index.php`. Passing index.php
+          # as the router sends every request through the front controller,
+          # including the backend's own JavaScript under _assets/. The login
+          # page still renders, so the instance looks healthy — but the login
+          # module never loads, the password never reaches the field TYPO3
+          # evaluates, and every test fails as "login attempt did not succeed".
+          # Returning false for files that exist hands those back to the
+          # built-in server, which is what it does for a plain document root.
+          cat > "$RUNNER_TEMP/router.php" <<'PHP'
+          <?php
+          $uri = urldecode((string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+          $file = $_SERVER['DOCUMENT_ROOT'] . $uri;
+          if ($uri !== '/' && is_file($file)) {
+              return false;
+          }
+          $_SERVER['SCRIPT_NAME'] = '/index.php';
+          require $_SERVER['DOCUMENT_ROOT'] . '/index.php';
+          PHP
+          # php -S is single-worker by default: one slow request blocks every
+          # other, and a backend page fans out many subresource requests.
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8080 -t public "$RUNNER_TEMP/router.php" > "$RUNNER_TEMP/php-server.log" 2>&1 &
+
+          up=false
+          for i in $(seq 1 40); do
+            # --max-time: a server that accepts the connection and never answers
+            # would block curl forever, the loop would never reach 40, and the job
+            # would die on its timeout with no annotation and no log.
+            code=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' "$TYPO3_BASE_URL/typo3/login" || true)
+            [ "$code" = "200" ] && { echo "backend answered after ${i}s"; up=true; break; }
+            sleep 1
+          done
+          if [ "$up" != true ]; then
+            echo "::error::the backend never answered on $TYPO3_BASE_URL"
+            tail -50 "$RUNNER_TEMP/php-server.log"
+            exit 1
+          fi
+
+          # Assert that static files are served as files. Without this the
+          # regression above returns 200 with an HTML error document, which
+          # reads as a healthy server and surfaces much later as a failed login.
+          # -L: in composer mode the entries under _assets are symlinks into
+          # vendor/, and find does not descend into those without it.
+          asset=$(find -L public/_assets -name '*.js' | head -1)
+          if [ -z "$asset" ]; then
+            echo "::error::no backend JavaScript found under public/_assets"
+            exit 1
+          fi
+          # Written to a file rather than piped into head: closing the pipe
+          # early makes curl die of EPIPE and report a write error instead of
+          # the body, which turns a diagnostic into a second puzzle.
+          curl -sS --max-time 15 -o "$RUNNER_TEMP/asset.out" "$TYPO3_BASE_URL/${asset#public/}"
+          body=$(head -c 200 "$RUNNER_TEMP/asset.out")
+          case "$body" in
+            *"<!DOCTYPE"*|*"<html"*)
+              echo "::error::${asset#public/} came back as HTML - static files are going through index.php"
+              printf '%s\n' "$body"
+              exit 1
+              ;;
+          esac
+          echo "static assets are served directly"
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        working-directory: extension/Tests/E2E
+        # --ignore-scripts: nothing in this dependency tree needs a lifecycle
+        # script. The browser download is a separate, explicit command below.
+        # The binary is called from node_modules rather than through npx, which
+        # would fetch a package on demand and thus run outside the lock file.
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          ./node_modules/.bin/playwright install chromium --with-deps
+
+      - name: Run the suite
+        working-directory: extension/Tests/E2E
+        # line,html rather than line: --reporter REPLACES the config's reporter
+        # list, so a bare `line` means playwright-report/ is never written and
+        # the upload below silently captures nothing under that name.
+        run: ./node_modules/.bin/playwright test --reporter=line,html
+
+      - name: Show the PHP server log on failure
+        if: failure()
+        # displayErrors is on, so a server-side cause of a failing test lands
+        # here. It used to be printed only when the readiness check failed,
+        # which is the one case where it is least needed.
+        run: tail -200 "$RUNNER_TEMP/php-server.log" || true
+
+      - name: Upload the report on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: |
+            extension/Tests/E2E/test-results
+            extension/Tests/E2E/playwright-report
+          retention-days: 7
