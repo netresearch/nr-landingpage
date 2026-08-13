@@ -98,7 +98,7 @@ test.describe('Landing Page Wizard', () => {
     });
 
     /**
-     * The core race that empties the first step.
+     * Regression net for the empty first step — NOT a reproduction of it.
      *
      * TYPO3 v14 calls the Modal.advanced() callback one animation frame before
      * `typo3-modal-show` assigns Modal.currentModal, and
@@ -106,13 +106,16 @@ test.describe('Landing Page Wizard', () => {
      * side wins depends on whether the progress-tracker import the callback
      * awaits resolves before the frame does.
      *
-     * Hoping for the losing side is not a test: opening the wizard twice was
-     * tried first and passed without the fix. The import is therefore forced
-     * into the module registry beforehand, so it resolves as a microtask and
-     * the frame always loses — the reported failure, on demand.
+     * Two attempts to force the throwing side both stayed green on the same
+     * TYPO3 v14.3.6 this suite installs: opening the wizard twice, and pulling
+     * the import into the module registry beforehand (kept below). So this
+     * environment lands on the safe side of the race, and this test has never
+     * seen the failure it is named after — passing it proves nothing about the
+     * fix in wizard.js.
      *
-     * The assertion is that the first slide still renders and no TypeError
-     * reaches the console.
+     * It is kept because it asserts the property that matters, first slide
+     * renders and no null-receiver error, and would catch a future change that
+     * makes the throw unconditional.
      */
     test('renders the first step when the modal callback wins the race', async ({ authenticatedPage: page }) => {
         await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
