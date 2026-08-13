@@ -380,7 +380,7 @@ import sys, json; print(json.load(sys.stdin)['raw'].get('primary_url', ''))" 2>/
             fi
         fi
 
-        COMMAND="cd Tests/E2E && npm ci && npx playwright test $*"
+        COMMAND="npm ci && npx playwright test $*"
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} ${DDEV_PARAMS} --name e2e-${SUFFIX} \
             -e TYPO3_BASE_URL="${TYPO3_BASE_URL}" \
             -e CI="${CI:-}" \
