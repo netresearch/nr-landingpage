@@ -257,14 +257,13 @@ class LandingPageWizard {
             return;
         }
 
-        // modal.js appends into whichever document loaded it.
-        const documents = [document, top.document];
-        for (const doc of documents) {
-            const modals = doc?.querySelectorAll?.('typo3-backend-modal') ?? [];
-            if (modals.length > 0) {
-                Modal.currentModal = modals[modals.length - 1];
-                return;
-            }
+        // This document, not top's: modal.js appends into the document of the
+        // realm that loaded it, and that is the same realm whose Modal
+        // singleton MultiStepWizard reads. Reaching for top.document would
+        // both miss and risk a cross-origin throw inside open().
+        const modals = document.querySelectorAll('typo3-backend-modal');
+        if (modals.length > 0) {
+            Modal.currentModal = modals[modals.length - 1];
         }
     }
 
