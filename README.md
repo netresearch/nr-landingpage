@@ -118,16 +118,19 @@ composer fix:cgl
 | unit           | `Tests/Unit/`        | Unit tests (mocked services)   |
 | functional     | `Tests/Functional/`  | Functional tests (TYPO3 framework) |
 | architecture   | `Tests/Architecture/` | phpat layer dependency tests  |
-| e2e            | `Tests/E2E/`         | Playwright E2E tests (skeleton) |
+| e2e            | `Tests/E2E/`         | Playwright E2E tests (17, run in CI) |
 
 ### E2E Tests (Playwright)
 
+The suite runs in CI on every pull request via the shared workflow. Locally, from the repository root:
+
 ```bash
-cd Tests/E2E
-npm install
-npx playwright install
+npm ci
+npx playwright install chromium
 npx playwright test
 ```
+
+The npm manifest and `playwright.config.ts` live at the root because the shared workflow runs npm there; the specs stay in `Tests/E2E/`, which `testDir` points at.
 
 Requires a running TYPO3 instance. Set `TYPO3_BASE_URL` to override the default `https://nr-landingpage.ddev.site`.
 

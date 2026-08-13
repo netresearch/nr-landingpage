@@ -3,6 +3,8 @@ composer.lock
 .php-cs-fixer.cache
 Documentation-GENERATED-temp/
 test-results/
+playwright-report/
+node_modules/
 .claude/
 
 # DDEV
