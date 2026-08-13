@@ -152,6 +152,16 @@ final class ContentGeneratorService implements LoggerAwareInterface
         return implode("\n", $lines);
     }
 
+    /**
+     * The colour scheme, phrased for the mode that has to carry it.
+     *
+     * Only creative mode has a home for CSS: its sections are rendered with the
+     * `html` CType and its own <style> block. Structured mode is semantic HTML
+     * only — the same prompt forbids visual styling a few lines further down —
+     * so a ruleset produced there lands in bodytext and is displayed as text.
+     * That is how a literal ":root { --primary: … }" ended up in the middle of a
+     * generated page: the model was doing what this block told it to.
+     */
     private function buildColorBlock(Template $template): string
     {
         if ($template->colorPrimary === '' && $template->colorSecondary === ''
@@ -159,12 +169,24 @@ final class ContentGeneratorService implements LoggerAwareInterface
             return '';
         }
 
+        if (!$template->isCreativeMode()) {
+            // No CSS syntax at all: naming a property is enough for the image
+            // prompts, and anything that looks like a rule invites one.
+            return <<<COLORS
+
+                --- FARBSCHEMA ---
+                Farben dieser Seite: Primaer {$template->colorPrimary}, Sekundaer {$template->colorSecondary}, Hintergrund {$template->colorBackground}, Text {$template->colorText}.
+                Diese Angaben sind reine Information, etwa fuer Bildbeschreibungen.
+                Schreibe KEIN CSS und keine Style-Regeln. Das Design kommt vom Frontend-Template.
+                COLORS;
+        }
+
         return <<<COLORS
 
             --- FARBSCHEMA (PFLICHT) ---
             Du MUSST ausschliesslich folgende Farben verwenden. Keine eigenen Farben erfinden.
-            Definiere in der ERSTEN Section ein :root-Element mit diesen CSS Custom Properties:
-            :root { --primary: {$template->colorPrimary}; --secondary: {$template->colorSecondary}; --bg: {$template->colorBackground}; --text: {$template->colorText}; }
+            Definiere die CSS Custom Properties IM <style>-Block der ERSTEN Section:
+            <style>:root { --primary: {$template->colorPrimary}; --secondary: {$template->colorSecondary}; --bg: {$template->colorBackground}; --text: {$template->colorText}; }</style>
             Nutze in allen Sections var(--primary), var(--secondary), var(--bg), var(--text).
             Erlaubt sind Abstufungen per opacity/lighten/darken (z.B. rgba, color-mix).
             COLORS;

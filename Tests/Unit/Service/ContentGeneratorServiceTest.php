@@ -59,6 +59,23 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         );
     }
 
+    private function createTemplateWithColors(string $generationMode = 'structured'): Template
+    {
+        return new Template(
+            uid: 1,
+            title: 'T',
+            identifier: 't',
+            systemPrompt: 'Test prompt',
+            allowedCTypes: ['text', 'textmedia'],
+            pageFields: ['title'],
+            generationMode: $generationMode,
+            colorPrimary: '#2F99A4',
+            colorSecondary: '#FF4D00',
+            colorBackground: '#ffffff',
+            colorText: '#333333',
+        );
+    }
+
     private function createServiceWithColumnMap(CompletionServiceInterface $completionService, array $columnMap): ContentGeneratorService
     {
         $cTypeMetadataService = $this->createMock(CTypeMetadataService::class);
@@ -147,6 +164,48 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         $service = $this->createService($completionService);
         $service->generateContent(
             $this->createTemplate('My landing page system prompt'),
+            ['topic' => 'Test'],
+        );
+    }
+
+    /**
+     * Structured mode renders its sections as semantic HTML through the strict
+     * sanitizer, so it has nowhere to put a CSS rule — the same prompt forbids
+     * visual styling. Asking for a :root block there produced exactly what a
+     * tester found on a generated page: the ruleset as visible body text.
+     */
+    #[Test]
+    public function structuredPromptAsksForNoCss(): void
+    {
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->expects(self::once())
+            ->method('completeJson')
+            ->with(self::callback(
+                fn(string $p): bool => !str_contains($p, ':root')
+                    && str_contains($p, '#2F99A4'),
+            ))
+            ->willReturn([]);
+
+        $service = $this->createService($completionService);
+        $service->generateContent($this->createTemplateWithColors(), ['topic' => 'Test']);
+    }
+
+    /** Creative mode owns a <style> block, so the rule belongs in it — named. */
+    #[Test]
+    public function creativePromptPutsTheRuleInsideAStyleBlock(): void
+    {
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->expects(self::once())
+            ->method('completeJson')
+            ->with(self::callback(
+                fn(string $p): bool => str_contains($p, '<style>:root {')
+                    && str_contains($p, '#2F99A4'),
+            ))
+            ->willReturn([]);
+
+        $service = $this->createService($completionService);
+        $service->generateContent(
+            $this->createTemplateWithColors('creative'),
             ['topic' => 'Test'],
         );
     }
