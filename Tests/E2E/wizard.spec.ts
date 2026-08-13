@@ -22,11 +22,15 @@ import { Locator, Page } from '@playwright/test';
  * allowing us to test the wizard UI without a live LLM backend.
  *
  * Prerequisites:
- * - Running TYPO3 v14 DDEV instance with nr_landingpage installed
- * - At least one page in the page tree
+ * - A TYPO3 v14 with nr_landingpage installed, reachable at TYPO3_BASE_URL
  * - Playwright system dependencies installed
  *
- * Run with: npx playwright test
+ * No page in the page tree is needed. The module renders its launch button
+ * unconditionally and no test selects a page; the pageUid in the save response
+ * is mocked like every other AJAX reply. CI runs the suite against a TYPO3 that
+ * has no pages at all.
+ *
+ * Run in CI via .github/workflows/e2e.yml, locally with: npx playwright test
  */
 
 /**
