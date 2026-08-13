@@ -97,6 +97,45 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal).toBeVisible();
     });
 
+    /**
+     * The core race that empties the first step.
+     *
+     * TYPO3 v14's ModalElement calls the Modal.advanced() callback one animation
+     * frame before `typo3-modal-show` assigns Modal.currentModal, and
+     * MultiStepWizard.initializeEvents() ends by reading that property. Whether
+     * it throws depends on which resolves first: the progress-tracker import it
+     * awaits, or the frame. Every other test in this file opens the wizard once
+     * in a fresh context, so the import is fetched cold and loses — which is why
+     * none of them catch it.
+     *
+     * Opening twice in the same page makes the second open take the import from
+     * cache, i.e. the losing side for us. The assertion is that the first slide
+     * still renders and no TypeError reaches the console.
+     */
+    test('opening the wizard a second time still renders the first step', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error') {
+                errors.push(message.text());
+            }
+        });
+
+        const frame = await navigateToModule(page);
+
+        const first = await openWizard(page, frame);
+        await expect(first.locator('.template-card')).toBeVisible({ timeout: 10000 });
+        await first.locator('button[name="cancel"]').click();
+        await first.waitFor({ state: 'hidden', timeout: 10000 });
+
+        const second = await openWizard(page, frame);
+        await expect(second.locator('.template-card')).toBeVisible({ timeout: 10000 });
+
+        expect(errors.filter((message) => message.includes('addEventListener'))).toEqual([]);
+    });
+
     test('wizard loads and displays templates', async ({ authenticatedPage: page }) => {
         await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
 
