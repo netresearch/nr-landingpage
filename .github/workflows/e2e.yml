@@ -150,7 +150,9 @@ jobs:
           # Assert that static files are served as files. Without this the
           # regression above returns 200 with an HTML error document, which
           # reads as a healthy server and surfaces much later as a failed login.
-          asset=$(find public/_assets -name '*.js' | head -1)
+          # -L: in composer mode the entries under _assets are symlinks into
+          # vendor/, and find does not descend into those without it.
+          asset=$(find -L public/_assets -name '*.js' | head -1)
           if [ -z "$asset" ]; then
             echo "::error::no backend JavaScript found under public/_assets"
             exit 1
