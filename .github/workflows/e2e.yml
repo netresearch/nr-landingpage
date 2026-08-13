@@ -93,6 +93,9 @@ jobs:
             --project-name="E2E" \
             --server-type=other \
             --no-interaction
+          # Imports the extension's tables and runs its setup. Composer mode has
+          # no activation step, but the schema still has to be applied.
+          vendor/bin/typo3 extension:setup --no-interaction
           mkdir -p config/system
           # No cookie tweak needed: SetCookieService derives the secure flag from
           # the request (isHttps), not from configuration, so plain http on the
@@ -107,15 +110,59 @@ jobs:
       - name: Serve TYPO3
         working-directory: ${{ env.INSTALL_DIR }}
         run: |
-          php -S 127.0.0.1:8080 -t public public/index.php > "$RUNNER_TEMP/php-server.log" 2>&1 &
+          # A router script, not `-t public public/index.php`. Passing index.php
+          # as the router sends every request through the front controller,
+          # including the backend's own JavaScript under _assets/. The login
+          # page still renders, so the instance looks healthy — but the login
+          # module never loads, the password never reaches the field TYPO3
+          # evaluates, and every test fails as "login attempt did not succeed".
+          # Returning false for files that exist hands those back to the
+          # built-in server, which is what it does for a plain document root.
+          cat > "$RUNNER_TEMP/router.php" <<'PHP'
+          <?php
+          $uri = urldecode((string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+          $file = $_SERVER['DOCUMENT_ROOT'] . $uri;
+          if ($uri !== '/' && is_file($file)) {
+              return false;
+          }
+          $_SERVER['SCRIPT_NAME'] = '/index.php';
+          require $_SERVER['DOCUMENT_ROOT'] . '/index.php';
+          PHP
+          php -S 127.0.0.1:8080 -t public "$RUNNER_TEMP/router.php" > "$RUNNER_TEMP/php-server.log" 2>&1 &
+
+          up=false
           for i in $(seq 1 40); do
             code=$(curl -s -o /dev/null -w '%{http_code}' "$TYPO3_BASE_URL/typo3/login" || true)
-            [ "$code" = "200" ] && { echo "backend answered after ${i}s"; exit 0; }
+            [ "$code" = "200" ] && { echo "backend answered after ${i}s"; up=true; break; }
             sleep 1
           done
-          echo "::error::the backend never answered on $TYPO3_BASE_URL"
-          tail -50 "$RUNNER_TEMP/php-server.log"
-          exit 1
+          if [ "$up" != true ]; then
+            echo "::error::the backend never answered on $TYPO3_BASE_URL"
+            tail -50 "$RUNNER_TEMP/php-server.log"
+            exit 1
+          fi
+
+          # Assert that static files are served as files. Without this the
+          # regression above returns 200 with an HTML error document, which
+          # reads as a healthy server and surfaces much later as a failed login.
+          asset=$(find public/_assets -name '*.js' | head -1)
+          if [ -z "$asset" ]; then
+            echo "::error::no backend JavaScript found under public/_assets"
+            exit 1
+          fi
+          # Written to a file rather than piped into head: closing the pipe
+          # early makes curl die of EPIPE and report a write error instead of
+          # the body, which turns a diagnostic into a second puzzle.
+          curl -sS -o "$RUNNER_TEMP/asset.out" "$TYPO3_BASE_URL/${asset#public/}"
+          body=$(head -c 200 "$RUNNER_TEMP/asset.out")
+          case "$body" in
+            *"<!DOCTYPE"*|*"<html"*)
+              echo "::error::${asset#public/} came back as HTML - static files are going through index.php"
+              printf '%s\n' "$body"
+              exit 1
+              ;;
+          esac
+          echo "static assets are served directly"
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
