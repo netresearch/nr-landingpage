@@ -191,6 +191,7 @@ class LandingPageWizard {
         );
 
         MultiStepWizard.show();
+        this.seedCurrentModal();
 
         // Enable keyboard navigation: Enter advances to next step.
         // Use a polling approach to attach the handler once the modal DOM exists,
@@ -222,6 +223,48 @@ class LandingPageWizard {
             });
         };
         attachKeyboardHandler();
+    }
+
+    /**
+     * Work around a TYPO3 v14 core race that empties the first wizard step.
+     *
+     * `ModalElement.firstUpdated()` calls the `Modal.advanced()` callback
+     * straight away, while `showModal()` awaits one animation frame before
+     * dispatching `typo3-modal-show` — and that event is the only thing that
+     * assigns `Modal.currentModal`. Core's own callback ends in
+     * `MultiStepWizard.initializeEvents()`, whose last statement is
+     * `Modal.currentModal.addEventListener(...)`. When the progress-tracker
+     * import it awaits resolves from cache, it wins that frame and the read
+     * throws.
+     *
+     * Everything after the throw is skipped: the Next/Previous locks, the
+     * `wizard-dismissed` reset — and the FIRST slide's renderer. Opening from a
+     * template card pre-selects the template, which drops the template slide and
+     * makes briefing slide 0, so the step arrives with no fields at all. That is
+     * the empty briefing reported from the demo.
+     *
+     * `generate()` appends the modal element synchronously, so by the time
+     * `show()` returns the element core is about to assign is already in the
+     * DOM. Seeding it changes nothing else: `typo3-modal-show` overwrites the
+     * property with the same element, and pushing to `Modal.instances` stays
+     * core's job. A modal that is legitimately open keeps the slot.
+     *
+     * Remove once the core bug is fixed — `initializeEvents()` already has the
+     * element in its own first line (`$carousel.closest('.modal')`).
+     */
+    seedCurrentModal() {
+        if (Modal.currentModal) {
+            return;
+        }
+
+        // This document, not top's: modal.js appends into the document of the
+        // realm that loaded it, and that is the same realm whose Modal
+        // singleton MultiStepWizard reads. Reaching for top.document would
+        // both miss and risk a cross-origin throw inside open().
+        const modals = document.querySelectorAll('typo3-backend-modal');
+        if (modals.length > 0) {
+            Modal.currentModal = modals[modals.length - 1];
+        }
     }
 
     // ── Slide renderers ──────────────────────────────────────────

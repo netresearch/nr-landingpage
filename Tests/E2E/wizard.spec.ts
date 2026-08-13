@@ -97,6 +97,50 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal).toBeVisible();
     });
 
+    /**
+     * Regression net for the empty first step — NOT a reproduction of it.
+     *
+     * TYPO3 v14 calls the Modal.advanced() callback one animation frame before
+     * `typo3-modal-show` assigns Modal.currentModal, and
+     * MultiStepWizard.initializeEvents() ends by reading that property. Which
+     * side wins depends on whether the progress-tracker import the callback
+     * awaits resolves before the frame does.
+     *
+     * Two attempts to force the throwing side both stayed green on the same
+     * TYPO3 v14.3.6 this suite installs: opening the wizard twice, and pulling
+     * the import into the module registry beforehand (kept below). So this
+     * environment lands on the safe side of the race, and this test has never
+     * seen the failure it is named after — passing it proves nothing about the
+     * fix in wizard.js.
+     *
+     * It is kept because it asserts the property that matters, first slide
+     * renders and no null-receiver error, and would catch a future change that
+     * makes the throw unconditional.
+     */
+    test('renders the first step when the modal callback wins the race', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error') {
+                errors.push(message.text());
+            }
+        });
+
+        const frame = await navigateToModule(page);
+
+        // Evaluate in the top frame, which is where the modal lives.
+        await page.evaluate(async () => {
+            await import('@typo3/backend/element/progress-tracker-element.js');
+        });
+
+        const modal = await openWizard(page, frame);
+        await expect(modal.locator('.template-card')).toBeVisible({ timeout: 10000 });
+
+        expect(errors.filter((message) => message.includes('addEventListener'))).toEqual([]);
+    });
+
     test('wizard loads and displays templates', async ({ authenticatedPage: page }) => {
         await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
 
