@@ -11,6 +11,7 @@ use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionMethod;
 use TYPO3\CMS\Backend\View\BackendLayout\BackendLayout;
@@ -505,5 +506,123 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
         self::assertStringContainsString('colPos 1: "Sidebar"', $result);
         self::assertStringContainsString('KEIN JavaScript', $result);
         self::assertStringContainsString('Deutsch', $result);
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function cssRuleSetProvider(): array
+    {
+        return [
+            'style element with its declarations' => [
+                '<p>Vorher</p><style>:root { --primary: #2F99A4; }</style><p>Nachher</p>',
+                '<p>Vorher</p><p>Nachher</p>',
+            ],
+            'bare custom property block' => [
+                ":root {\n  --brand-primary: #2F99A4;\n  --brand-accent: #FF4D00;\n}",
+                '',
+            ],
+            'class rule set between paragraphs' => [
+                '<p>Eins</p>.hero { color: red; padding: 2rem; }<p>Zwei</p>',
+                '<p>Eins</p><p>Zwei</p>',
+            ],
+            'at-rule with a nested rule set' => [
+                '@media (min-width: 40em) { .hero { padding: 4rem; } }',
+                '',
+            ],
+            'unpaired style tag keeps the surrounding text' => [
+                '<style>.a { color: red; }<p>Text</p>',
+                '<p>Text</p>',
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function nonCssBraceProvider(): array
+    {
+        return [
+            'prose in braces' => ['<p>Wir liefern in drei Schritten { Analyse, Konzept, Umsetzung }.</p>'],
+            'json fragment' => ['<p>Beispiel: { "name": "Wert", "zahl": 3 }</p>'],
+            'sentence before an empty block' => ['<p>Der Preis {} gilt netto.</p>'],
+            'plain html' => ['<p>Ein Absatz mit <strong>Auszeichnung</strong> und einer <a href="/x">Verlinkung</a>.</p>'],
+            'long sentence ending in a declaration-shaped block' => [
+                '<p>Diese sehr lange Aufzaehlung nennt jeden einzelnen Punkt der Reihe nach { hinweis: gilt nur montags; }</p>',
+            ],
+        ];
+    }
+
+    /**
+     * A model can emit a rule set into a structured section without being asked
+     * for one. The strict sanitizer has no `style` tag and keeps a rejected
+     * tag's text content, so the declarations would be displayed as body text.
+     */
+    #[Test]
+    #[DataProvider('cssRuleSetProvider')]
+    public function stripCssRuleSetsRemovesCss(string $input, string $expected): void
+    {
+        $method = new ReflectionMethod($this->subject, 'stripCssRuleSets');
+
+        self::assertSame($expected, $method->invoke($this->subject, $input));
+    }
+
+    /**
+     * The brace body is the discriminator, not the selector. Anything whose
+     * contents are not entirely CSS declarations keeps its braces.
+     */
+    #[Test]
+    #[DataProvider('nonCssBraceProvider')]
+    public function stripCssRuleSetsLeavesEverythingElseAlone(string $input): void
+    {
+        $method = new ReflectionMethod($this->subject, 'stripCssRuleSets');
+
+        self::assertSame($input, $method->invoke($this->subject, $input));
+    }
+
+    #[Test]
+    public function validateSectionsStripsCssFromBodytext(): void
+    {
+        $response = [
+            'section' => 'Hero',
+            'ctype' => 'text',
+            'colPos' => 0,
+            'header' => 'H',
+            'bodytext' => '<style>:root { --primary: #2F99A4; }</style><p>Willkommen bei uns.</p>',
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateSections');
+        $result = $method->invoke($this->subject, $response, [], [0]);
+
+        self::assertCount(1, $result);
+        self::assertStringNotContainsString(':root', $result[0]['bodytext']);
+        self::assertStringNotContainsString('--primary', $result[0]['bodytext']);
+        self::assertStringContainsString('Willkommen bei uns.', $result[0]['bodytext']);
+    }
+
+    /**
+     * Creative mode owns a <style> block. It is sanitized on its own path and
+     * must not lose it.
+     */
+    #[Test]
+    public function creativeSectionsKeepTheirStyleBlock(): void
+    {
+        $response = [
+            'sections' => [
+                [
+                    'section' => 'Hero',
+                    'colPos' => 0,
+                    'bodytext' => '<style>.hero { color: #2F99A4; }</style><div class="hero">Hallo</div>',
+                ],
+            ],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main']);
+
+        self::assertCount(1, $result);
+        self::assertSame('html', $result[0]['ctype']);
+        self::assertStringContainsString('<style>', $result[0]['bodytext']);
+        self::assertStringContainsString('.hero', $result[0]['bodytext']);
     }
 }

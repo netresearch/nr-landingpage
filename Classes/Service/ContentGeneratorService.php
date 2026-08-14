@@ -36,6 +36,78 @@ final class ContentGeneratorService implements LoggerAwareInterface
         return $this->creativeHtmlSanitizer->sanitize($html, $allowScripts);
     }
 
+    /**
+     * Remove CSS that reached a structured section.
+     *
+     * Structured mode has no home for CSS. Its sections go through the strict
+     * sanitizer, whose whitelist has no `style` tag and whose ENCODE_INVALID_TAG
+     * flag keeps a rejected tag's text content — so a rule set arrives on the
+     * page as visible body text. 0.3.5 removed the prompt instruction that
+     * produced one; this removes the class of failure, because a model can emit
+     * a stray rule set without being asked for it.
+     *
+     * Creative mode owns a <style> block and must keep it. It is sanitized
+     * elsewhere and does not pass through here.
+     *
+     * The discriminator is the brace body, not the selector: a block is removed
+     * only when its contents are entirely CSS declarations. Prose in braces, a
+     * JSON fragment and anything else keep their braces.
+     */
+    private function stripCssRuleSets(string $html): string
+    {
+        // A complete <style> element, contents included. The sanitizer would
+        // encode the tag and leave the declarations behind as text.
+        $html = preg_replace('#<style\b[^>]*>.*?</style\s*>#is', '', $html) ?? $html;
+
+        // An unpaired <style> or </style>: drop the tag only and let the rule-set
+        // pass below decide about the declarations around it.
+        $html = preg_replace('#</?style\b[^>]*>#i', '', $html) ?? $html;
+
+        // Innermost rule sets first, so a wrapping at-rule empties out and is
+        // removed on a later pass. Five passes cover any nesting a model emits.
+        for ($pass = 0; $pass < 5; $pass++) {
+            $next = preg_replace_callback(
+                '#(?<selector>[^{}<>]{1,200}?)\{(?<body>[^{}]*)\}#s',
+                static function (array $m): string {
+                    $selector = trim($m['selector']);
+                    $body     = trim($m['body']);
+
+                    // A selector is short and has no sentence in it.
+                    if ($selector === '' || count(preg_split('#\s+#', $selector) ?: []) > 8) {
+                        return $m[0];
+                    }
+
+                    // An at-rule whose block emptied out on an earlier pass.
+                    if ($body === '') {
+                        return str_starts_with($selector, '@') ? '' : $m[0];
+                    }
+
+                    // Every declaration must be `property: value`, custom
+                    // properties included. One that is not keeps the block.
+                    $withoutComments = preg_replace('#/\*.*?\*/#s', '', $body) ?? $body;
+                    foreach (explode(';', $withoutComments) as $declaration) {
+                        if (trim($declaration) === '') {
+                            continue;
+                        }
+                        if (preg_match('#^\s*(?:--)?[A-Za-z-][A-Za-z0-9-]*\s*:\s*[^;]+$#', $declaration) !== 1) {
+                            return $m[0];
+                        }
+                    }
+
+                    return '';
+                },
+                $html,
+            );
+
+            if ($next === null || $next === $html) {
+                break;
+            }
+            $html = $next;
+        }
+
+        return trim(preg_replace('#\n{3,}#', "\n\n", $html) ?? $html);
+    }
+
     private function getSanitizer(): Sanitizer
     {
         if ($this->sanitizer === null) {
@@ -561,7 +633,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 'colPos' => $colPos,
                 'header' => is_string($item['header'] ?? null) ? $item['header'] : '',
                 'subheader' => is_string($item['subheader'] ?? null) ? $item['subheader'] : '',
-                'bodytext' => $this->sanitizeHtml($bodytext),
+                'bodytext' => $this->sanitizeHtml($this->stripCssRuleSets($bodytext)),
                 'imageKeywords' => $imageKeywords,
                 'imagePrompt' => is_string($item['imagePrompt'] ?? null) ? $item['imagePrompt'] : '',
                 'imageorient' => $imageorient,
