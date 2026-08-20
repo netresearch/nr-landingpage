@@ -6,13 +6,16 @@ namespace Netresearch\NrLandingpage\Tests\Unit\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Service\BackendLayoutService;
+use Netresearch\NrLandingpage\Service\LlmCallerSource;
 use Netresearch\NrLandingpage\Service\PromptOptimizerService;
 use Netresearch\NrLlm\Domain\Model\CompletionResponse;
 use Netresearch\NrLlm\Domain\Model\LlmConfiguration;
 use Netresearch\NrLlm\Domain\Model\UsageStatistics;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
+use Netresearch\NrLlm\Provider\Middleware\TelemetryMiddleware;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
+use Netresearch\NrLlm\Service\Option\ChatOptions;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -363,5 +366,62 @@ final class PromptOptimizerServiceTest extends UnitTestCase
         $result = $service->generateOptimizedPrompt($this->createTemplate());
 
         self::assertSame('Trimmed result', $result);
+    }
+
+    #[Test]
+    public function generateOptimizedPromptCarriesCallerSourceInTheMetadata(): void
+    {
+        $llmConfig = $this->createMock(LlmConfiguration::class);
+
+        $configRepo = $this->createMock(LlmConfigurationRepository::class);
+        $configRepo->method('findByUid')->with(5)->willReturn($llmConfig);
+
+        $response = $this->createCompletionResponse('result');
+
+        $captured = null;
+        $llmManager = $this->createMock(LlmServiceManagerInterface::class);
+        $llmManager->expects(self::once())
+            ->method('chatWithConfiguration')
+            ->willReturnCallback(static function (mixed ...$args) use (&$captured, $response): CompletionResponse {
+                $captured = $args[2] ?? null;
+
+                return $response;
+            });
+
+        $service = $this->createService(llmManager: $llmManager, configRepo: $configRepo);
+        $service->generateOptimizedPrompt($this->createTemplate(llmConfiguration: 5));
+
+        self::assertIsArray($captured);
+        self::assertSame(
+            LlmCallerSource::EXTENSION,
+            $captured[TelemetryMiddleware::METADATA_SOURCE_EXTENSION] ?? null,
+        );
+        self::assertSame(
+            'optimizePrompt',
+            $captured[TelemetryMiddleware::METADATA_SOURCE_OPERATION] ?? null,
+        );
+    }
+
+    #[Test]
+    public function generateOptimizedPromptCarriesCallerSourceOnTheFallbackOptions(): void
+    {
+        $response = $this->createCompletionResponse('result');
+
+        $captured = null;
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->expects(self::once())
+            ->method('complete')
+            ->willReturnCallback(static function (mixed ...$args) use (&$captured, $response): CompletionResponse {
+                $captured = $args[1] ?? null;
+
+                return $response;
+            });
+
+        $service = $this->createService(completionService: $completionService);
+        $service->generateOptimizedPrompt($this->createTemplate());
+
+        self::assertInstanceOf(ChatOptions::class, $captured);
+        self::assertSame(LlmCallerSource::EXTENSION, $captured->getCallerSourceExtension());
+        self::assertSame('optimizePrompt', $captured->getCallerSourceOperation());
     }
 }

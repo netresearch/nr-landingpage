@@ -7,8 +7,10 @@ namespace Netresearch\NrLandingpage\Service;
 use Locale;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
+use Netresearch\NrLlm\Provider\Middleware\TelemetryMiddleware;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
+use Netresearch\NrLlm\Service\Option\ChatOptions;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Throwable;
@@ -143,7 +145,7 @@ class PromptOptimizerService implements LoggerAwareInterface
                     . $template->promptOptimizerContext;
             }
 
-            return $this->completeTextWithTemplate($template, $prompt);
+            return $this->completeTextWithTemplate($template, $prompt, 'optimizePrompt');
         } catch (Throwable $e) {
             $this->logger?->error('Prompt optimization failed', [
                 'template' => $template->identifier,
@@ -236,7 +238,11 @@ class PromptOptimizerService implements LoggerAwareInterface
         return is_string($displayName) && $displayName !== '' && $displayName !== $localeString ? $displayName : 'English';
     }
 
-    private function completeTextWithTemplate(Template $template, string $prompt): string
+    /**
+     * @param string $operation Names what the caller is running, for nr-llm's
+     *                          per-operation usage breakdown.
+     */
+    private function completeTextWithTemplate(Template $template, string $prompt, string $operation): string
     {
         if ($template->llmConfiguration > 0) {
             $llmConfig = $this->configurationRepository->findByUid($template->llmConfiguration);
@@ -244,13 +250,23 @@ class PromptOptimizerService implements LoggerAwareInterface
                 $messages = [
                     ['role' => 'user', 'content' => $prompt],
                 ];
-                $completionResponse = $this->llmServiceManager->chatWithConfiguration($messages, $llmConfig);
+                $completionResponse = $this->llmServiceManager->chatWithConfiguration(
+                    $messages,
+                    $llmConfig,
+                    [
+                        TelemetryMiddleware::METADATA_SOURCE_EXTENSION => LlmCallerSource::EXTENSION,
+                        TelemetryMiddleware::METADATA_SOURCE_OPERATION => $operation,
+                    ],
+                );
 
                 return trim($completionResponse->content);
             }
         }
 
-        $response = $this->completionService->complete($prompt);
+        $response = $this->completionService->complete(
+            $prompt,
+            (new ChatOptions())->withCallerSource(LlmCallerSource::EXTENSION, $operation),
+        );
 
         return trim($response->content);
     }

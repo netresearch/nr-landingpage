@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Tests\Unit\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
+use Netresearch\NrLandingpage\Service\LlmCallerSource;
 use Netresearch\NrLandingpage\Service\LlmCompletionTrait;
 use Netresearch\NrLlm\Domain\Model\CompletionResponse;
 use Netresearch\NrLlm\Domain\Model\LlmConfiguration;
 use Netresearch\NrLlm\Domain\Model\UsageStatistics;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
+use Netresearch\NrLlm\Provider\Middleware\TelemetryMiddleware;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
+use Netresearch\NrLlm\Service\Option\ChatOptions;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -52,9 +55,9 @@ final class LlmCompletionTraitTest extends UnitTestCase
             ) {}
 
             /** @return array<string, mixed> */
-            public function callComplete(Template $template, string $prompt): array
+            public function callComplete(Template $template, string $prompt, string $operation = 'testOperation'): array
             {
-                return $this->completeJsonWithTemplate($template, $prompt);
+                return $this->completeJsonWithTemplate($template, $prompt, $operation);
             }
         };
     }
@@ -255,5 +258,108 @@ final class LlmCompletionTraitTest extends UnitTestCase
 
         self::assertSame('Test', $result['header']);
         self::assertSame(1, $result['count']);
+    }
+
+    #[Test]
+    public function fallbackCompletionCarriesCallerSourceOnTheOptions(): void
+    {
+        $template = $this->createTemplate(0);
+
+        $captured = null;
+        $this->completionService
+            ->expects(self::once())
+            ->method('completeJson')
+            ->willReturnCallback(static function (mixed ...$args) use (&$captured): array {
+                $captured = $args[1] ?? null;
+
+                return [];
+            });
+
+        $this->subject->callComplete($template, 'test prompt', 'generateContent');
+
+        self::assertInstanceOf(ChatOptions::class, $captured);
+        self::assertSame(LlmCallerSource::EXTENSION, $captured->getCallerSourceExtension());
+        self::assertSame('generateContent', $captured->getCallerSourceOperation());
+    }
+
+    #[Test]
+    public function fallbackCompletionKeepsJsonResponseFormatAlongsideCallerSource(): void
+    {
+        $template = $this->createTemplate(0);
+
+        $captured = null;
+        $this->completionService
+            ->expects(self::once())
+            ->method('completeJson')
+            ->willReturnCallback(static function (mixed ...$args) use (&$captured): array {
+                $captured = $args[1] ?? null;
+
+                return [];
+            });
+
+        $this->subject->callComplete($template, 'test prompt', 'generateContent');
+
+        self::assertInstanceOf(ChatOptions::class, $captured);
+        self::assertSame('json', $captured->toArray()['response_format'] ?? null);
+    }
+
+    #[Test]
+    public function configuredChatCarriesCallerSourceInTheMetadata(): void
+    {
+        $template = $this->createTemplate(5);
+        $config = $this->createMock(LlmConfiguration::class);
+        $this->configurationRepository->method('findByUid')->willReturn($config);
+
+        $response = new CompletionResponse(
+            content: '{"ok": true}',
+            model: 'gpt-4',
+            usage: new UsageStatistics(10, 20, 30),
+        );
+
+        $captured = null;
+        $this->llmServiceManager
+            ->expects(self::once())
+            ->method('chatWithConfiguration')
+            ->willReturnCallback(static function (mixed ...$args) use (&$captured, $response): CompletionResponse {
+                $captured = $args[2] ?? null;
+
+                return $response;
+            });
+
+        $this->subject->callComplete($template, 'test', 'generatePageFields');
+
+        self::assertIsArray($captured);
+        self::assertSame(
+            LlmCallerSource::EXTENSION,
+            $captured[TelemetryMiddleware::METADATA_SOURCE_EXTENSION] ?? null,
+        );
+        self::assertSame(
+            'generatePageFields',
+            $captured[TelemetryMiddleware::METADATA_SOURCE_OPERATION] ?? null,
+        );
+    }
+
+    #[Test]
+    public function operationIsThreadedThroughFromTheCallerNotFixedInTheTrait(): void
+    {
+        $template = $this->createTemplate(0);
+
+        $operations = [];
+        $this->completionService
+            ->expects(self::exactly(2))
+            ->method('completeJson')
+            ->willReturnCallback(static function (mixed ...$args) use (&$operations): array {
+                $options = $args[1] ?? null;
+                $operations[] = $options instanceof ChatOptions
+                    ? $options->getCallerSourceOperation()
+                    : null;
+
+                return [];
+            });
+
+        $this->subject->callComplete($template, 'a', 'generateBriefingQuestions');
+        $this->subject->callComplete($template, 'b', 'optimizePrompt');
+
+        self::assertSame(['generateBriefingQuestions', 'optimizePrompt'], $operations);
     }
 }

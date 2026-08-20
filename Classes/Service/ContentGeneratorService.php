@@ -158,7 +158,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         }
 
         $prompt = $this->buildContentPrompt($template, $briefingAnswers, $outputLanguage, $parentPageId);
-        $response = $this->completeJsonWithTemplate($template, $prompt);
+        $response = $this->completeJsonWithTemplate($template, $prompt, 'generateContent');
 
         $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout, $parentPageId);
         $columnMap = $this->filterColumnMap($columnMap, $template->contentColumns);
@@ -182,7 +182,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $columnMap = $this->filterColumnMap($columnMap, $template->contentColumns);
 
         $prompt = $this->buildCreativePrompt($template, $briefingAnswers, $outputLanguage, $columnMap);
-        $response = $this->completeJsonWithTemplate($template, $prompt);
+        $response = $this->completeJsonWithTemplate($template, $prompt, 'generateCreativeContent');
 
         $allowScripts = $template->isAnimationEnabled();
 
@@ -199,7 +199,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
     {
         try {
             $prompt = $this->buildPageFieldsPrompt($template, $briefingAnswers, $outputLanguage);
-            $response = $this->completeJsonWithTemplate($template, $prompt);
+            $response = $this->completeJsonWithTemplate($template, $prompt, 'generatePageFields');
         } catch (Throwable $e) {
             $this->logger?->error('Page field generation failed', [
                 'template' => $template->identifier,
