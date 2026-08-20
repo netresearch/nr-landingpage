@@ -33,7 +33,11 @@ final class BriefingService implements LoggerAwareInterface
     public function generateQuestions(Template $template): array
     {
         try {
-            $response = $this->completeJsonWithTemplate($template, $this->buildPrompt($template));
+            $response = $this->completeJsonWithTemplate(
+                $template,
+                $this->buildPrompt($template),
+                'generateBriefingQuestions',
+            );
         } catch (Throwable $e) {
             $this->logger?->error('Briefing generation failed', [
                 'template' => $template->identifier,

@@ -6,6 +6,7 @@ namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
+use Netresearch\NrLlm\Provider\Middleware\TelemetryMiddleware;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Netresearch\NrLlm\Service\Option\ChatOptions;
@@ -68,9 +69,15 @@ trait LlmCompletionTrait
      * Complete a JSON prompt using the template's LLM configuration if available,
      * falling back to the default CompletionService.
      *
+     * @param string $operation Names what the caller is running, for nr-llm's
+     *                          per-operation usage breakdown. Passed in rather
+     *                          than fixed here: this trait serves several
+     *                          callers, and one constant would collapse them
+     *                          into a single row.
+     *
      * @return array<string, mixed>
      */
-    private function completeJsonWithTemplate(Template $template, string $prompt): array
+    private function completeJsonWithTemplate(Template $template, string $prompt, string $operation): array
     {
         if ($template->llmConfiguration > 0) {
             $llmConfig = $this->configurationRepository->findByUid($template->llmConfiguration);
@@ -79,7 +86,14 @@ trait LlmCompletionTrait
                     ['role' => 'system', 'content' => 'You MUST respond with valid JSON only. No markdown, no explanation, no code fences.'],
                     ['role' => 'user', 'content' => $prompt],
                 ];
-                $completionResponse = $this->llmServiceManager->chatWithConfiguration($messages, $llmConfig);
+                $completionResponse = $this->llmServiceManager->chatWithConfiguration(
+                    $messages,
+                    $llmConfig,
+                    [
+                        TelemetryMiddleware::METADATA_SOURCE_EXTENSION => LlmCallerSource::EXTENSION,
+                        TelemetryMiddleware::METADATA_SOURCE_OPERATION => $operation,
+                    ],
+                );
                 $content = trim($completionResponse->content);
                 // Strip markdown code fences if present
                 if (str_starts_with($content, '```')) {
@@ -132,7 +146,10 @@ trait LlmCompletionTrait
             }
         }
 
-        return $this->completionService->completeJson($prompt, ChatOptions::json());
+        return $this->completionService->completeJson(
+            $prompt,
+            ChatOptions::json()->withCallerSource(LlmCallerSource::EXTENSION, $operation),
+        );
     }
 
     /**

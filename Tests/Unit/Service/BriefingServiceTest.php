@@ -6,9 +6,11 @@ namespace Netresearch\NrLandingpage\Tests\Unit\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Service\BriefingService;
+use Netresearch\NrLandingpage\Service\LlmCallerSource;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
+use Netresearch\NrLlm\Service\Option\ChatOptions;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\LoggerInterface;
@@ -347,5 +349,29 @@ final class BriefingServiceTest extends UnitTestCase
         ))->generateQuestions(
             $this->createTemplate(''),
         );
+    }
+
+    #[Test]
+    public function generateQuestionsNamesThisExtensionAndItsOperation(): void
+    {
+        $captured = null;
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->expects(self::once())
+            ->method('completeJson')
+            ->willReturnCallback(static function (mixed ...$args) use (&$captured): array {
+                $captured = $args[1] ?? null;
+
+                return [];
+            });
+
+        (new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        ))->generateQuestions($this->createTemplate());
+
+        self::assertInstanceOf(ChatOptions::class, $captured);
+        self::assertSame(LlmCallerSource::EXTENSION, $captured->getCallerSourceExtension());
+        self::assertSame('generateBriefingQuestions', $captured->getCallerSourceOperation());
     }
 }

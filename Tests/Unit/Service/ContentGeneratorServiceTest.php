@@ -9,9 +9,11 @@ use Netresearch\NrLandingpage\Service\BackendLayoutService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
 use Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer;
 use Netresearch\NrLandingpage\Service\CTypeMetadataService;
+use Netresearch\NrLandingpage\Service\LlmCallerSource;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
+use Netresearch\NrLlm\Service\Option\ChatOptions;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\LoggerInterface;
@@ -827,5 +829,38 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         self::assertCount(2, $result);
         self::assertSame(0, $result[0]['colPos']);
         self::assertSame(1, $result[1]['colPos']);
+    }
+
+    /**
+     * Each entry point reports its own operation, so nr-llm's Analytics module
+     * can break the extension's usage down by what actually ran.
+     */
+    #[Test]
+    public function eachEntryPointNamesThisExtensionAndItsOwnOperation(): void
+    {
+        $captured = [];
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->expects(self::exactly(3))
+            ->method('completeJson')
+            ->willReturnCallback(static function (mixed ...$args) use (&$captured): array {
+                $options = $args[1] ?? null;
+                $captured[] = $options instanceof ChatOptions
+                    ? [$options->getCallerSourceExtension(), $options->getCallerSourceOperation()]
+                    : null;
+
+                return [];
+            });
+
+        $service = $this->createService($completionService);
+
+        $service->generateContent($this->createTemplate(), []);
+        $service->generateContent($this->createTemplate(generationMode: 'creative'), []);
+        $service->generatePageFields($this->createTemplate(), []);
+
+        self::assertSame([
+            [LlmCallerSource::EXTENSION, 'generateContent'],
+            [LlmCallerSource::EXTENSION, 'generateCreativeContent'],
+            [LlmCallerSource::EXTENSION, 'generatePageFields'],
+        ], $captured);
     }
 }
