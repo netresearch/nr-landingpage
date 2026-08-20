@@ -11,7 +11,7 @@ $EM_CONF[$_EXTKEY] = [
     'constraints' => [
         'depends' => [
             'typo3' => '13.4.0-14.99.99',
-            'nr_llm' => '0.30.0-0.99.99',
+            'nr_llm' => '0.31.0-0.99.99',
         ],
         'suggests' => [
             'workspaces' => '',
