@@ -195,4 +195,4 @@ docker run --rm -v $(pwd):/project \
 ## Contact
 
 - **Issues**: https://github.com/netresearch/t3x-nr-llm/issues
-- **Dependency**: `netresearch/nr-llm` ^0.4.0
+- **Dependency**: `netresearch/nr-llm` ^0.34
