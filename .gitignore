@@ -1,4 +1,7 @@
 .Build/
+# The Docker test runner writes TYPO3's var/ into the working tree, so
+# `runTests.sh` leaves it behind on every local run.
+/var/
 composer.lock
 .php-cs-fixer.cache
 Documentation-GENERATED-temp/
