@@ -7,7 +7,7 @@
   "discussion_status": "Met",
   "discussion_justification": "GitHub issues and pull requests are public, searchable, addressable by URL and need no proprietary client: https://github.com/netresearch/nr-landingpage/issues",
   "floss_license_status": "Met",
-  "floss_license_justification": "Released under GPL-2.0-or-later, an OSI-approved licence: https://github.com/netresearch/nr-landingpage/blob/main/LICENSE",
+  "floss_license_justification": "Released under GPL-2.0-or-later, an OSI-approved licence: https://github.com/netresearch/nr-landingpage/blob/main/LICENSE. The grant GPL-2.0-or-later is stated in https://github.com/netresearch/nr-landingpage/blob/main/composer.json; LICENSE holds the licence text.",
   "license_location_status": "Met",
   "license_location_justification": "The licence file is in the repository root: https://github.com/netresearch/nr-landingpage/blob/main/LICENSE",
   "repo_distributed_status": "Met",
