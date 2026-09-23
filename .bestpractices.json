@@ -6,6 +6,8 @@
   "dependency_monitoring_justification": "Renovate monitors the dependencies (https://github.com/netresearch/nr-landingpage/blob/main/renovate.json) and extends the shared configuration, whose vulnerabilityAlerts open a fix pull request for a known vulnerability: https://github.com/netresearch/renovate-config/blob/main/default.json",
   "discussion_status": "Met",
   "discussion_justification": "GitHub issues and pull requests are public, searchable, addressable by URL and need no proprietary client: https://github.com/netresearch/nr-landingpage/issues",
+  "floss_license_status": "Met",
+  "floss_license_justification": "Released under GPL-2.0-or-later, an OSI-approved licence: https://github.com/netresearch/nr-landingpage/blob/main/LICENSE",
   "license_location_status": "Met",
   "license_location_justification": "The licence is in the repository root: https://github.com/netresearch/nr-landingpage/blob/main/LICENSE",
   "repo_distributed_status": "Met",
