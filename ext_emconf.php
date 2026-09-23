@@ -7,11 +7,11 @@ $EM_CONF[$_EXTKEY] = [
     'author' => 'Netresearch DTT GmbH',
     'author_email' => 'info@netresearch.de',
     'state' => 'beta',
-    'version' => '0.3.12',
+    'version' => '0.3.13',
     'constraints' => [
         'depends' => [
             'typo3' => '13.4.0-14.99.99',
-            'nr_llm' => '0.34.0-0.35.99',
+            'nr_llm' => '0.34.0-0.36.99',
         ],
         'suggests' => [
             'workspaces' => '',
