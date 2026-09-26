@@ -9,7 +9,7 @@ all without leaving the TYPO3 backend.
 | Dependency       | Version           |
 |------------------|-------------------|
 | PHP              | ^8.2              |
-| TYPO3            | 13.4 LTS / 14.x  |
+| TYPO3            | 13.4 LTS / 14.3 LTS |
 | netresearch/nr-llm | >=0.34 <0.38   |
 
 ## Installation

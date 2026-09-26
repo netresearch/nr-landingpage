@@ -10,7 +10,7 @@ briefing questions, review AI-generated content with images, and place the
 page in the page tree.
 
 **Key characteristics:**
-- PHP 8.2+ / TYPO3 v13.4+ / v14.x
+- PHP 8.2+ / TYPO3 v13.4 LTS / v14.3 LTS
 - Depends on `netresearch/nr-llm` for LLM communication
 - Backend wizard (MultiStepWizard modal) with five steps
 - Template-driven generation with configurable content types
