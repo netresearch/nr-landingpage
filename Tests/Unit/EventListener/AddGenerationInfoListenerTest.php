@@ -192,6 +192,7 @@ final class AddGenerationInfoListenerTest extends UnitTestCase
         self::assertStringContainsString('AI-Generated Landing Page', $content);
         self::assertStringContainsString('Test Template', $content);
         self::assertStringContainsString('callout-info', $content);
+        self::assertStringNotContainsString('callout-warning', $content);
         self::assertStringNotContainsString('alert-warning', $content);
         self::assertStringContainsString('Re-Generate Landing Page', $content);
         self::assertStringContainsString('btn btn-default', $content);
@@ -241,7 +242,8 @@ final class AddGenerationInfoListenerTest extends UnitTestCase
         $this->createListener($pool)($event);
 
         $content = $event->getHeaderContent();
-        self::assertStringContainsString('alert-warning', $content);
+        self::assertStringContainsString('callout callout-warning', $content);
+        self::assertStringNotContainsString('alert-warning', $content);
         self::assertStringContainsString('template configuration has changed', $content);
     }
 

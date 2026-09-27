@@ -53,7 +53,7 @@ class GeneratedPageCount extends AbstractNode
             $label = '%d page(s) generated with this template';
         }
 
-        $result['html'] = '<div class="form-description text-body-secondary">'
+        $result['html'] = '<div class="form-description text-variant">'
             . htmlspecialchars(sprintf($label, $count))
             . '</div>';
 

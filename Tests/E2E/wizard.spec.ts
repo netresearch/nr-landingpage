@@ -249,8 +249,8 @@ test.describe('Landing Page Wizard', () => {
         await advanceToPageFields(modal, page);
         await advanceToContent(modal, page);
 
-        await expect(modal.locator('#section-card-0 .badge.bg-secondary')).toHaveText('text');
-        await expect(modal.locator('#section-card-1 .badge.bg-secondary')).toHaveText('textmedia');
+        await expect(modal.locator('#section-card-0 .badge.badge-default')).toHaveText('text');
+        await expect(modal.locator('#section-card-1 .badge.badge-default')).toHaveText('textmedia');
     });
 
     // -- Bug 1: SEO fields populated from LLM response --

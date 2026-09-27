@@ -2,6 +2,7 @@ import DocumentService from '@typo3/core/document-service.js';
 import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 import Notification from '@typo3/backend/notification.js';
 import Modal from '@typo3/backend/modal.js';
+import '@typo3/backend/element/spinner-element.js';
 
 class TestGenerate {
   /**
@@ -54,7 +55,7 @@ class TestGenerate {
         '<div class="form-group mb-3">'
         + '<label for="testGenerateTitle" class="form-label">' + this.escapeHtml(this.lang('fieldControl.testGenerate.form.label', 'Sample Title / Topic')) + '</label>'
         + '<input type="text" class="form-control" id="testGenerateTitle" placeholder="' + this.escapeHtml(this.lang('fieldControl.testGenerate.form.placeholder', 'e.g. Summer Sale 2026')) + '">'
-        + '<small class="form-text text-body-secondary">' + this.escapeHtml(this.lang('fieldControl.testGenerate.form.helpText', 'Enter a sample topic. The AI will generate a complete page preview with content sections and images based on your template settings.')) + '</small>'
+        + '<small class="form-text text-variant">' + this.escapeHtml(this.lang('fieldControl.testGenerate.form.helpText', 'Enter a sample topic. The AI will generate a complete page preview with content sections and images based on your template settings.')) + '</small>'
         + '</div>'
       ),
       size: Modal.sizes.large,
@@ -91,9 +92,9 @@ class TestGenerate {
     const contentArea = modal.querySelector('.modal-body');
     if (!contentArea) return;
 
-    contentArea.innerHTML = '<div class="text-center py-5">'
-      + '<div class="spinner-border text-primary" role="status"></div>'
-      + '<p class="mt-3 text-body-secondary">' + this.escapeHtml(this.lang('fieldControl.testGenerate.loading', 'Generating content preview…')) + '</p>'
+    contentArea.innerHTML = '<div class="text-center py-5" role="status" aria-live="polite">'
+      + '<typo3-backend-spinner size="large" aria-hidden="true"></typo3-backend-spinner>'
+      + '<p class="mt-3 text-variant">' + this.escapeHtml(this.lang('fieldControl.testGenerate.loading', 'Generating content preview…')) + '</p>'
       + '</div>';
 
     // Disable buttons during generation
@@ -126,11 +127,11 @@ class TestGenerate {
     const aiAvailable = data.aiGenerationAvailable || false;
 
     let html = '<div class="mb-3">'
-      + '<span class="badge bg-success me-2">' + sections.length + this.escapeHtml(this.lang('fieldControl.testGenerate.badge.sectionsGenerated', ' sections generated')) + '</span>'
-      + (aiAvailable ? '<span class="badge bg-info">' + this.escapeHtml(this.lang('fieldControl.testGenerate.badge.aiImages', 'AI image generation available')) + '</span>' : '')
+      + '<span class="badge badge-success me-2">' + sections.length + this.escapeHtml(this.lang('fieldControl.testGenerate.badge.sectionsGenerated', ' sections generated')) + '</span>'
+      + (aiAvailable ? '<span class="badge badge-info">' + this.escapeHtml(this.lang('fieldControl.testGenerate.badge.aiImages', 'AI image generation available')) + '</span>' : '')
       + '</div>';
 
-    html += '<p class="text-body-secondary small">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.sampleTopic', 'Sample topic: ')) + '<strong>' + this.escapeHtml(sampleTitle) + '</strong></p>';
+    html += '<p class="text-variant small">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.sampleTopic', 'Sample topic: ')) + '<strong>' + this.escapeHtml(sampleTitle) + '</strong></p>';
 
     // Page fields (SEO, OG, etc.)
     const pageFields = data.pageFields || {};
@@ -138,9 +139,9 @@ class TestGenerate {
     if (pageFieldKeys.length > 0) {
       html += '<div class="card mb-3 border-info">';
       html += '<div class="card-header bg-info bg-opacity-10"><strong>' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.pageFields', 'Page Fields')) + '</strong></div>';
-      html += '<div class="card-body"><table class="table table-sm table-borderless mb-0">';
+      html += '<div class="card-body"><table class="table table-sm mb-0">';
       pageFieldKeys.forEach(key => {
-        html += '<tr><td class="text-body-secondary fw-bold" style="width:140px;">' + this.escapeHtml(key) + '</td>'
+        html += '<tr><td class="text-variant fw-bold" style="width:140px;">' + this.escapeHtml(key) + '</td>'
           + '<td>' + this.escapeHtml(pageFields[key]) + '</td></tr>';
       });
       html += '</table></div></div>';
@@ -154,42 +155,42 @@ class TestGenerate {
       html += '<strong>' + this.escapeHtml(section.section || this.lang('fieldControl.testGenerate.preview.section', 'Section')) + '</strong>';
       html += '<div>';
       if (section.colPos !== undefined) {
-        html += '<span class="badge bg-info me-1">colPos ' + this.escapeHtml(String(section.colPos)) + '</span>';
+        html += '<span class="badge badge-info me-1">colPos ' + this.escapeHtml(String(section.colPos)) + '</span>';
       }
-      html += '<span class="badge bg-secondary">' + this.escapeHtml(section.ctype || this.lang('fieldControl.testGenerate.preview.text', 'text')) + '</span>';
+      html += '<span class="badge badge-default">' + this.escapeHtml(section.ctype || this.lang('fieldControl.testGenerate.preview.text', 'text')) + '</span>';
       html += '</div>';
       html += '</div>';
       html += '<div class="card-body">';
 
       if (section.header) {
-        html += '<h5>' + this.escapeHtml(section.header) + '</h5>';
+        html += '<h2 class="h5">' + this.escapeHtml(section.header) + '</h2>';
       }
       if (section.subheader) {
-        html += '<h6 class="text-body-secondary">' + this.escapeHtml(section.subheader) + '</h6>';
+        html += '<h3 class="h6 text-variant">' + this.escapeHtml(section.subheader) + '</h3>';
       }
       if (section.bodytext) {
         // bodytext is already sanitized server-side (HtmlSanitizer allows only safe tags)
-        html += '<div class="border rounded p-2 bg-body-tertiary small mb-2">' + section.bodytext + '</div>';
+        html += '<div class="border rounded p-2 small mb-2" style="background:var(--typo3-surface-container-high);">' + section.bodytext + '</div>';
       }
 
       // Image keywords
       if (section.imageKeywords && section.imageKeywords.length > 0) {
-        html += '<div class="mb-2"><small class="text-body-secondary">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.imageKeywords', 'Image keywords: ')) + '</small>';
+        html += '<div class="mb-2"><small class="text-variant">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.imageKeywords', 'Image keywords: ')) + '</small>';
         section.imageKeywords.forEach(kw => {
-          html += '<span class="badge bg-light text-dark me-1">' + this.escapeHtml(kw) + '</span>';
+          html += '<span class="badge badge-default me-1">' + this.escapeHtml(kw) + '</span>';
         });
         html += '</div>';
       }
 
       // Image prompt
       if (section.imagePrompt) {
-        html += '<div class="mb-2"><small class="text-body-secondary">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.imagePrompt', 'Image prompt: ')) + '</small>'
+        html += '<div class="mb-2"><small class="text-variant">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.imagePrompt', 'Image prompt: ')) + '</small>'
           + '<em class="small">' + this.escapeHtml(section.imagePrompt) + '</em></div>';
       }
 
       // FAL images found
       if (sectionImages.length > 0) {
-        html += '<div class="mt-2"><small class="text-body-secondary d-block mb-1">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.imagesFound', 'Images found:')) + '</small>';
+        html += '<div class="mt-2"><small class="text-variant d-block mb-1">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.imagesFound', 'Images found:')) + '</small>';
         html += '<div class="d-flex gap-2 flex-wrap">';
         sectionImages.forEach(img => {
           html += '<div class="text-center" style="width:100px;">';
@@ -199,13 +200,13 @@ class TestGenerate {
           }
           html += '<small class="d-block text-truncate">' + this.escapeHtml(img.title || img.name || '') + '</small>';
           if (img.generated) {
-            html += '<span class="badge bg-warning text-dark" style="font-size:0.65em;">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.aiGenerated', 'AI generated')) + '</span>';
+            html += '<span class="badge badge-warning" style="font-size:0.65em;">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.aiGenerated', 'AI generated')) + '</span>';
           }
           html += '</div>';
         });
         html += '</div></div>';
       } else {
-        html += '<div class="mt-2"><small class="text-body-secondary">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.noImages', 'No FAL images found for this section.')) + '</small></div>';
+        html += '<div class="mt-2"><small class="text-variant">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.noImages', 'No FAL images found for this section.')) + '</small></div>';
       }
 
       html += '</div></div>';

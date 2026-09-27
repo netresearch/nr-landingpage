@@ -171,7 +171,7 @@ final class AddGenerationInfoListener
                 . '<summary style="cursor:pointer">'
                 . htmlspecialchars($briefingLabel !== '' ? $briefingLabel : 'Briefing', ENT_QUOTES, 'UTF-8')
                 . '</summary>'
-                . '<table class="table table-sm table-borderless mb-0 mt-1"><tbody>'
+                . '<table class="table table-sm mb-0 mt-1"><tbody>'
                 . $answerRows
                 . '</tbody></table>'
                 . '</details>';
@@ -184,8 +184,15 @@ final class AddGenerationInfoListener
             if ($warningMsg === '') {
                 $warningMsg = 'The template configuration has changed since this page was generated. Consider re-generating.';
             }
-            $warningHtml = '<div class="alert alert-warning mt-2 mb-0 py-1 px-2 small">'
+            // Core callout markup (as rendered by f:be.infobox), placed next to
+            // the info callout: a Bootstrap .alert nested inside a callout is
+            // not a core pattern in module content.
+            $warningHtml = '<div class="callout callout-warning callout-sm">'
+                . '<div class="callout-content">'
+                . '<div class="callout-body">'
                 . htmlspecialchars($warningMsg, ENT_QUOTES, 'UTF-8')
+                . '</div>'
+                . '</div>'
                 . '</div>';
         }
 
@@ -210,10 +217,10 @@ final class AddGenerationInfoListener
             . '<div class="callout-body">'
             . $metaLine
             . $briefingHtml
-            . $warningHtml
             . '</div>'
             . '</div>'
-            . '</div>';
+            . '</div>'
+            . $warningHtml;
     }
 
     private function getLanguageService(): LanguageService

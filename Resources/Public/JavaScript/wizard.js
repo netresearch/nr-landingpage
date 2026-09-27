@@ -4,6 +4,7 @@ import Modal from '@typo3/backend/modal.js';
 import Notification from '@typo3/backend/notification.js';
 import Severity from '@typo3/backend/severity.js';
 import Icons from '@typo3/backend/icons.js';
+import '@typo3/backend/element/spinner-element.js';
 
 /**
  * Landing Page Wizard using TYPO3 MultiStepWizard modal overlay.
@@ -325,7 +326,7 @@ class LandingPageWizard {
             }
 
             const heading = document.createElement('p');
-            heading.className = 'text-body-secondary mb-3';
+            heading.className = 'text-variant mb-3';
             heading.textContent = this.label('wizard.template.select');
             container.appendChild(heading);
 
@@ -350,16 +351,16 @@ class LandingPageWizard {
                 const cardBody = document.createElement('div');
                 cardBody.className = 'card-body';
 
-                const title = document.createElement('h5');
-                title.className = 'card-title';
+                const title = document.createElement('h2');
+                title.className = 'card-title h5';
                 title.textContent = template.title;
 
                 const description = document.createElement('p');
-                description.className = 'card-text text-body-secondary';
+                description.className = 'card-text text-variant';
                 description.textContent = template.description || '';
 
                 const badge = document.createElement('span');
-                badge.className = 'badge bg-info';
+                badge.className = 'badge badge-info';
                 badge.textContent = this.label('wizard.template.briefingBadge', template.briefingMode || 'none');
 
                 cardBody.appendChild(title);
@@ -414,7 +415,7 @@ class LandingPageWizard {
 
         if (!template || template.briefingMode === 'none') {
             const msg = document.createElement('p');
-            msg.className = 'text-body-secondary';
+            msg.className = 'text-variant';
             msg.textContent = this.label('wizard.briefing.skipped');
             container.appendChild(msg);
             MultiStepWizard.unlockNextStep();
@@ -432,7 +433,7 @@ class LandingPageWizard {
             container.innerHTML = '';
 
             const description = document.createElement('p');
-            description.className = 'text-body-secondary mb-3';
+            description.className = 'text-variant mb-3';
             description.textContent = this.label('wizard.briefing.description');
             container.appendChild(description);
 
@@ -564,7 +565,7 @@ class LandingPageWizard {
             container.innerHTML = '';
 
             const description = document.createElement('p');
-            description.className = 'text-body-secondary mb-3';
+            description.className = 'text-variant mb-3';
             description.textContent = this.label('wizard.pageFields.description');
             container.appendChild(description);
 
@@ -679,7 +680,7 @@ class LandingPageWizard {
         container.innerHTML = '';
 
         const description = document.createElement('p');
-        description.className = 'text-body-secondary mb-3';
+        description.className = 'text-variant mb-3';
         description.textContent = this.label('wizard.content.description');
         container.appendChild(description);
 
@@ -707,11 +708,11 @@ class LandingPageWizard {
             sectionTitle.appendChild(strong);
             sectionTitle.appendChild(document.createTextNode(' '));
             const ctypeBadge = document.createElement('span');
-            ctypeBadge.className = 'badge bg-secondary ms-2';
+            ctypeBadge.className = 'badge badge-default ms-2';
             ctypeBadge.textContent = section.ctype || 'text';
             sectionTitle.appendChild(ctypeBadge);
 
-            const regenerateBtn = this.createButton(this.label('wizard.button.regenerate'), 'btn btn-sm btn-outline-primary', async () => {
+            const regenerateBtn = this.createButton(this.label('wizard.button.regenerate'), 'btn btn-sm btn-default', async () => {
                 await this.regenerateSection(container, index);
             });
             regenerateBtn.setAttribute('aria-label', this.label('wizard.button.regenerate') + ' ' + (index + 1));
@@ -737,7 +738,7 @@ class LandingPageWizard {
             if (section.subheader) {
                 const subheader = document.createElement('input');
                 subheader.type = 'text';
-                subheader.className = 'form-control form-control-sm text-body-secondary mb-2';
+                subheader.className = 'form-control form-control-sm text-variant mb-2';
                 subheader.value = section.subheader;
                 subheader.setAttribute('aria-label', this.label('wizard.content.sectionSubheader'));
                 subheader.addEventListener('input', () => {
@@ -764,7 +765,7 @@ class LandingPageWizard {
                 imageSection.className = 'mt-3 border-top pt-3';
 
                 const imageLabel = document.createElement('small');
-                imageLabel.className = 'text-body-secondary d-block mb-2';
+                imageLabel.className = 'text-variant d-block mb-2';
                 imageLabel.textContent = this.label('wizard.content.imageSuggestions');
                 imageSection.appendChild(imageLabel);
 
@@ -772,7 +773,7 @@ class LandingPageWizard {
                 const imageError = (WizardState.imageErrors || [])[index];
                 if (imageError) {
                     const errorAlert = document.createElement('div');
-                    errorAlert.className = 'alert alert-warning alert-sm py-1 px-2 mb-2';
+                    errorAlert.className = 'alert alert-warning py-1 px-2 mb-2';
                     errorAlert.style.fontSize = '0.85em';
                     errorAlert.textContent = this.label('wizard.content.imageGenerationError') + ' ' + imageError;
                     imageSection.appendChild(errorAlert);
@@ -817,7 +818,7 @@ class LandingPageWizard {
                 const searchBtn = this.createIconButton(
                     'actions-search',
                     this.label('wizard.content.imageSearchButton'),
-                    'btn btn-sm btn-outline-secondary',
+                    'btn btn-sm btn-default',
                     async () => {
                         const query = searchInput.value.trim();
                         if (!query) return;
@@ -855,7 +856,7 @@ class LandingPageWizard {
                     const generateBtn = this.createIconButton(
                         'actions-bolt',
                         this.label('wizard.content.imageGenerateButton'),
-                        'btn btn-sm btn-outline-warning',
+                        'btn btn-sm btn-default',
                         async () => {
                             generateBtn.disabled = true;
                             generateBtn.textContent = this.label('wizard.content.imageGenerating');
@@ -904,7 +905,7 @@ class LandingPageWizard {
         container.innerHTML = '';
 
         const description = document.createElement('p');
-        description.className = 'text-body-secondary mb-3';
+        description.className = 'text-variant mb-3';
         description.textContent = this.label('wizard.content.creativeDescription');
         container.appendChild(description);
 
@@ -930,12 +931,12 @@ class LandingPageWizard {
             strong.textContent = section.section || 'Block ' + (index + 1);
             sectionTitle.appendChild(strong);
             const colBadge = document.createElement('span');
-            colBadge.className = 'badge bg-info ms-2';
+            colBadge.className = 'badge badge-info ms-2';
             colBadge.textContent = 'colPos ' + (section.colPos ?? 0);
             sectionTitle.appendChild(document.createTextNode(' '));
             sectionTitle.appendChild(colBadge);
             const modeBadge = document.createElement('span');
-            modeBadge.className = 'badge bg-warning ms-1';
+            modeBadge.className = 'badge badge-warning ms-1';
             modeBadge.textContent = 'HTML';
             sectionTitle.appendChild(document.createTextNode(' '));
             sectionTitle.appendChild(modeBadge);
@@ -945,7 +946,7 @@ class LandingPageWizard {
 
             const toggleBtn = this.createButton(
                 this.label('wizard.content.creativeToggleSource'),
-                'btn btn-sm btn-outline-secondary',
+                'btn btn-sm btn-default',
                 () => {
                     const preview = card.querySelector('.creative-preview');
                     const source = card.querySelector('.creative-source');
@@ -961,7 +962,7 @@ class LandingPageWizard {
 
             const regenerateBtn = this.createButton(
                 this.label('wizard.button.regenerate'),
-                'btn btn-sm btn-outline-primary',
+                'btn btn-sm btn-default',
                 async () => { await this.regenerateSection(container, index); },
             );
 
@@ -1001,7 +1002,7 @@ class LandingPageWizard {
                 imageSection.className = 'mt-3 border-top pt-3';
 
                 const imageLabel = document.createElement('small');
-                imageLabel.className = 'text-body-secondary d-block mb-2';
+                imageLabel.className = 'text-variant d-block mb-2';
                 imageLabel.textContent = hasKeywords
                     ? this.label('wizard.content.imageSuggestions')
                     : this.label('wizard.content.imageSearchPlaceholder');
@@ -1011,7 +1012,7 @@ class LandingPageWizard {
                 const imageError = (WizardState.imageErrors || [])[index];
                 if (imageError) {
                     const errorAlert = document.createElement('div');
-                    errorAlert.className = 'alert alert-warning alert-sm py-1 px-2 mb-2';
+                    errorAlert.className = 'alert alert-warning py-1 px-2 mb-2';
                     errorAlert.style.fontSize = '0.85em';
                     errorAlert.textContent = this.label('wizard.content.imageGenerationError') + ' ' + imageError;
                     imageSection.appendChild(errorAlert);
@@ -1058,7 +1059,7 @@ class LandingPageWizard {
                 const searchBtn = this.createIconButton(
                     'actions-search',
                     this.label('wizard.content.imageSearchButton'),
-                    'btn btn-sm btn-outline-secondary',
+                    'btn btn-sm btn-default',
                     async () => {
                         const query = searchInput.value.trim();
                         if (!query) return;
@@ -1097,7 +1098,7 @@ class LandingPageWizard {
                         const generateBtn = this.createIconButton(
                             'actions-bolt',
                             this.label('wizard.content.imageGenerateButton'),
-                            'btn btn-sm btn-outline-warning',
+                            'btn btn-sm btn-default',
                             async () => {
                                 generateBtn.disabled = true;
                                 generateBtn.textContent = this.label('wizard.content.imageGenerating');
@@ -1207,8 +1208,8 @@ class LandingPageWizard {
                 imgCard.appendChild(thumbnail);
             } else {
                 const placeholder = document.createElement('div');
-                placeholder.className = 'bg-secondary-subtle d-flex align-items-center justify-content-center';
-                placeholder.style.cssText = 'height:80px;';
+                placeholder.className = 'd-flex align-items-center justify-content-center';
+                placeholder.style.cssText = 'height:80px;background:var(--typo3-surface-container-high);';
                 placeholder.textContent = '\uD83D\uDDBC';
                 imgCard.appendChild(placeholder);
             }
@@ -1220,8 +1221,8 @@ class LandingPageWizard {
             if (isRecommended || img.generated) {
                 const badge = document.createElement('span');
                 badge.className = img.generated
-                    ? 'badge bg-warning text-dark mb-1'
-                    : 'badge bg-success text-white mb-1';
+                    ? 'badge badge-warning mb-1'
+                    : 'badge badge-success mb-1';
                 badge.style.fontSize = '0.75rem';
                 badge.textContent = img.generated ? 'AI' : '\u2605 Best';
                 imgBody.appendChild(badge);
@@ -1277,7 +1278,7 @@ class LandingPageWizard {
         check.className = 'image-check-overlay';
         check.setAttribute('aria-hidden', 'true');
         check.textContent = '\u2713';
-        check.style.cssText = 'position:absolute;top:4px;right:4px;background:#0d6efd;color:#fff;'
+        check.style.cssText = 'position:absolute;top:4px;right:4px;background:var(--typo3-surface-primary);color:var(--typo3-surface-primary-text);'
             + 'border-radius:50%;width:20px;height:20px;display:flex;align-items:center;'
             + 'justify-content:center;font-size:12px;font-weight:bold;line-height:1;';
         card.appendChild(check);
@@ -1351,7 +1352,7 @@ class LandingPageWizard {
         container.innerHTML = '';
 
         const description = document.createElement('p');
-        description.className = 'text-body-secondary mb-3';
+        description.className = 'text-variant mb-3';
         description.textContent = this.label('wizard.placement.description');
         container.appendChild(description);
 
@@ -1641,7 +1642,7 @@ class LandingPageWizard {
      */
     spinnerHtml(message = '') {
         return '<div class="d-flex align-items-center justify-content-center py-4" role="status" aria-live="polite">'
-            + '<div class="spinner-border spinner-border-sm me-2" aria-hidden="true"></div>'
+            + '<typo3-backend-spinner size="small" class="me-2" aria-hidden="true"></typo3-backend-spinner>'
             + '<span>' + this.escapeHtml(message) + '</span></div>';
     }
 
@@ -1846,7 +1847,7 @@ class LandingPageWizard {
 
         const counterId = 'char-counter-' + inputId;
         const counter = document.createElement('small');
-        counter.className = 'form-text text-body-secondary';
+        counter.className = 'form-text text-variant';
         counter.id = counterId;
         counter.setAttribute('aria-live', 'polite');
         counter.setAttribute('aria-atomic', 'true');
@@ -1856,7 +1857,7 @@ class LandingPageWizard {
             const length = input.value.length;
             counter.textContent = length + ' / ' + maxLength;
             counter.classList.toggle('text-danger', length > maxLength);
-            counter.classList.toggle('text-body-secondary', length <= maxLength);
+            counter.classList.toggle('text-variant', length <= maxLength);
         };
 
         updateCounter();
