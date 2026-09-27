@@ -45,6 +45,8 @@ final class BackendThemeComplianceTest extends UnitTestCase
             'text-white (not in core CSS)' => ['/\btext-white\b/', 'nothing, the badge variant sets the colour'],
             'table-borderless (not in core CSS)' => ['/\btable-borderless\b/', 'table'],
             'alert-sm (not in core CSS)' => ['/\balert-sm\b/', 'alert'],
+            'form-control-lg (not in core CSS)' => ['/\bform-control-lg\b/', 'form-control'],
+            'card-img-top (not in core CSS)' => ['/\bcard-img-top\b/', 'nothing'],
             'hard-coded Bootstrap blue' => ['/#0d6efd/i', 'var(--typo3-surface-primary)'],
             'spinner-border (not in core CSS at 14.3, draws nothing)' => ['/\bspinner-border\b/', '<typo3-backend-spinner>'],
             'Bootstrap progress (not in core CSS at 14.3, draws nothing)' => ['/class=["\'][^"\']*\bprogress(-bar)?(?![\w-])/', 'an element with role="progressbar", aria-value* and aria-label, filled with var(--typo3-component-primary-color) on var(--typo3-surface-container-high)'],

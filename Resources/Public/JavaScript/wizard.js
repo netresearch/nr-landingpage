@@ -726,7 +726,7 @@ class LandingPageWizard {
             if (section.header) {
                 const header = document.createElement('input');
                 header.type = 'text';
-                header.className = 'form-control form-control-lg mb-2';
+                header.className = 'form-control mb-2';
                 header.value = section.header;
                 header.setAttribute('aria-label', this.label('wizard.content.sectionHeader'));
                 header.addEventListener('input', () => {
@@ -738,7 +738,7 @@ class LandingPageWizard {
             if (section.subheader) {
                 const subheader = document.createElement('input');
                 subheader.type = 'text';
-                subheader.className = 'form-control form-control-sm text-variant mb-2';
+                subheader.className = 'form-control form-control-sm mb-2';
                 subheader.value = section.subheader;
                 subheader.setAttribute('aria-label', this.label('wizard.content.sectionSubheader'));
                 subheader.addEventListener('input', () => {
@@ -1203,7 +1203,6 @@ class LandingPageWizard {
                 const thumbnail = document.createElement('img');
                 thumbnail.src = img.publicUrl;
                 thumbnail.alt = img.alternative || img.title || img.name || '';
-                thumbnail.className = 'card-img-top';
                 thumbnail.style.cssText = 'height:80px;object-fit:cover;';
                 imgCard.appendChild(thumbnail);
             } else {
