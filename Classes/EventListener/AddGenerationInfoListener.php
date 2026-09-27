@@ -171,7 +171,7 @@ final class AddGenerationInfoListener
                 . '<summary style="cursor:pointer">'
                 . htmlspecialchars($briefingLabel !== '' ? $briefingLabel : 'Briefing', ENT_QUOTES, 'UTF-8')
                 . '</summary>'
-                . '<table class="table table-sm mb-0 mt-1"><tbody>'
+                . '<table class="table mb-0 mt-1"><tbody>'
                 . $answerRows
                 . '</tbody></table>'
                 . '</details>';

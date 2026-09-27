@@ -347,6 +347,7 @@ class LandingPageWizard {
                 card.setAttribute('role', 'button');
                 card.setAttribute('tabindex', '0');
                 card.setAttribute('aria-label', template.title);
+                card.setAttribute('aria-pressed', 'false');
 
                 const cardBody = document.createElement('div');
                 cardBody.className = 'card-body';
@@ -371,8 +372,19 @@ class LandingPageWizard {
                 grid.appendChild(col);
 
                 const selectHandler = () => {
-                    grid.querySelectorAll('.card').forEach((c) => c.classList.remove('border-primary', 'shadow'));
-                    card.classList.add('border-primary', 'shadow');
+                    // Selection is marked by a 2px border (.border-2, core at 13.4
+                    // and 14.3) in the scheme-aware primary colour plus
+                    // aria-pressed. .border-primary is a fixed blue that falls
+                    // below 3:1 on the 13.4 dark card; .shadow only adds depth on
+                    // 13.4, where core still defines it.
+                    grid.querySelectorAll('.card').forEach((c) => {
+                        c.classList.remove('border-2', 'shadow');
+                        c.style.removeProperty('border-color');
+                        c.setAttribute('aria-pressed', 'false');
+                    });
+                    card.classList.add('border-2', 'shadow');
+                    card.style.setProperty('border-color', 'var(--typo3-component-primary-color)');
+                    card.setAttribute('aria-pressed', 'true');
                     WizardState.setTemplate(template);
                     MultiStepWizard.unlockNextStep();
                 };

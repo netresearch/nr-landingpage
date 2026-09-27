@@ -139,7 +139,7 @@ class TestGenerate {
     if (pageFieldKeys.length > 0) {
       html += '<div class="card mb-3 border-info">';
       html += '<div class="card-header bg-info bg-opacity-10"><strong>' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.pageFields', 'Page Fields')) + '</strong></div>';
-      html += '<div class="card-body"><table class="table table-sm mb-0">';
+      html += '<div class="card-body"><table class="table mb-0">';
       pageFieldKeys.forEach(key => {
         html += '<tr><td class="text-variant fw-bold" style="width:140px;">' + this.escapeHtml(key) + '</td>'
           + '<td>' + this.escapeHtml(pageFields[key]) + '</td></tr>';

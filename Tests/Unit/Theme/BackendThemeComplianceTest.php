@@ -47,6 +47,8 @@ final class BackendThemeComplianceTest extends UnitTestCase
             'alert-sm (not in core CSS)' => ['/\balert-sm\b/', 'alert'],
             'form-control-lg (not in core CSS)' => ['/\bform-control-lg\b/', 'form-control'],
             'card-img-top (not in core CSS)' => ['/\bcard-img-top\b/', 'nothing'],
+            'btn-lg (no effect in core at 13.4 or 14.3)' => ['/\bbtn-lg\b/', 'btn'],
+            'table-sm (11px text next to core\'s 12px list tables)' => ['/\btable-sm\b/', 'table'],
             'hard-coded Bootstrap blue' => ['/#0d6efd/i', 'var(--typo3-surface-primary)'],
             'spinner-border (not in core CSS at 14.3, draws nothing)' => ['/\bspinner-border\b/', '<typo3-backend-spinner>'],
             'Bootstrap progress (not in core CSS at 14.3, draws nothing)' => ['/class=["\'][^"\']*\bprogress(-bar)?(?![\w-])/', 'an element with role="progressbar", aria-value* and aria-label, filled with var(--typo3-component-primary-color) on var(--typo3-surface-container-high)'],
@@ -103,6 +105,73 @@ final class BackendThemeComplianceTest extends UnitTestCase
             self::assertIsString($source);
             self::assertDoesNotMatchRegularExpression('/createElement\(\'h[4-6]\'\)|<h[4-6][\s>]/', $source, $script);
         }
+    }
+
+    #[Test]
+    public function selectedTemplateCardIsMarkedBeyondColourAndExposesPressedState(): void
+    {
+        $source = file_get_contents(self::EXTENSION_ROOT . '/Resources/Public/JavaScript/wizard.js');
+        self::assertIsString($source);
+        self::assertStringContainsString("card.setAttribute('aria-pressed', 'false');", $source);
+        self::assertStringContainsString("card.classList.add('border-2', 'shadow');", $source);
+        self::assertStringContainsString("card.style.setProperty('border-color', 'var(--typo3-component-primary-color)');", $source);
+        self::assertStringContainsString("card.setAttribute('aria-pressed', 'true');", $source);
+        // Deselecting the other template cards resets all three markers.
+        self::assertMatchesRegularExpression(
+            "/c\\.classList\\.remove\\('border-2', 'shadow'\\);\\s*c\\.style\\.removeProperty\\('border-color'\\);\\s*c\\.setAttribute\\('aria-pressed', 'false'\\);/",
+            $source,
+        );
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function legacyIconProvider(): array
+    {
+        return ['module' => ['module.legacy.svg'], 'template' => ['template.legacy.svg']];
+    }
+
+    #[Test]
+    #[DataProvider('legacyIconProvider')]
+    public function legacyTileReachesThreeToOneOnEveryThirteenFourSurface(string $file): void
+    {
+        $svg = file_get_contents(self::EXTENSION_ROOT . '/Resources/Public/Icons/' . $file);
+        self::assertIsString($svg);
+        self::assertSame(1, preg_match('/<path fill="(#[0-9A-Fa-f]{6})" d="M0 0h64v64H0z"\/>/', $svg, $match));
+        // Surfaces the 13.4 tile sits on (measured): module menu idle and
+        // active (#e6e6e6, #d9d9d9 / #262626), hub, list rows and hover,
+        // FormEngine header, cards; light and dark scheme. The dark module-menu
+        // hover and active rows (#333333, #404040) are left out: no single fill
+        // reaches 3:1 on both #d9d9d9 and #404040 (best possible 2.71:1).
+        $surfaces = ['#ffffff', '#f7f7f7', '#f5f5f5', '#f0f0f0', '#e6e6e6', '#e4e4e4', '#d9d9d9', '#141414', '#171717', '#1a1a1a', '#252525', '#262626'];
+        foreach ($surfaces as $surface) {
+            self::assertGreaterThanOrEqual(3.0, self::contrast($match[1], $surface), $file . ' fill ' . $match[1] . ' on ' . $surface);
+        }
+    }
+
+    private static function contrast(string $a, string $b): float
+    {
+        $luminance = static function (string $hex): float {
+            $channels = array_map(static fn(string $pair): float => hexdec($pair) / 255, str_split(ltrim($hex, '#'), 2));
+            $linear = array_map(static fn(float $v): float => $v <= 0.03928 ? $v / 12.92 : (($v + 0.055) / 1.055) ** 2.4, $channels);
+            return 0.2126 * $linear[0] + 0.7152 * $linear[1] + 0.0722 * $linear[2];
+        };
+        $x = $luminance($a);
+        $y = $luminance($b);
+        return (max($x, $y) + 0.05) / (min($x, $y) + 0.05);
+    }
+
+    #[Test]
+    public function previewLoadingStateIsAnnouncedAsStatus(): void
+    {
+        // The spinner is aria-hidden, so the wrapper must carry the live region
+        // that announces the loading text.
+        $source = file_get_contents(self::EXTENSION_ROOT . '/Resources/Public/JavaScript/form-engine/field-control/test-generate.js');
+        self::assertIsString($source);
+        self::assertMatchesRegularExpression(
+            '/<div class="[^"]*" role="status" aria-live="polite">\'\s*\+ \'<typo3-backend-spinner size="large" aria-hidden="true">/',
+            $source,
+        );
     }
 
     #[Test]
