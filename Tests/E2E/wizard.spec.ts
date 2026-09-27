@@ -95,12 +95,16 @@ test.describe('Landing Page Wizard', () => {
         }, selector);
     }
 
-    test('Enter on a template card selects it and keeps the step', async ({ authenticatedPage: page }) => {
-        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
-        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+    /** Mock the wizard's AJAX replies (path fragment -> data) and open it. */
+    async function openMockedWizard(page: Page, replies: Record<string, unknown>): Promise<Locator> {
+        for (const [path, data] of Object.entries(replies)) {
+            await mockAjaxRoute(page, '/nr-landingpage/wizard/' + path, data);
+        }
+        return openWizard(page, await navigateToModule(page));
+    }
 
-        const frame = await navigateToModule(page);
-        const modal = await openWizard(page, frame);
+    test('Enter on a template card selects it and keeps the step', async ({ authenticatedPage: page }) => {
+        const modal = await openMockedWizard(page, { 'templates': [sampleTemplate], 'generate-briefing': [] });
 
         const card = modal.locator('.template-card').first();
         await expect(card).toBeVisible({ timeout: 10000 });
@@ -120,14 +124,6 @@ test.describe('Landing Page Wizard', () => {
     });
 
     test('Enter in the image search input searches and keeps the content step', async ({ authenticatedPage: page }) => {
-        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
-        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
-        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-page-fields', {
-            title: 'Test',
-            seo_title: 'SEO',
-            description: 'Desc',
-        });
-        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-content', sampleContentSections);
         let searches = 0;
         await page.route('**/nr-landingpage/wizard/search-images**', async (route) => {
             searches++;
@@ -138,8 +134,12 @@ test.describe('Landing Page Wizard', () => {
             });
         });
 
-        const frame = await navigateToModule(page);
-        const modal = await openWizard(page, frame);
+        const modal = await openMockedWizard(page, {
+            'templates': [sampleTemplate],
+            'generate-briefing': [],
+            'generate-page-fields': { title: 'Enter test', seo_title: 'SEO', description: 'Desc' },
+            'generate-content': sampleContentSections,
+        });
         await selectTemplateAndAdvanceToBriefing(modal, page);
         await advanceToPageFields(modal, page);
         await advanceToContent(modal, page);
