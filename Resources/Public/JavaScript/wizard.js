@@ -726,7 +726,7 @@ class LandingPageWizard {
             if (section.header) {
                 const header = document.createElement('input');
                 header.type = 'text';
-                header.className = 'form-control mb-2';
+                header.className = 'form-control section-header mb-2';
                 header.value = section.header;
                 header.setAttribute('aria-label', this.label('wizard.content.sectionHeader'));
                 header.addEventListener('input', () => {

@@ -226,7 +226,7 @@ test.describe('Landing Page Wizard', () => {
         const firstCard = modal.locator('#section-card-0');
         await expect(firstCard).toBeVisible();
 
-        const headerInput = firstCard.locator('input.form-control-lg');
+        const headerInput = firstCard.locator('input.section-header');
         await expect(headerInput).toHaveValue('Welcome to Our Page');
         await expect(firstCard.locator('textarea.section-bodytext')).toBeVisible();
         await expect(firstCard.locator('button', { hasText: /regenerate/i })).toBeVisible();
