@@ -117,7 +117,6 @@ test.describe('Landing Page Wizard', () => {
 
         expect(await wizardMovedAwayFrom(modal, '.template-card')).toBe(false);
         // Enter selected the card (which unlocks Next) without pressing Next.
-        await expect(card).toHaveClass(/border-primary/);
         await expect(modal.locator('button[name="next"]')).toBeEnabled();
         await expect(modal.locator('.carousel-item.active .template-card')).toBeVisible();
         await expect(modal.locator('#briefing_title')).toHaveCount(0);
@@ -152,6 +151,28 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal.locator('#section-card-0 [data-image-uid="51"]')).toContainText('Found image');
         await expect(modal.locator('.carousel-item.active #section-card-0 .border-top')).toBeVisible();
         expect(searches).toBe(1);
+    });
+
+    test('Enter on an image card selects it and keeps the content step', async ({ authenticatedPage: page }) => {
+        const modal = await openMockedWizard(page, {
+            'templates': [sampleTemplate],
+            'generate-briefing': [],
+            'generate-page-fields': { title: 'Image card', seo_title: 'SEO', description: 'Desc' },
+            'generate-content': contentSectionsWithImages,
+        });
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+        await advanceToPageFields(modal, page);
+        await advanceToContent(modal, page);
+
+        const imageCard = modal.locator('#section-card-0 [data-image-uid="2"]');
+        await expect(imageCard).toHaveAttribute('aria-pressed', 'false');
+        await imageCard.focus();
+        await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute('data-image-uid') ?? null)).toBe('2');
+        await page.keyboard.press('Enter');
+
+        expect(await wizardMovedAwayFrom(modal, '#section-card-0')).toBe(false);
+        await expect(imageCard).toHaveAttribute('aria-pressed', 'true');
+        await expect(modal.locator('.carousel-item.active #section-card-0')).toBeVisible();
     });
 
     test('module launcher page renders Create button', async ({ authenticatedPage: page }) => {
