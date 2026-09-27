@@ -24,6 +24,13 @@ async function loginToBackend(page: Page): Promise<void> {
     await page.click('button[type="submit"]');
 
     await page.waitForSelector('.modulemenu', { state: 'visible', timeout: 15000 });
+    // The menu markup is rendered before the backend's module menu script has
+    // bound its click handler; a click in that window does nothing.
+    await page.waitForFunction(
+        () => !!(window as any).TYPO3?.ModuleMenu?.App && document.readyState === 'complete',
+        undefined,
+        { timeout: 30000 },
+    );
 }
 
 /**
@@ -33,41 +40,26 @@ async function loginToBackend(page: Page): Promise<void> {
  * does not update the iframe. We must click the menu item instead.
  */
 export async function navigateToModule(page: Page): Promise<FrameLocator> {
-    // Click "Landing Pages" in the module menu
-    const menuItem = page.locator('.modulemenu [data-modulemenu-identifier="web_nr-landingpage"], .modulemenu a:has-text("Landing Pages")');
-    await menuItem.click({ timeout: 10000 });
+    // The module's identifier from Configuration/Backend/Modules.php.
+    await page.locator('[data-modulemenu-identifier="nr_landingpage"]').click({ timeout: 10000 });
 
     const moduleFrame = getModuleFrame(page);
     await moduleFrame.locator('#landing-page-module').waitFor({ state: 'visible', timeout: 15000 });
-
-    // Wait for the wizard JS module to load and bind the click handler.
-    // The JS module is loaded asynchronously via importmap; we detect readiness
-    // by waiting for the button to have a click listener attached.
-    // Polling the button's __wizardReady attribute set by MutationObserver is fragile,
-    // so instead we simply wait a short moment for the ES module to execute.
-    await page.waitForTimeout(1000);
 
     return moduleFrame;
 }
 
 /**
- * Open the wizard by clicking the launch button and waiting for the dialog.
- * Handles flaky timing by retrying the click if the dialog doesn't appear.
+ * Open the wizard: wait until wizard.js has bound the launch button (it sets
+ * data-wizard-ready afterwards), click once, wait for the dialog.
  */
 export async function openWizard(page: Page, frame: FrameLocator): Promise<import('@playwright/test').Locator> {
-    const button = frame.locator('#nr-landingpage-launch-wizard');
+    const button = frame.locator('#nr-landingpage-launch-wizard[data-wizard-ready="1"]');
     const dialog = page.locator('dialog');
 
-    // Click button and wait for dialog — retry once if dialog doesn't appear
+    await button.waitFor({ state: 'visible', timeout: 15000 });
     await button.click();
-    try {
-        await dialog.waitFor({ state: 'visible', timeout: 8000 });
-    } catch {
-        // JS module might not have been ready; retry click
-        await page.waitForTimeout(1000);
-        await button.click();
-        await dialog.waitFor({ state: 'visible', timeout: 10000 });
-    }
+    await dialog.waitFor({ state: 'visible', timeout: 15000 });
 
     return dialog;
 }

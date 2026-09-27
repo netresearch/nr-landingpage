@@ -101,6 +101,11 @@ for (const mode of ['structured', 'creative'] as Mode[]) {
                 ? 'The AI generated creative HTML blocks for your landing page. Preview each block below. Toggle "Source" to edit the HTML directly.'
                 : 'Review the generated content sections. You can regenerate individual sections.';
             await expect(modal.locator('.carousel-item.active p').first()).toHaveText(intro);
+            // The intro replaces the loading spinner: it is the slide's first element.
+            const first = await modal.locator('.carousel-item.active').evaluate(
+                (slide) => [slide.firstElementChild?.tagName ?? null, slide.firstElementChild?.textContent?.trim() ?? null],
+            );
+            expect(first).toEqual(['P', intro]);
         });
 
         test('shows the stored images of a section and no automatic-search info', async ({ authenticatedPage: page }) => {

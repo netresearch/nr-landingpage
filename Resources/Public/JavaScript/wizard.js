@@ -1924,6 +1924,9 @@ if (launchButton) {
     if (launchButton.dataset.autoStart === '1') {
         wizard.open(parentPageId, regeneratePageUid);
     }
+
+    // The handlers above are bound: E2E tests wait for this before clicking.
+    launchButton.dataset.wizardReady = '1';
 }
 
 export default LandingPageWizard;
