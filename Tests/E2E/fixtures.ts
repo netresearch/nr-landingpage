@@ -73,6 +73,17 @@ export async function openWizard(page: Page, frame: FrameLocator): Promise<impor
 }
 
 /**
+ * Wait until the wizard's Bootstrap carousel has finished its slide
+ * transition. While it slides, Bootstrap ignores next()/prev(), so a click on
+ * "Next" in that window is lost. The transition is over when no item carries a
+ * transitional class and exactly one item is active.
+ */
+export async function waitForSlideSettled(modal: import('@playwright/test').Locator): Promise<void> {
+    await expect(modal.locator('.carousel-item-next, .carousel-item-prev, .carousel-item-start, .carousel-item-end')).toHaveCount(0, { timeout: 15000 });
+    await expect(modal.locator('.carousel-item.active')).toHaveCount(1, { timeout: 15000 });
+}
+
+/**
  * Navigate to template record edit form.
  */
 export async function navigateToNewTemplateRecord(page: Page): Promise<FrameLocator> {

@@ -3,6 +3,7 @@ import {
     expect,
     navigateToModule,
     openWizard,
+    waitForSlideSettled,
     mockAjaxRoute,
     sampleTemplate,
     templateWithEmptyCTypes,
@@ -42,9 +43,7 @@ import { Locator, Page } from '@playwright/test';
 async function clickNext(modal: Locator, page: Page): Promise<void> {
     const nextButton = modal.locator('button[name="next"]:not([disabled])');
     await nextButton.waitFor({ state: 'visible', timeout: 15000 });
-    // Small delay to ensure carousel animation is complete
-    // (Bootstrap 5 carousel transition is ~600ms)
-    await page.waitForTimeout(800);
+    await waitForSlideSettled(modal);
     await nextButton.click();
 }
 
@@ -707,7 +706,7 @@ test.describe('Landing Page Wizard', () => {
 
         // Wait for Next to be enabled (briefingMode=optional, should be unlocked)
         await modal.locator('button[name="next"]:not([disabled])').waitFor({ state: 'visible', timeout: 5000 });
-        await page.waitForTimeout(800); // Wait for carousel to settle
+        await waitForSlideSettled(modal);
 
         // Dispatch Enter keydown on the title input — should advance to page fields
         await page.evaluate(() => {

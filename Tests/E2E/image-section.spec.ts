@@ -1,4 +1,4 @@
-import { test, expect, navigateToModule, openWizard, mockAjaxRoute, sampleTemplate } from './fixtures';
+import { test, expect, navigateToModule, openWizard, mockAjaxRoute, sampleTemplate, waitForSlideSettled } from './fixtures';
 import { Locator, Page } from '@playwright/test';
 
 /**
@@ -13,7 +13,9 @@ import { Locator, Page } from '@playwright/test';
  * - both: the image-generation error alert, the automatic-search info, the
  *   keyword-prefilled search, and the search/generate requests.
  *
- * All AJAX calls are mocked; nothing is generated.
+ * All AJAX calls are mocked; nothing is generated. The intro and the stored
+ * images are pinned per mode, since the creative renderer reads its images from
+ * WizardState rather than from its arguments.
  */
 
 type Mode = 'structured' | 'creative';
@@ -41,6 +43,7 @@ function section(mode: Mode, index: number, imageKeywords: string[]): Record<str
 
 function contentResponse(mode: Mode, options: {
     keywords?: string[][];
+    images?: unknown[][];
     imageErrors?: string[];
     aiGenerationAvailable?: boolean;
     hasImageTask?: boolean;
@@ -49,7 +52,7 @@ function contentResponse(mode: Mode, options: {
     return {
         generationMode: mode,
         sections: keywords.map((kw, i) => section(mode, i, kw)),
-        images: keywords.map(() => []),
+        images: options.images ?? keywords.map(() => []),
         imageErrors: options.imageErrors ?? [],
         aiGenerationAvailable: options.aiGenerationAvailable ?? false,
         hasImageTask: options.hasImageTask ?? false,
@@ -72,7 +75,7 @@ async function openContentStep(page: Page, content: Record<string, unknown>): Pr
     const next = async (): Promise<void> => {
         const nextButton = modal.locator('button[name="next"]:not([disabled])');
         await nextButton.waitFor({ state: 'visible', timeout: 15000 });
-        await page.waitForTimeout(800);
+        await waitForSlideSettled(modal);
         await nextButton.click();
     };
     await modal.locator('.template-card').first().click();
@@ -91,6 +94,26 @@ function imageSection(modal: Locator, index: number): Locator {
 
 for (const mode of ['structured', 'creative'] as Mode[]) {
     test.describe(`Content step image section (${mode})`, () => {
+        test('shows the intro of the mode', async ({ authenticatedPage: page }) => {
+            const modal = await openContentStep(page, contentResponse(mode, {}));
+
+            const intro = mode === 'creative'
+                ? 'The AI generated creative HTML blocks for your landing page. Preview each block below. Toggle "Source" to edit the HTML directly.'
+                : 'Review the generated content sections. You can regenerate individual sections.';
+            await expect(modal.locator('.carousel-item.active p').first()).toHaveText(intro);
+        });
+
+        test('shows the stored images of a section and no automatic-search info', async ({ authenticatedPage: page }) => {
+            const modal = await openContentStep(page, contentResponse(mode, {
+                images: [[{ uid: 41, name: 'stored.jpg', title: 'Stored image' }], []],
+            }));
+
+            const first = imageSection(modal, 0);
+            await expect(first.locator('[data-image-uid="41"]')).toContainText('Stored image');
+            await expect(first.locator('.alert-info')).toHaveCount(0);
+            await expect(imageSection(modal, 1).locator('[data-image-uid]')).toHaveCount(0);
+        });
+
         test('shows the image-generation error of a section', async ({ authenticatedPage: page }) => {
             const modal = await openContentStep(page, contentResponse(mode, { imageErrors: ['Quota exceeded'] }));
 
