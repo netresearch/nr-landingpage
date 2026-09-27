@@ -225,6 +225,10 @@ class LandingPageWizard {
             modal.addEventListener('keydown', (e) => {
                 if (e.key !== 'Enter') return;
 
+                // An inner handler already used this Enter (image search
+                // input, template card): it must not also advance the wizard.
+                if (e.defaultPrevented) return;
+
                 // Don't intercept Enter in textareas (multiline input),
                 // on buttons (let native click), or on selects (let native open/select)
                 const tag = e.target?.tagName;

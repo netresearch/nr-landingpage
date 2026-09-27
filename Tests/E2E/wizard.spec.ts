@@ -80,6 +80,80 @@ async function advanceToContent(modal: Locator, page: Page): Promise<void> {
 }
 
 test.describe('Landing Page Wizard', () => {
+    // -- Enter handled by an inner control must not advance the wizard --
+
+    /**
+     * True while the carousel is sliding or once it has moved away from the
+     * slide that holds `selector`. Checked right after the key press: Bootstrap
+     * adds the transitional classes synchronously when next() runs.
+     */
+    async function wizardMovedAwayFrom(modal: Locator, selector: string): Promise<boolean> {
+        return modal.evaluate((root, sel) => {
+            const sliding = root.querySelector('.carousel-item-next, .carousel-item-prev, .carousel-item-start, .carousel-item-end') !== null;
+            const active = root.querySelector('.carousel-item.active');
+            return sliding || !active || active.querySelector(sel) === null;
+        }, selector);
+    }
+
+    test('Enter on a template card selects it and keeps the step', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+
+        const card = modal.locator('.template-card').first();
+        await expect(card).toBeVisible({ timeout: 10000 });
+        // The modal moves focus to its active footer button once it has
+        // opened; wait for that, or it takes the focus back from the card.
+        await expect.poll(() => page.evaluate(() => document.activeElement?.classList.contains('t3js-active') ?? false)).toBe(true);
+        await card.focus();
+        await expect.poll(() => page.evaluate(() => document.activeElement?.classList.contains('template-card') ?? false)).toBe(true);
+        await page.keyboard.press('Enter');
+
+        expect(await wizardMovedAwayFrom(modal, '.template-card')).toBe(false);
+        // Enter selected the card (which unlocks Next) without pressing Next.
+        await expect(card).toHaveClass(/border-primary/);
+        await expect(modal.locator('button[name="next"]')).toBeEnabled();
+        await expect(modal.locator('.carousel-item.active .template-card')).toBeVisible();
+        await expect(modal.locator('#briefing_title')).toHaveCount(0);
+    });
+
+    test('Enter in the image search input searches and keeps the content step', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-page-fields', {
+            title: 'Test',
+            seo_title: 'SEO',
+            description: 'Desc',
+        });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-content', sampleContentSections);
+        let searches = 0;
+        await page.route('**/nr-landingpage/wizard/search-images**', async (route) => {
+            searches++;
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ success: true, data: { images: [{ uid: 51, name: 'found.jpg', title: 'Found image' }] } }),
+            });
+        });
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+        await advanceToPageFields(modal, page);
+        await advanceToContent(modal, page);
+
+        const search = modal.locator('#section-card-0').getByRole('textbox', { name: 'Search images…' });
+        await search.fill('beach');
+        await search.press('Enter');
+
+        expect(await wizardMovedAwayFrom(modal, '#section-card-0')).toBe(false);
+        await expect(modal.locator('#section-card-0 [data-image-uid="51"]')).toContainText('Found image');
+        await expect(modal.locator('.carousel-item.active #section-card-0 .border-top')).toBeVisible();
+        expect(searches).toBe(1);
+    });
+
     test('module launcher page renders Create button', async ({ authenticatedPage: page }) => {
         const frame = await navigateToModule(page);
 
