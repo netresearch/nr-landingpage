@@ -327,27 +327,55 @@ class LandingPageWizard {
 
             const heading = document.createElement('p');
             heading.className = 'text-variant mb-3';
+            heading.id = 'nr-landingpage-template-select-label';
             heading.textContent = this.label('wizard.template.select');
             container.appendChild(heading);
 
+            // The template cards are a single choice: WAI-ARIA radio group with
+            // roving tabindex. Arrow keys move focus and check, Space checks,
+            // Enter checks too (the wizard's Next button stays its own step).
             const grid = document.createElement('div');
             grid.className = 'row g-3';
-            grid.setAttribute('role', 'list');
+            grid.setAttribute('role', 'radiogroup');
+            grid.setAttribute('aria-labelledby', heading.id);
 
             const preSelectUid = generationInfo?.templateUid || 0;
+            const cards = [];
 
-            templates.forEach((template) => {
+            // Selection is marked by a 2px border (.border-2, core at 13.4 and
+            // 14.3) in the scheme-aware primary colour plus aria-checked.
+            // .shadow only adds depth on 13.4, where core still defines it.
+            const selectCard = (card, template, moveFocus) => {
+                grid.querySelectorAll('.template-card').forEach((c) => {
+                    c.classList.remove('border-2', 'shadow');
+                    c.style.removeProperty('border-color');
+                    c.setAttribute('aria-checked', 'false');
+                    c.setAttribute('tabindex', '-1');
+                });
+                card.classList.add('border-2', 'shadow');
+                card.style.setProperty('border-color', 'var(--typo3-component-primary-color)');
+                card.setAttribute('aria-checked', 'true');
+                card.setAttribute('tabindex', '0');
+                if (moveFocus) {
+                    card.focus();
+                }
+                WizardState.setTemplate(template);
+                MultiStepWizard.unlockNextStep();
+            };
+
+            templates.forEach((template, position) => {
                 const col = document.createElement('div');
                 col.className = 'col-12 col-md-6';
-                col.setAttribute('role', 'listitem');
 
                 const card = document.createElement('div');
                 card.className = 'card h-100 template-card';
                 card.style.cursor = 'pointer';
-                card.setAttribute('role', 'button');
-                card.setAttribute('tabindex', '0');
+                card.setAttribute('role', 'radio');
+                card.setAttribute('aria-checked', 'false');
+                // Roving tabindex: until a card is checked, the first card is
+                // the group's tab stop.
+                card.setAttribute('tabindex', position === 0 ? '0' : '-1');
                 card.setAttribute('aria-label', template.title);
-                card.setAttribute('aria-pressed', 'false');
 
                 const cardBody = document.createElement('div');
                 cardBody.className = 'card-body';
@@ -370,36 +398,28 @@ class LandingPageWizard {
                 card.appendChild(cardBody);
                 col.appendChild(card);
                 grid.appendChild(col);
+                cards.push({ card, template });
 
-                const selectHandler = () => {
-                    // Selection is marked by a 2px border (.border-2, core at 13.4
-                    // and 14.3) in the scheme-aware primary colour plus
-                    // aria-pressed. .border-primary is a fixed blue that falls
-                    // below 3:1 on the 13.4 dark card; .shadow only adds depth on
-                    // 13.4, where core still defines it.
-                    grid.querySelectorAll('.card').forEach((c) => {
-                        c.classList.remove('border-2', 'shadow');
-                        c.style.removeProperty('border-color');
-                        c.setAttribute('aria-pressed', 'false');
-                    });
-                    card.classList.add('border-2', 'shadow');
-                    card.style.setProperty('border-color', 'var(--typo3-component-primary-color)');
-                    card.setAttribute('aria-pressed', 'true');
-                    WizardState.setTemplate(template);
-                    MultiStepWizard.unlockNextStep();
-                };
-
-                card.addEventListener('click', selectHandler);
+                card.addEventListener('click', () => selectCard(card, template, false));
                 card.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+                    if (step !== undefined) {
                         e.preventDefault();
-                        selectHandler();
+                        // The wizard's Bootstrap carousel listens for ArrowLeft/
+                        // ArrowRight on its own element and would slide to the
+                        // next step, bypassing the locked Next button.
+                        e.stopPropagation();
+                        const target = cards[(position + step + cards.length) % cards.length];
+                        selectCard(target.card, target.template, true);
+                    } else if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        selectCard(card, template, false);
                     }
                 });
 
                 // Auto-select and auto-advance in re-generate mode
                 if (preSelectUid > 0 && template.uid === preSelectUid) {
-                    selectHandler();
+                    selectCard(card, template, false);
                     MultiStepWizard.triggerStepButton('next');
                 }
             });

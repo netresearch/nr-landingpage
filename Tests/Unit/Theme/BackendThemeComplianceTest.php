@@ -108,19 +108,20 @@ final class BackendThemeComplianceTest extends UnitTestCase
     }
 
     #[Test]
-    public function selectedTemplateCardIsMarkedBeyondColourAndExposesPressedState(): void
+    public function templateCardsAreARadioGroupMarkedBeyondColour(): void
     {
         $source = file_get_contents(self::EXTENSION_ROOT . '/Resources/Public/JavaScript/wizard.js');
         self::assertIsString($source);
-        self::assertStringContainsString("card.setAttribute('aria-pressed', 'false');", $source);
+        // Single choice: WAI-ARIA radio group with roving tabindex. The
+        // behaviour (reset of the previous card, arrow keys) is pinned by the
+        // E2E suite; this pins the roles.
+        self::assertStringContainsString("grid.setAttribute('role', 'radiogroup');", $source);
+        self::assertStringContainsString("grid.setAttribute('aria-labelledby', heading.id);", $source);
+        self::assertStringContainsString("card.setAttribute('role', 'radio');", $source);
         self::assertStringContainsString("card.classList.add('border-2', 'shadow');", $source);
         self::assertStringContainsString("card.style.setProperty('border-color', 'var(--typo3-component-primary-color)');", $source);
-        self::assertStringContainsString("card.setAttribute('aria-pressed', 'true');", $source);
-        // Deselecting the other template cards resets all three markers.
-        self::assertMatchesRegularExpression(
-            "/c\\.classList\\.remove\\('border-2', 'shadow'\\);\\s*c\\.style\\.removeProperty\\('border-color'\\);\\s*c\\.setAttribute\\('aria-pressed', 'false'\\);/",
-            $source,
-        );
+        self::assertStringContainsString("card.setAttribute('aria-checked', 'true');", $source);
+        self::assertStringNotContainsString("card.setAttribute('aria-pressed'", $source);
     }
 
     /**
@@ -133,19 +134,21 @@ final class BackendThemeComplianceTest extends UnitTestCase
 
     #[Test]
     #[DataProvider('legacyIconProvider')]
-    public function legacyTileReachesThreeToOneOnEveryThirteenFourSurface(string $file): void
+    public function legacyTileKeepsBrandFillAndReadableGlyph(string $file): void
     {
         $svg = file_get_contents(self::EXTENSION_ROOT . '/Resources/Public/Icons/' . $file);
         self::assertIsString($svg);
-        self::assertSame(1, preg_match('/<path fill="(#[0-9A-Fa-f]{6})" d="M0 0h64v64H0z"\/>/', $svg, $match));
-        // Surfaces the 13.4 tile sits on (measured): module menu idle and
-        // active (#e6e6e6, #d9d9d9 / #262626), hub, list rows and hover,
-        // FormEngine header, cards; light and dark scheme. The dark module-menu
-        // hover and active rows (#333333, #404040) are left out: no single fill
-        // reaches 3:1 on both #d9d9d9 and #404040 (best possible 2.71:1).
-        $surfaces = ['#ffffff', '#f7f7f7', '#f5f5f5', '#f0f0f0', '#e6e6e6', '#e4e4e4', '#d9d9d9', '#141414', '#171717', '#1a1a1a', '#252525', '#262626'];
-        foreach ($surfaces as $surface) {
-            self::assertGreaterThanOrEqual(3.0, self::contrast($match[1], $surface), $file . ' fill ' . $match[1] . ' on ' . $surface);
+        // Module icons use the brand colour #2F99A4 (netresearch-branding,
+        // typo3-extension-branding.md). Under WCAG 1.4.11 the part needed to
+        // understand the icon is the white glyph on the tile, not the tile's
+        // edge against the menu row, so the glyph is what must reach 3:1.
+        self::assertSame(1, preg_match('/<path fill="(#[0-9A-Fa-f]{6})" d="M0 0h64v64H0z"\/>/', $svg, $tile));
+        self::assertSame('#2F99A4', strtoupper($tile[1]), $file);
+        preg_match_all('/<path fill="(#[0-9A-Fa-f]{3,6})" d="(?!M0 0h64v64H0z)/', $svg, $glyphs);
+        self::assertNotEmpty($glyphs[1], $file);
+        foreach ($glyphs[1] as $glyph) {
+            $hex = strlen($glyph) === 4 ? '#' . $glyph[1] . $glyph[1] . $glyph[2] . $glyph[2] . $glyph[3] . $glyph[3] : $glyph;
+            self::assertGreaterThanOrEqual(3.0, self::contrast($hex, $tile[1]), $file . ' glyph ' . $glyph . ' on the tile');
         }
     }
 

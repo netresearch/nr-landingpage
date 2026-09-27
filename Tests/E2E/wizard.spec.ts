@@ -152,6 +152,87 @@ test.describe('Landing Page Wizard', () => {
         await expect(templateCard).toContainText('Test Template');
     });
 
+    test('template cards are a single choice: checking B unchecks A', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+
+        const group = modal.getByRole('radiogroup');
+        await expect(group).toBeVisible({ timeout: 10000 });
+        const a = group.getByRole('radio', { name: sampleTemplate.title });
+        const b = group.getByRole('radio', { name: templateWithEmptyCTypes.title });
+        await expect(a).toHaveAttribute('aria-checked', 'false');
+        await expect(b).toHaveAttribute('aria-checked', 'false');
+
+        await a.click();
+        await expect(a).toHaveAttribute('aria-checked', 'true');
+        await expect(b).toHaveAttribute('aria-checked', 'false');
+        await expect(a).toHaveClass(/border-2/);
+
+        await b.click();
+        await expect(a).toHaveAttribute('aria-checked', 'false');
+        await expect(b).toHaveAttribute('aria-checked', 'true');
+        await expect(a).not.toHaveClass(/border-2/);
+        await expect(b).toHaveClass(/border-2/);
+        await expect(a).toHaveAttribute('tabindex', '-1');
+        await expect(b).toHaveAttribute('tabindex', '0');
+    });
+
+    test('template radio group: roving tabindex and arrow keys', async ({ authenticatedPage: page }) => {
+        // The cards are created by the module frame's script and live in the
+        // top document's modal, so focus is read from that document directly.
+        const focusedLabel = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? null);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+
+        const group = modal.getByRole('radiogroup');
+        await expect(group).toBeVisible({ timeout: 10000 });
+        const a = group.getByRole('radio', { name: sampleTemplate.title });
+        const b = group.getByRole('radio', { name: templateWithEmptyCTypes.title });
+        // Nothing checked yet: the first card is the only tab stop.
+        await expect(a).toHaveAttribute('tabindex', '0');
+        await expect(b).toHaveAttribute('tabindex', '-1');
+
+        // The modal moves focus to its active footer button once it has
+        // opened; wait for that, or it takes the focus back from the card.
+        await expect.poll(() => page.evaluate(() => document.activeElement?.classList.contains('t3js-active') ?? false)).toBe(true);
+        await a.focus();
+        await expect.poll(focusedLabel).toBe(sampleTemplate.title);
+        await page.keyboard.press(' ');
+        await expect(a).toHaveAttribute('aria-checked', 'true');
+
+        await page.keyboard.press('ArrowDown');
+        await expect(b).toHaveAttribute('aria-checked', 'true');
+        await expect(a).toHaveAttribute('aria-checked', 'false');
+        await expect.poll(focusedLabel).toBe(templateWithEmptyCTypes.title);
+
+        // Wraps around.
+        await page.keyboard.press('ArrowRight');
+        await expect(a).toHaveAttribute('aria-checked', 'true');
+        await expect.poll(focusedLabel).toBe(sampleTemplate.title);
+
+        await page.keyboard.press('ArrowUp');
+        await expect(b).toHaveAttribute('aria-checked', 'true');
+        await expect.poll(focusedLabel).toBe(templateWithEmptyCTypes.title);
+
+        // Arrow keys stay inside the group: the wizard's carousel reads
+        // ArrowRight as "next step" and would slide, bypassing the Next button.
+        // Bootstrap adds its transitional classes synchronously, so the state
+        // right after the key press shows whether a slide started.
+        await page.keyboard.press('ArrowRight');
+        const slid = await modal.evaluate((root) => {
+            const active = root.querySelector('.carousel-item.active');
+            return root.querySelector('.carousel-item-next, .carousel-item-prev, .carousel-item-start, .carousel-item-end') !== null
+                || !active || active.querySelector('.template-card') === null;
+        });
+        expect(slid).toBe(false);
+        await expect(a).toHaveAttribute('aria-checked', 'true');
+        await expect(modal.locator('.carousel-item.active .template-card').first()).toBeVisible();
+    });
+
     test('wizard shows empty template message when no templates', async ({ authenticatedPage: page }) => {
         await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', []);
 
