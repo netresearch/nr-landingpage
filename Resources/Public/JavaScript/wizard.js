@@ -208,6 +208,18 @@ class LandingPageWizard {
                 return;
             }
 
+            // Bootstrap's carousel listens for ArrowLeft/ArrowRight on the
+            // .carousel element and slides to the previous/next step, past the
+            // locked Next button and away from the focused control (a select,
+            // a text input, a radio card). Arrow keys inside the steps belong
+            // to those controls, so they stop at .carousel-inner.
+            const carouselInner = modal.querySelector('.carousel-inner');
+            carouselInner?.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                    e.stopPropagation();
+                }
+            });
+
             modal.addEventListener('keydown', (e) => {
                 if (e.key !== 'Enter') return;
 
@@ -332,14 +344,16 @@ class LandingPageWizard {
             container.appendChild(heading);
 
             // The template cards are a single choice: WAI-ARIA radio group with
-            // roving tabindex. Arrow keys move focus and check, Space checks,
-            // Enter checks too (the wizard's Next button stays its own step).
+            // roving tabindex. Arrow keys move focus and check, Space and Enter
+            // check. Enter then also reaches the modal's Enter-to-Next handler,
+            // which presses Next once a card is checked.
             const grid = document.createElement('div');
             grid.className = 'row g-3';
             grid.setAttribute('role', 'radiogroup');
             grid.setAttribute('aria-labelledby', heading.id);
 
             const preSelectUid = generationInfo?.templateUid || 0;
+            const checkedUid = WizardState.getTemplate()?.uid;
             const cards = [];
 
             // Selection is marked by a 2px border (.border-2, core at 13.4 and
@@ -386,11 +400,17 @@ class LandingPageWizard {
 
                 const description = document.createElement('p');
                 description.className = 'card-text text-variant';
+                description.id = 'nr-landingpage-template-' + position + '-description';
                 description.textContent = template.description || '';
 
                 const badge = document.createElement('span');
                 badge.className = 'badge badge-info';
+                badge.id = 'nr-landingpage-template-' + position + '-briefing';
                 badge.textContent = this.label('wizard.template.briefingBadge', template.briefingMode || 'none');
+
+                // The radio's name is the title (aria-label); its description
+                // and briefing mode are read after it.
+                card.setAttribute('aria-describedby', (template.description ? description.id + ' ' : '') + badge.id);
 
                 cardBody.appendChild(title);
                 cardBody.appendChild(description);
@@ -405,10 +425,6 @@ class LandingPageWizard {
                     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
                     if (step !== undefined) {
                         e.preventDefault();
-                        // The wizard's Bootstrap carousel listens for ArrowLeft/
-                        // ArrowRight on its own element and would slide to the
-                        // next step, bypassing the locked Next button.
-                        e.stopPropagation();
                         const target = cards[(position + step + cards.length) % cards.length];
                         selectCard(target.card, target.template, true);
                     } else if (e.key === ' ' || e.key === 'Enter') {
@@ -421,6 +437,11 @@ class LandingPageWizard {
                 if (preSelectUid > 0 && template.uid === preSelectUid) {
                     selectCard(card, template, false);
                     MultiStepWizard.triggerStepButton('next');
+                } else if (preSelectUid === 0 && checkedUid !== undefined && template.uid === checkedUid) {
+                    // Back from a later step re-renders this slide: keep the
+                    // template the wizard state still holds checked, with its
+                    // tab stop, and Next unlocked.
+                    selectCard(card, template, false);
                 }
             });
 

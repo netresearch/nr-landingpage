@@ -179,6 +179,71 @@ test.describe('Landing Page Wizard', () => {
         await expect(b).toHaveAttribute('tabindex', '0');
     });
 
+    test('template radio cards read out their description and briefing mode', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+
+        const a = modal.getByRole('radio', { name: sampleTemplate.title });
+        await expect(a).toBeVisible({ timeout: 10000 });
+        await expect(a).toHaveAccessibleDescription(sampleTemplate.description + ' Briefing: ' + sampleTemplate.briefingMode);
+    });
+
+    test('going Back to the template step keeps the checked template', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+
+        const b = modal.getByRole('radio', { name: templateWithEmptyCTypes.title });
+        await b.click();
+        await clickNext(modal, page);
+        await modal.locator('#briefing_title').waitFor({ state: 'visible', timeout: 15000 });
+
+        // Back re-runs the template slide's renderer. Mark the old group so the
+        // assertions below can only pass on the freshly rendered cards.
+        await modal.locator('[role="radiogroup"]').evaluate((g) => g.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        const group = modal.locator('[role="radiogroup"]:not([data-stale])');
+        await expect(group).toBeVisible({ timeout: 15000 });
+        const a = group.getByRole('radio', { name: sampleTemplate.title });
+        const b2 = group.getByRole('radio', { name: templateWithEmptyCTypes.title });
+        await expect(b2).toHaveAttribute('aria-checked', 'true');
+        await expect(b2).toHaveAttribute('tabindex', '0');
+        await expect(a).toHaveAttribute('aria-checked', 'false');
+        await expect(a).toHaveAttribute('tabindex', '-1');
+        await expect(modal.locator('button[name="next"]')).toBeEnabled();
+    });
+
+    test('ArrowRight in a briefing select does not slide past the locked Next', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [templateWithRequiredBriefing]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', [
+            { label: 'Tone', type: 'select', options: ['Formal', 'Casual'], required: false },
+        ]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+
+        // briefingMode "required" and an empty title: Next stays locked.
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+        const select = modal.locator('#briefing_q_0');
+        await select.focus();
+        await page.keyboard.press('ArrowRight');
+
+        // Bootstrap adds its transitional classes synchronously when it slides.
+        const slid = await modal.evaluate((root) => {
+            const active = root.querySelector('.carousel-item.active');
+            return root.querySelector('.carousel-item-next, .carousel-item-prev, .carousel-item-start, .carousel-item-end') !== null
+                || !active || active.querySelector('#briefing_title') === null;
+        });
+        expect(slid).toBe(false);
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toBeVisible();
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+    });
+
     test('template radio group: roving tabindex and arrow keys', async ({ authenticatedPage: page }) => {
         // The cards are created by the module frame's script and live in the
         // top document's modal, so focus is read from that document directly.
