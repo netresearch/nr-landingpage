@@ -745,19 +745,7 @@ class LandingPageWizard {
      * @param {Array} images
      */
     renderContentSections(container, sections, images) {
-        container.innerHTML = '';
-
-        const description = document.createElement('p');
-        description.className = 'text-variant mb-3';
-        description.textContent = this.label('wizard.content.description');
-        container.appendChild(description);
-
-        if (!sections || sections.length === 0) {
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-info';
-            alert.setAttribute('role', 'alert');
-            alert.textContent = this.label('wizard.content.none');
-            container.appendChild(alert);
+        if (!this.renderContentIntro(container, 'wizard.content.description', sections)) {
             return;
         }
 
@@ -828,134 +816,8 @@ class LandingPageWizard {
             }
 
             // Image selection area (always shown)
-            {
-                const imageSection = document.createElement('div');
-                imageSection.className = 'mt-3 border-top pt-3';
-
-                const imageLabel = document.createElement('small');
-                imageLabel.className = 'text-variant d-block mb-2';
-                imageLabel.textContent = this.label('wizard.content.imageSuggestions');
-                imageSection.appendChild(imageLabel);
-
-                // Show image generation error if present
-                const imageError = (WizardState.imageErrors || [])[index];
-                if (imageError) {
-                    const errorAlert = document.createElement('div');
-                    errorAlert.className = 'alert alert-warning py-1 px-2 mb-2';
-                    errorAlert.style.fontSize = '0.85em';
-                    errorAlert.textContent = this.label('wizard.content.imageGenerationError') + ' ' + imageError;
-                    imageSection.appendChild(errorAlert);
-                }
-
-                const imageList = document.createElement('div');
-                imageList.className = 'd-flex gap-2 flex-wrap mb-2';
-                imageList.setAttribute('role', 'group');
-                imageList.setAttribute('aria-label', this.label('wizard.content.imageSuggestions'));
-
-                const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
-                this.renderImageCards(imageList, sectionImages, index);
-
-                // Show info when automatic search found no images
-                const keywords = section.imageKeywords || [];
-                if (sectionImages.length === 0 && keywords.length > 0) {
-                    const emptyInfo = document.createElement('div');
-                    emptyInfo.className = 'alert alert-info py-2 px-3 mb-2';
-                    emptyInfo.style.fontSize = '0.85em';
-                    emptyInfo.setAttribute('role', 'status');
-                    emptyInfo.setAttribute('aria-live', 'polite');
-                    emptyInfo.textContent = this.label('wizard.content.imageAutoSearchEmpty', keywords.join(', '));
-                    imageSection.appendChild(emptyInfo);
-                }
-
-                imageSection.appendChild(imageList);
-
-                // Search input for finding more images — pre-filled with AI keywords
-                const searchRow = document.createElement('div');
-                searchRow.className = 'd-flex gap-2 align-items-center flex-wrap';
-
-                const searchInput = document.createElement('input');
-                searchInput.type = 'text';
-                searchInput.className = 'form-control form-control-sm';
-                searchInput.placeholder = this.label('wizard.content.imageSearchPlaceholder');
-                searchInput.setAttribute('aria-label', this.label('wizard.content.imageSearchPlaceholder'));
-                searchInput.style.maxWidth = '250px';
-                if (keywords.length > 0) {
-                    searchInput.value = keywords.join(' ');
-                }
-
-                const searchBtn = this.createIconButton(
-                    'actions-search',
-                    this.label('wizard.content.imageSearchButton'),
-                    'btn btn-sm btn-default',
-                    async () => {
-                        const query = searchInput.value.trim();
-                        if (!query) return;
-                        searchBtn.disabled = true;
-                        try {
-                            const result = await this.fetchJson(this.getAjaxUrl('searchImages'), { query });
-                            const found = result.images || [];
-                            if (found.length === 0) {
-                                Notification.info(this.label('wizard.content.imageSearchEmpty'));
-                            } else {
-                                this.renderImageCards(imageList, found, index);
-                            }
-                        } catch (err) {
-                            Notification.error(this.label('wizard.error.imageSearch'), err.message);
-                        } finally {
-                            searchBtn.disabled = false;
-                        }
-                    },
-                );
-
-                searchInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        searchBtn.click();
-                    }
-                });
-
-                searchRow.appendChild(searchInput);
-                searchRow.appendChild(searchBtn);
-
-                // AI Generate button (shown when AI source is configured and available)
-                const aiAvailable = WizardState.aiGenerationAvailable || false;
-                const hasImageTask = WizardState.hasImageTask || false;
-                if (aiAvailable && hasImageTask) {
-                    const generateBtn = this.createIconButton(
-                        'actions-bolt',
-                        this.label('wizard.content.imageGenerateButton'),
-                        'btn btn-sm btn-default',
-                        async () => {
-                            generateBtn.disabled = true;
-                            generateBtn.textContent = this.label('wizard.content.imageGenerating');
-                            try {
-                                const template = WizardState.getTemplate();
-                                const sectionData = WizardState.getContentSections()[index] || {};
-                                const result = await this.fetchJson(this.getAjaxUrl('generateImage'), {
-                                    templateUid: template.uid,
-                                    imagePrompt: sectionData.imagePrompt || '',
-                                    sectionHeader: sectionData.header || sectionData.section || '',
-                                });
-                                const img = result.image;
-                                if (img) {
-                                    this.renderImageCards(imageList, [img], index);
-                                    Notification.success(this.label('wizard.content.imageGenerated'));
-                                }
-                            } catch (err) {
-                                Notification.error(this.label('wizard.error.imageGenerate'), err.message);
-                            } finally {
-                                generateBtn.disabled = false;
-                                this.setIconButtonLabel(generateBtn, this.label('wizard.content.imageGenerateButton'));
-                            }
-                        },
-                    );
-                    searchRow.appendChild(generateBtn);
-                }
-
-                imageSection.appendChild(searchRow);
-
-                cardBody.appendChild(imageSection);
-            }
+            const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
+            cardBody.appendChild(this.renderImageSection(section, index, sectionImages, false));
 
             card.appendChild(cardHeader);
             card.appendChild(cardBody);
@@ -970,19 +832,7 @@ class LandingPageWizard {
      * @param {Array} sections
      */
     renderCreativeContentSections(container, sections) {
-        container.innerHTML = '';
-
-        const description = document.createElement('p');
-        description.className = 'text-variant mb-3';
-        description.textContent = this.label('wizard.content.creativeDescription');
-        container.appendChild(description);
-
-        if (!sections || sections.length === 0) {
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-info';
-            alert.setAttribute('role', 'alert');
-            alert.textContent = this.label('wizard.content.none');
-            container.appendChild(alert);
+        if (!this.renderContentIntro(container, 'wizard.content.creativeDescription', sections)) {
             return;
         }
 
@@ -1062,142 +912,9 @@ class LandingPageWizard {
             cardBody.appendChild(preview);
 
             // Image selection for creative sections
-            {
-                const keywords = section.imageKeywords || [];
-                const hasKeywords = keywords.length > 0;
-
-                const imageSection = document.createElement('div');
-                imageSection.className = 'mt-3 border-top pt-3';
-
-                const imageLabel = document.createElement('small');
-                imageLabel.className = 'text-variant d-block mb-2';
-                imageLabel.textContent = hasKeywords
-                    ? this.label('wizard.content.imageSuggestions')
-                    : this.label('wizard.content.imageSearchPlaceholder');
-                imageSection.appendChild(imageLabel);
-
-                // Show image generation error if present
-                const imageError = (WizardState.imageErrors || [])[index];
-                if (imageError) {
-                    const errorAlert = document.createElement('div');
-                    errorAlert.className = 'alert alert-warning py-1 px-2 mb-2';
-                    errorAlert.style.fontSize = '0.85em';
-                    errorAlert.textContent = this.label('wizard.content.imageGenerationError') + ' ' + imageError;
-                    imageSection.appendChild(errorAlert);
-                }
-
-                const imageList = document.createElement('div');
-                imageList.className = 'd-flex gap-2 flex-wrap mb-2';
-                imageList.setAttribute('role', 'group');
-                imageList.setAttribute('aria-label', this.label('wizard.content.imageSuggestions'));
-
-                {
-                    const images = WizardState.getImages();
-                    const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
-                    this.renderImageCards(imageList, sectionImages, index);
-
-                    // Show info when automatic search found no images but keywords were present
-                    if (sectionImages.length === 0 && hasKeywords) {
-                        const emptyInfo = document.createElement('div');
-                        emptyInfo.className = 'alert alert-info py-2 px-3 mb-2';
-                        emptyInfo.style.fontSize = '0.85em';
-                        emptyInfo.setAttribute('role', 'status');
-                        emptyInfo.setAttribute('aria-live', 'polite');
-                        emptyInfo.textContent = this.label('wizard.content.imageAutoSearchEmpty', keywords.join(', '));
-                        imageSection.appendChild(emptyInfo);
-                    }
-                }
-
-                imageSection.appendChild(imageList);
-
-                // Search input — pre-filled with keywords if available
-                const searchRow = document.createElement('div');
-                searchRow.className = 'd-flex gap-2 align-items-center flex-wrap';
-
-                const searchInput = document.createElement('input');
-                searchInput.type = 'text';
-                searchInput.className = 'form-control form-control-sm';
-                searchInput.placeholder = this.label('wizard.content.imageSearchPlaceholder');
-                searchInput.setAttribute('aria-label', this.label('wizard.content.imageSearchPlaceholder'));
-                searchInput.style.maxWidth = '250px';
-                if (hasKeywords) {
-                    searchInput.value = keywords.join(' ');
-                }
-
-                const searchBtn = this.createIconButton(
-                    'actions-search',
-                    this.label('wizard.content.imageSearchButton'),
-                    'btn btn-sm btn-default',
-                    async () => {
-                        const query = searchInput.value.trim();
-                        if (!query) return;
-                        searchBtn.disabled = true;
-                        try {
-                            const result = await this.fetchJson(this.getAjaxUrl('searchImages'), { query });
-                            const found = result.images || [];
-                            if (found.length === 0) {
-                                Notification.info(this.label('wizard.content.imageSearchEmpty'));
-                            } else {
-                                this.renderImageCards(imageList, found, index);
-                            }
-                        } catch (err) {
-                            Notification.error(this.label('wizard.error.imageSearch'), err.message);
-                        } finally {
-                            searchBtn.disabled = false;
-                        }
-                    },
-                );
-
-                searchInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        searchBtn.click();
-                    }
-                });
-
-                searchRow.appendChild(searchInput);
-                searchRow.appendChild(searchBtn);
-
-                // AI Generate button (only when keywords suggest image need)
-                if (hasKeywords) {
-                    const aiAvailable = WizardState.aiGenerationAvailable || false;
-                    const hasImageTask = WizardState.hasImageTask || false;
-                    if (aiAvailable && hasImageTask) {
-                        const generateBtn = this.createIconButton(
-                            'actions-bolt',
-                            this.label('wizard.content.imageGenerateButton'),
-                            'btn btn-sm btn-default',
-                            async () => {
-                                generateBtn.disabled = true;
-                                generateBtn.textContent = this.label('wizard.content.imageGenerating');
-                                try {
-                                    const template = WizardState.getTemplate();
-                                    const sectionData = WizardState.getContentSections()[index] || {};
-                                    const result = await this.fetchJson(this.getAjaxUrl('generateImage'), {
-                                        templateUid: template.uid,
-                                        imagePrompt: sectionData.imagePrompt || '',
-                                        sectionHeader: sectionData.header || sectionData.section || '',
-                                    });
-                                    const img = result.image;
-                                    if (img) {
-                                        this.renderImageCards(imageList, [img], index);
-                                        Notification.success(this.label('wizard.content.imageGenerated'));
-                                    }
-                                } catch (err) {
-                                    Notification.error(this.label('wizard.error.imageGenerate'), err.message);
-                                } finally {
-                                    generateBtn.disabled = false;
-                                    this.setIconButtonLabel(generateBtn, this.label('wizard.content.imageGenerateButton'));
-                                }
-                            },
-                        );
-                        searchRow.appendChild(generateBtn);
-                    }
-                }
-
-                imageSection.appendChild(searchRow);
-                cardBody.appendChild(imageSection);
-            }
+            const images = WizardState.getImages();
+            const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
+            cardBody.appendChild(this.renderImageSection(section, index, sectionImages, true));
 
             // Source code editor (hidden by default)
             const source = document.createElement('div');
@@ -1219,6 +936,182 @@ class LandingPageWizard {
             card.appendChild(cardBody);
             container.appendChild(card);
         });
+    }
+
+    /**
+     * Start a content slide: the description paragraph, or an info alert when
+     * there are no sections.
+     *
+     * @param {HTMLElement} container
+     * @param {string} descriptionKey
+     * @param {Array} sections
+     * @returns {boolean} false when there is nothing to render
+     */
+    renderContentIntro(container, descriptionKey, sections) {
+        container.innerHTML = '';
+
+        const description = document.createElement('p');
+        description.className = 'text-variant mb-3';
+        description.textContent = this.label(descriptionKey);
+        container.appendChild(description);
+
+        if (!sections || sections.length === 0) {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-info';
+            alert.setAttribute('role', 'alert');
+            alert.textContent = this.label('wizard.content.none');
+            container.appendChild(alert);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Image selection area of one content section: label, generation error,
+     * image cards, automatic-search info, search row and AI generate button.
+     *
+     * Creative sections differ in two ways: without image keywords the label
+     * reads like the search placeholder, and the AI generate button needs
+     * image keywords.
+     *
+     * @param {Object} section
+     * @param {number} index
+     * @param {Array} sectionImages
+     * @param {boolean} creative
+     * @returns {HTMLDivElement}
+     */
+    renderImageSection(section, index, sectionImages, creative) {
+        const keywords = section.imageKeywords || [];
+        const hasKeywords = keywords.length > 0;
+
+        const imageSection = document.createElement('div');
+        imageSection.className = 'mt-3 border-top pt-3';
+
+        const imageLabel = document.createElement('small');
+        imageLabel.className = 'text-variant d-block mb-2';
+        imageLabel.textContent = (creative && !hasKeywords)
+            ? this.label('wizard.content.imageSearchPlaceholder')
+            : this.label('wizard.content.imageSuggestions');
+        imageSection.appendChild(imageLabel);
+
+        // Show image generation error if present
+        const imageError = (WizardState.imageErrors || [])[index];
+        if (imageError) {
+            const errorAlert = document.createElement('div');
+            errorAlert.className = 'alert alert-warning py-1 px-2 mb-2';
+            errorAlert.style.fontSize = '0.85em';
+            errorAlert.textContent = this.label('wizard.content.imageGenerationError') + ' ' + imageError;
+            imageSection.appendChild(errorAlert);
+        }
+
+        const imageList = document.createElement('div');
+        imageList.className = 'd-flex gap-2 flex-wrap mb-2';
+        imageList.setAttribute('role', 'group');
+        imageList.setAttribute('aria-label', this.label('wizard.content.imageSuggestions'));
+
+        this.renderImageCards(imageList, sectionImages, index);
+
+        // Show info when automatic search found no images but keywords were present
+        if (sectionImages.length === 0 && hasKeywords) {
+            const emptyInfo = document.createElement('div');
+            emptyInfo.className = 'alert alert-info py-2 px-3 mb-2';
+            emptyInfo.style.fontSize = '0.85em';
+            emptyInfo.setAttribute('role', 'status');
+            emptyInfo.setAttribute('aria-live', 'polite');
+            emptyInfo.textContent = this.label('wizard.content.imageAutoSearchEmpty', keywords.join(', '));
+            imageSection.appendChild(emptyInfo);
+        }
+
+        imageSection.appendChild(imageList);
+
+        // Search input for finding more images — pre-filled with AI keywords
+        const searchRow = document.createElement('div');
+        searchRow.className = 'd-flex gap-2 align-items-center flex-wrap';
+
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'form-control form-control-sm';
+        searchInput.placeholder = this.label('wizard.content.imageSearchPlaceholder');
+        searchInput.setAttribute('aria-label', this.label('wizard.content.imageSearchPlaceholder'));
+        searchInput.style.maxWidth = '250px';
+        if (hasKeywords) {
+            searchInput.value = keywords.join(' ');
+        }
+
+        const searchBtn = this.createIconButton(
+            'actions-search',
+            this.label('wizard.content.imageSearchButton'),
+            'btn btn-sm btn-default',
+            async () => {
+                const query = searchInput.value.trim();
+                if (!query) return;
+                searchBtn.disabled = true;
+                try {
+                    const result = await this.fetchJson(this.getAjaxUrl('searchImages'), { query });
+                    const found = result.images || [];
+                    if (found.length === 0) {
+                        Notification.info(this.label('wizard.content.imageSearchEmpty'));
+                    } else {
+                        this.renderImageCards(imageList, found, index);
+                    }
+                } catch (err) {
+                    Notification.error(this.label('wizard.error.imageSearch'), err.message);
+                } finally {
+                    searchBtn.disabled = false;
+                }
+            },
+        );
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchBtn.click();
+            }
+        });
+
+        searchRow.appendChild(searchInput);
+        searchRow.appendChild(searchBtn);
+
+        // AI Generate button (shown when AI source is configured and available;
+        // creative sections additionally need image keywords)
+        const aiAvailable = WizardState.aiGenerationAvailable || false;
+        const hasImageTask = WizardState.hasImageTask || false;
+        if (aiAvailable && hasImageTask && (!creative || hasKeywords)) {
+            const generateBtn = this.createIconButton(
+                'actions-bolt',
+                this.label('wizard.content.imageGenerateButton'),
+                'btn btn-sm btn-default',
+                async () => {
+                    generateBtn.disabled = true;
+                    generateBtn.textContent = this.label('wizard.content.imageGenerating');
+                    try {
+                        const template = WizardState.getTemplate();
+                        const sectionData = WizardState.getContentSections()[index] || {};
+                        const result = await this.fetchJson(this.getAjaxUrl('generateImage'), {
+                            templateUid: template.uid,
+                            imagePrompt: sectionData.imagePrompt || '',
+                            sectionHeader: sectionData.header || sectionData.section || '',
+                        });
+                        const img = result.image;
+                        if (img) {
+                            this.renderImageCards(imageList, [img], index);
+                            Notification.success(this.label('wizard.content.imageGenerated'));
+                        }
+                    } catch (err) {
+                        Notification.error(this.label('wizard.error.imageGenerate'), err.message);
+                    } finally {
+                        generateBtn.disabled = false;
+                        this.setIconButtonLabel(generateBtn, this.label('wizard.content.imageGenerateButton'));
+                    }
+                },
+            );
+            searchRow.appendChild(generateBtn);
+        }
+
+        imageSection.appendChild(searchRow);
+
+        return imageSection;
     }
 
     /**
