@@ -583,9 +583,12 @@ class LandingPageWizard {
         const titleVal = titleInput?.value?.trim() || '';
         if (titleVal) {
             answers.title = titleVal;
-            WizardState.setTitle(titleVal);
-            WizardState.setSlug(this.generateSlug(titleVal));
         }
+        // Always write the title, also when it was cleared: the answers are
+        // stored while typing, so a skipped empty value would keep the last
+        // typed one for the page-fields step.
+        WizardState.setTitle(titleVal);
+        WizardState.setSlug(titleVal ? this.generateSlug(titleVal) : '');
         WizardState.setBriefingAnswers(answers);
     }
 

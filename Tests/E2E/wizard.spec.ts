@@ -288,6 +288,81 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal.locator('#briefing_q_0')).toHaveValue('Casual');
     });
 
+    /**
+     * Go Back without moving focus: a real click on the button would blur the
+     * field and fire its change event, which hides whether the input listener
+     * alone keeps the answers.
+     */
+    async function backWithoutBlur(modal: Locator): Promise<void> {
+        await modal.locator('button[name="prev"]:not([disabled])').evaluate((button: HTMLButtonElement) => button.click());
+        await expect(modal.locator('.carousel-item.active [role="radiogroup"]')).toBeVisible({ timeout: 15000 });
+        await modal.locator('#briefing_title').evaluate((input) => input.setAttribute('data-stale', '1'));
+    }
+
+    test('typed briefing title is stored by the input listener alone', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+
+        // The wizard state lives in the module frame's realm (wizard.js is
+        // loaded there); read it while the field keeps focus, so no change
+        // event can have fired: only the input listener can have stored it.
+        const storedTitle = () => frame.locator('body').evaluate(async () => {
+            const state = (await import('@netresearch/nr-landingpage/wizard-state.js')).default;
+            return [state.getTitle(), state.getBriefingAnswers().title ?? null];
+        });
+        const title = modal.locator('#briefing_title');
+        await title.focus();
+        await page.keyboard.type('Typed title');
+        await expect.poll(() => page.evaluate(() => document.activeElement?.id ?? null)).toBe('briefing_title');
+        expect(await storedTitle()).toEqual(['Typed title', 'Typed title']);
+    });
+
+    test('briefing answer set with a change event only is kept by the change listener', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', [
+            { label: 'Tone', type: 'select', options: ['Formal', 'Casual'], required: false },
+        ]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+
+        // Some controls (and autofill) report a new value with change and no
+        // input event; dispatch exactly that.
+        await modal.locator('#briefing_q_0').evaluate((select: HTMLSelectElement) => {
+            select.value = 'Casual';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        await backWithoutBlur(modal);
+
+        await clickNext(modal, page);
+        await expect(modal.locator('#briefing_title:not([data-stale])')).toBeVisible({ timeout: 15000 });
+        await expect(modal.locator('#briefing_q_0')).toHaveValue('Casual');
+    });
+
+    test('a briefing title typed and cleared again leaves the page title empty', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-page-fields', {});
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+
+        const title = modal.locator('#briefing_title');
+        await title.focus();
+        await page.keyboard.type('Draft');
+        await title.fill('');
+
+        await advanceToPageFields(modal, page);
+        await expect(modal.locator('#pf_title')).toHaveValue('');
+        await expect(modal.locator('#pf_slug')).toHaveValue('');
+    });
+
     test('template radio group: roving tabindex and arrow keys', async ({ authenticatedPage: page }) => {
         // The cards are created by the module frame's script and live in the
         // top document's modal, so focus is read from that document directly.
