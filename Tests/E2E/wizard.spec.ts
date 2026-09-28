@@ -217,7 +217,7 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal.locator('button[name="next"]')).toBeEnabled();
     });
 
-    test('ArrowRight in a briefing select does not slide past the locked Next', async ({ authenticatedPage: page }) => {
+    test('arrow keys in the briefing step stay with the control, not the carousel', async ({ authenticatedPage: page }) => {
         await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [templateWithRequiredBriefing]);
         await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', [
             { label: 'Tone', type: 'select', options: ['Formal', 'Casual'], required: false },
@@ -227,21 +227,65 @@ test.describe('Landing Page Wizard', () => {
         const modal = await openWizard(page, frame);
         await selectTemplateAndAdvanceToBriefing(modal, page);
 
+        // Bootstrap adds its transitional classes synchronously when it slides,
+        // so the state right after a key press shows whether a slide started.
+        const stayed = () => modal.evaluate((root) => {
+            const active = root.querySelector('.carousel-item.active');
+            return root.querySelector('.carousel-item-next, .carousel-item-prev, .carousel-item-start, .carousel-item-end') === null
+                && !!active && active.querySelector('#briefing_title') !== null;
+        });
+
         // briefingMode "required" and an empty title: Next stays locked.
         await expect(modal.locator('button[name="next"]')).toBeDisabled();
         const select = modal.locator('#briefing_q_0');
+        await select.selectOption('Formal');
         await select.focus();
-        await page.keyboard.press('ArrowRight');
 
-        // Bootstrap adds its transitional classes synchronously when it slides.
-        const slid = await modal.evaluate((root) => {
-            const active = root.querySelector('.carousel-item.active');
-            return root.querySelector('.carousel-item-next, .carousel-item-prev, .carousel-item-start, .carousel-item-end') !== null
-                || !active || active.querySelector('#briefing_title') === null;
-        });
-        expect(slid).toBe(false);
+        // ArrowRight would slide forward past the locked Next; the select
+        // still gets the key and moves to the next option.
+        await page.keyboard.press('ArrowRight');
+        expect(await stayed()).toBe(true);
+        await expect(select).toHaveValue('Casual');
+
+        // ArrowLeft would slide back to the template step.
+        await page.keyboard.press('ArrowLeft');
+        expect(await stayed()).toBe(true);
+        await expect(select).toHaveValue('Formal');
+
+        // In a text input the arrow keys still move the caret.
+        const title = modal.locator('#briefing_title');
+        await title.fill('abc');
+        await title.press('End');
+        await page.keyboard.press('ArrowLeft');
+        expect(await stayed()).toBe(true);
+        expect(await title.evaluate((input: HTMLInputElement) => input.selectionStart)).toBe(2);
+
         await expect(modal.locator('.carousel-item.active #briefing_title')).toBeVisible();
-        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+    });
+
+    test('briefing answers survive Back to the template step and Next again', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', [
+            { label: 'Tone', type: 'select', options: ['Formal', 'Casual'], required: false },
+        ]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+
+        await modal.locator('#briefing_title').fill('Kept title');
+        await modal.locator('#briefing_q_0').selectOption('Casual');
+
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        await expect(modal.locator('.carousel-item.active [role="radiogroup"]')).toBeVisible({ timeout: 15000 });
+        // Mark the old form: the assertions below must read the re-rendered one.
+        await modal.locator('#briefing_title').evaluate((input) => input.setAttribute('data-stale', '1'));
+
+        await clickNext(modal, page);
+        const title = modal.locator('#briefing_title:not([data-stale])');
+        await expect(title).toBeVisible({ timeout: 15000 });
+        await expect(title).toHaveValue('Kept title');
+        await expect(modal.locator('#briefing_q_0')).toHaveValue('Casual');
     });
 
     test('template radio group: roving tabindex and arrow keys', async ({ authenticatedPage: page }) => {

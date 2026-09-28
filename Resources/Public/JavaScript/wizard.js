@@ -211,8 +211,10 @@ class LandingPageWizard {
             // Bootstrap's carousel listens for ArrowLeft/ArrowRight on the
             // .carousel element and slides to the previous/next step, past the
             // locked Next button and away from the focused control (a select,
-            // a text input, a radio card). Arrow keys inside the steps belong
-            // to those controls, so they stop at .carousel-inner.
+            // a button, a radio card; Bootstrap itself skips inputs and
+            // textareas). Arrow keys inside the steps belong to those controls,
+            // so they stop at .carousel-inner. No preventDefault: the control
+            // still gets its own arrow-key behaviour.
             const carouselInner = modal.querySelector('.carousel-inner');
             carouselInner?.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -538,6 +540,12 @@ class LandingPageWizard {
             container.appendChild(form);
             this._briefingForm = form;
             this._briefingQuestions = questions;
+
+            // Keep the answers in the wizard state as they are typed, not only
+            // on the way forward: Back to the template step and Next again
+            // re-renders this form from the state.
+            form.addEventListener('input', () => this.collectAndStoreBriefingAnswers());
+            form.addEventListener('change', () => this.collectAndStoreBriefingAnswers());
 
             const titleInput = form.querySelector('#briefing_title');
             const checkUnlock = () => {
