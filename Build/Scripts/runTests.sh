@@ -389,7 +389,7 @@ import sys, json; print(json.load(sys.stdin)['raw'].get('primary_url', ''))" 2>/
         SUITE_EXIT_CODE=$?
         ;;
     functional)
-        COMMAND=(php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c phpunit.xml --testsuite functional --bootstrap Build/phpunit/FunctionalTestsBootstrap.php --exclude-group not-${DBMS} "$@")
+        COMMAND=(php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c phpunit.functional.xml --testsuite functional --fail-on-empty-test-suite --bootstrap Build/phpunit/FunctionalTestsBootstrap.php --exclude-group not-${DBMS} "$@")
 
         case ${DBMS} in
             mariadb)
@@ -417,7 +417,7 @@ import sys, json; print(json.load(sys.stdin)['raw'].get('primary_url', ''))" 2>/
                 ;;
             sqlite)
                 mkdir -p "${ROOT_DIR}/.Build/Web/typo3temp/var/tests/functional-sqlite-dbs/"
-                CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${ROOT_DIR}/.Build/Web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid"
+                CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${ROOT_DIR}/.Build/Web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid,mode=1777"
                 ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} ${IMAGE_PHP} "${COMMAND[@]}"
                 SUITE_EXIT_CODE=$?
                 ;;
@@ -433,16 +433,18 @@ import sys, json; print(json.load(sys.stdin)['raw'].get('primary_url', ''))" 2>/
             PARALLEL_JOBS=$(( ($(nproc) + 1) / 2 ))
         fi
 
-        COMMAND="find Tests/Functional -name '*Test.php' | xargs -P${PARALLEL_JOBS} -I{} php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c phpunit.xml --testsuite functional {}"
-        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${ROOT_DIR}/.Build/Web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid"
+        # xargs never starts phpunit on an empty list and exits 0, so an empty or
+        # missing Tests/Functional has to fail here before the pipe.
+        COMMAND="files=\$(find Tests/Functional -name '*Test.php') && [ -n \"\$files\" ] || { echo 'No *Test.php files found under Tests/Functional' >&2; exit 1; }; printf '%s\n' \"\$files\" | xargs -P${PARALLEL_JOBS} -I{} php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c phpunit.functional.xml --testsuite functional --fail-on-empty-test-suite {}"
+        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${ROOT_DIR}/.Build/Web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid,mode=1777"
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-parallel-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
         SUITE_EXIT_CODE=$?
         ;;
     functionalCoverage)
         mkdir -p .Build/coverage
-        COMMAND=(php -d opcache.enable_cli=1 .Build/bin/phpunit -c phpunit.xml --testsuite functional --coverage-clover=.Build/coverage/functional.xml --coverage-html=.Build/coverage/html-functional --coverage-text "$@")
+        COMMAND=(php -d opcache.enable_cli=1 .Build/bin/phpunit -c phpunit.functional.xml --testsuite functional --fail-on-empty-test-suite --coverage-clover=.Build/coverage/functional.xml --coverage-html=.Build/coverage/html-functional --coverage-text "$@")
         mkdir -p "${ROOT_DIR}/.Build/Web/typo3temp/var/tests/functional-sqlite-dbs/"
-        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${ROOT_DIR}/.Build/Web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid"
+        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${ROOT_DIR}/.Build/Web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid,mode=1777"
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-coverage-${SUFFIX} -e XDEBUG_MODE=coverage ${CONTAINERPARAMS} ${IMAGE_PHP} "${COMMAND[@]}"
         SUITE_EXIT_CODE=$?
         ;;
