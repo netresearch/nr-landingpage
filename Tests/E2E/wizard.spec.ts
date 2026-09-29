@@ -80,6 +80,101 @@ async function advanceToContent(modal: Locator, page: Page): Promise<void> {
 }
 
 test.describe('Landing Page Wizard', () => {
+    // -- Enter handled by an inner control must not advance the wizard --
+
+    /**
+     * True while the carousel is sliding or once it has moved away from the
+     * slide that holds `selector`. Checked right after the key press: Bootstrap
+     * adds the transitional classes synchronously when next() runs.
+     */
+    async function wizardMovedAwayFrom(modal: Locator, selector: string): Promise<boolean> {
+        return modal.evaluate((root, sel) => {
+            const sliding = root.querySelector('.carousel-item-next, .carousel-item-prev, .carousel-item-start, .carousel-item-end') !== null;
+            const active = root.querySelector('.carousel-item.active');
+            return sliding || !active || active.querySelector(sel) === null;
+        }, selector);
+    }
+
+    /** Mock the wizard's AJAX replies (path fragment -> data) and open it. */
+    async function openMockedWizard(page: Page, replies: Record<string, unknown>): Promise<Locator> {
+        for (const [path, data] of Object.entries(replies)) {
+            await mockAjaxRoute(page, '/nr-landingpage/wizard/' + path, data);
+        }
+        return openWizard(page, await navigateToModule(page));
+    }
+
+    test('Enter on a template card selects it and keeps the step', async ({ authenticatedPage: page }) => {
+        const modal = await openMockedWizard(page, { 'templates': [sampleTemplate], 'generate-briefing': [] });
+
+        const card = modal.locator('.template-card').first();
+        await expect(card).toBeVisible({ timeout: 10000 });
+        // The modal moves focus to its active footer button once it has
+        // opened; wait for that, or it takes the focus back from the card.
+        await expect.poll(() => page.evaluate(() => document.activeElement?.classList.contains('t3js-active') ?? false)).toBe(true);
+        await card.focus();
+        await expect.poll(() => page.evaluate(() => document.activeElement?.classList.contains('template-card') ?? false)).toBe(true);
+        await page.keyboard.press('Enter');
+
+        expect(await wizardMovedAwayFrom(modal, '.template-card')).toBe(false);
+        // Enter selected the card (which unlocks Next) without pressing Next.
+        await expect(modal.locator('button[name="next"]')).toBeEnabled();
+        await expect(modal.locator('.carousel-item.active .template-card')).toBeVisible();
+        await expect(modal.locator('#briefing_title')).toHaveCount(0);
+    });
+
+    test('Enter in the image search input searches and keeps the content step', async ({ authenticatedPage: page }) => {
+        let searches = 0;
+        await page.route('**/nr-landingpage/wizard/search-images**', async (route) => {
+            searches++;
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ success: true, data: { images: [{ uid: 51, name: 'found.jpg', title: 'Found image' }] } }),
+            });
+        });
+
+        const modal = await openMockedWizard(page, {
+            'templates': [sampleTemplate],
+            'generate-briefing': [],
+            'generate-page-fields': { title: 'Enter test', seo_title: 'SEO', description: 'Desc' },
+            'generate-content': sampleContentSections,
+        });
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+        await advanceToPageFields(modal, page);
+        await advanceToContent(modal, page);
+
+        const search = modal.locator('#section-card-0').getByRole('textbox', { name: 'Search images…' });
+        await search.fill('beach');
+        await search.press('Enter');
+
+        expect(await wizardMovedAwayFrom(modal, '#section-card-0')).toBe(false);
+        await expect(modal.locator('#section-card-0 [data-image-uid="51"]')).toContainText('Found image');
+        await expect(modal.locator('.carousel-item.active #section-card-0 .border-top')).toBeVisible();
+        expect(searches).toBe(1);
+    });
+
+    test('Enter on an image card selects it and keeps the content step', async ({ authenticatedPage: page }) => {
+        const modal = await openMockedWizard(page, {
+            'templates': [sampleTemplate],
+            'generate-briefing': [],
+            'generate-page-fields': { title: 'Image card', seo_title: 'SEO', description: 'Desc' },
+            'generate-content': contentSectionsWithImages,
+        });
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+        await advanceToPageFields(modal, page);
+        await advanceToContent(modal, page);
+
+        const imageCard = modal.locator('#section-card-0 [data-image-uid="2"]');
+        await expect(imageCard).toHaveAttribute('aria-pressed', 'false');
+        await imageCard.focus();
+        await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute('data-image-uid') ?? null)).toBe('2');
+        await page.keyboard.press('Enter');
+
+        expect(await wizardMovedAwayFrom(modal, '#section-card-0')).toBe(false);
+        await expect(imageCard).toHaveAttribute('aria-pressed', 'true');
+        await expect(modal.locator('.carousel-item.active #section-card-0')).toBeVisible();
+    });
+
     test('module launcher page renders Create button', async ({ authenticatedPage: page }) => {
         const frame = await navigateToModule(page);
 
