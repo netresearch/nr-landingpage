@@ -500,9 +500,10 @@ test.describe('Landing Page Wizard', () => {
 
     /**
      * Route `path` so that its first request waits until `release()` is
-     * called; `first` resolves once that request has arrived.
+     * called; `first` resolves once that request has arrived. With a `status`
+     * other than 200, that first request fails with it.
      */
-    async function holdFirstReply(page: Page, path: string, data: unknown): Promise<{ first: Promise<void>; release: () => void; count: () => number }> {
+    async function holdFirstReply(page: Page, path: string, data: unknown, status = 200): Promise<{ first: Promise<void>; release: () => void; count: () => number }> {
         let release!: () => void;
         const held = new Promise<void>((resolve) => { release = resolve; });
         let arrived!: () => void;
@@ -513,6 +514,10 @@ test.describe('Landing Page Wizard', () => {
             if (requests === 1) {
                 arrived();
                 await held;
+                if (status !== 200) {
+                    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Held reply failed' }) });
+                    return;
+                }
             }
             await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data }) });
         });
@@ -706,6 +711,52 @@ test.describe('Landing Page Wizard', () => {
         expect(saved!.contentSections[0].header).toBe(sampleContentSections.sections[0].header);
     });
 
+    test('Regenerate on a section card replaced by Back and Next runs while the old card\'s request is pending', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        await mockUpToContent(page);
+        const freshSection = { section: 'FRESH', ctype: 'text', header: 'FRESH header', subheader: '', bodytext: '<p>fresh</p>' };
+        // The first request (the old card's) is held; later ones reply at once.
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => { release = resolve; });
+        let arrived!: () => void;
+        const first = new Promise<void>((resolve) => { arrived = resolve; });
+        let requests = 0;
+        await page.route('**/nr-landingpage/wizard/regenerate-section**', async (route) => {
+            const mine = ++requests;
+            if (mine === 1) {
+                arrived();
+                await held;
+            }
+            const data = mine === 1 ? staleSection : freshSection;
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data }) });
+        });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await modal.locator('#section-card-0 .card-header button').first().click();
+        await first;
+
+        await modal.locator('#section-card-0').evaluate((card) => card.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active #section-card-0:not([data-stale])').waitFor({ state: 'visible', timeout: 15000 });
+        await waitForSlideSettled(modal);
+
+        // The old card is gone and its reply will be dropped: Regenerate on
+        // the new card must not wait for it.
+        await modal.locator('#section-card-1 .card-header button').first().click();
+        await expect.poll(() => requests, { timeout: 10000 }).toBe(2);
+        await expect(modal.locator('#section-card-1 .section-header')).toHaveValue(freshSection.header, { timeout: 15000 });
+
+        release();
+        await expect.poll(() => parsedReplies(page, 'regenerate-section'), { timeout: 15000 }).toBe(2);
+        const sections = (await wizardState(page)).contentSections;
+        expect(sections[0].header).toBe(sampleContentSections.sections[0].header);
+        expect(sections[1].header).toBe(freshSection.header);
+        await expect(modal.locator('#section-card-0 .section-header')).toHaveValue(sampleContentSections.sections[0].header);
+    });
+
     // Sections that declare "no image chosen" (imageUid 0): a recommended image
     // in a reply is then chosen automatically, which is what a stale reply
     // must not do to the next wizard's state.
@@ -818,6 +869,103 @@ test.describe('Landing Page Wizard', () => {
         expect(await page.evaluate(() => (window as any).__setUrlCalls)).toEqual([]);
         await expect(modal.locator('.carousel-item.active .template-card')).toHaveCount(1);
     });
+
+    test('a save of a closed wizard finishing does not unlock a second save in the wizard opened after it', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        await mockUpToContent(page);
+        // The first two save requests (one per wizard) are held until
+        // released. pageUid 0: no reply navigates to the page module.
+        const releases: Array<() => void> = [];
+        const arrivals: Array<Promise<void>> = [];
+        const arrived: Array<() => void> = [];
+        for (let i = 0; i < 2; i++) {
+            arrivals.push(new Promise<void>((resolve) => { arrived.push(resolve); }));
+        }
+        let requests = 0;
+        await page.route('**/nr-landingpage/wizard/save**', async (route) => {
+            const mine = requests++;
+            if (mine < 2) {
+                await new Promise<void>((resolve) => { releases[mine] = resolve; arrived[mine](); });
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { pageUid: 0 } }) });
+        });
+
+        const first = await openWizard(page, await navigateToModule(page));
+        await walkToContent(first, page);
+        await saveFromContent(first, page);
+        await arrivals[0];
+        await expect(page.locator('dialog:visible')).toHaveCount(1);
+        await closeWizard(page);
+
+        const modal = await openWizard(page, getModuleFrame(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+        await arrivals[1];
+
+        // The closed wizard's save finishes while the open wizard's is still
+        // running: the open wizard must still count as busy.
+        releases[0]();
+        await expect.poll(() => parsedReplies(page, 'save'), { timeout: 15000 }).toBe(1);
+        // Not busy, this confirmed Save would send its request at once —
+        // before the open wizard's own request is released below.
+        await modal.locator('button.btn-success').click();
+        const ok = page.locator('dialog:not([data-severity=""])').last().locator('button[name="ok"]');
+        await ok.waitFor({ state: 'visible', timeout: 10000 });
+        await ok.click();
+        releases[1]();
+        await expect.poll(() => parsedReplies(page, 'save'), { timeout: 15000 }).toBe(2);
+        expect(requests).toBe(2);
+    });
+
+    // A slide renderer whose wizard was closed, and not opened again, gets its
+    // reply after core has reset its own state on `wizard-dismissed`: the
+    // carousel it would lock or unlock Next on no longer exists.
+    for (const step of ['briefing', 'page-fields', 'content'] as const) {
+        for (const status of [200, 500]) {
+            test(`a ${step} reply (${status}) for a wizard closed and not opened again throws no error`, async ({ authenticatedPage: page }) => {
+                await countParsedReplies(page);
+                // Uncaught errors only: a 500 reply also logs a failed resource
+                // load to the console by design.
+                const errors: string[] = [];
+                page.on('pageerror', (error) => errors.push(error.message));
+                const replies: Record<string, [string, unknown]> = {
+                    'briefing': ['generate-briefing', [{ label: 'Q', type: 'text' }]],
+                    'page-fields': ['generate-page-fields', { title: 'T', slug: 't' }],
+                    'content': ['generate-content', sampleContentSections],
+                };
+                // Briefing mode "optional": a briefing error still unlocks Next.
+                await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+                for (const [name, [endpoint, data]] of Object.entries(replies)) {
+                    if (name !== step) {
+                        await mockAjaxRoute(page, '/nr-landingpage/wizard/' + endpoint, data);
+                    }
+                }
+                const [endpoint, data] = replies[step];
+                const held = await holdFirstReply(page, '/nr-landingpage/wizard/' + endpoint, data, status);
+
+                const modal = await openWizard(page, await navigateToModule(page));
+                await modal.locator('.template-card').first().click();
+                await clickNext(modal, page);
+                if (step !== 'briefing') {
+                    await modal.locator('.carousel-item.active #briefing_title').waitFor({ state: 'visible', timeout: 15000 });
+                    await clickNext(modal, page);
+                }
+                if (step === 'content') {
+                    await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
+                    await clickNext(modal, page);
+                }
+                await held.first;
+                await closeWizard(page);
+
+                held.release();
+                await expect.poll(() => parsedReplies(page, endpoint), { timeout: 15000 }).toBe(1);
+                // The renderer resumes in the task that parsed the reply; one
+                // more round trip lets an error it threw reach the test.
+                await parsedReplies(page, endpoint);
+                expect(errors).toEqual([]);
+            });
+        }
+    }
 
     test('a briefing reply that arrives after Back does not lock Next on the template step', async ({ authenticatedPage: page }) => {
         await countParsedReplies(page);
@@ -1020,6 +1168,73 @@ test.describe('Landing Page Wizard', () => {
         await expect(group).toBeVisible({ timeout: 15000 });
         await expect(group.getByRole('radio', { name: templateWithEmptyCTypes.title })).toBeFocused();
     });
+
+    // Core locks Next as each step slides in, which disables the button that
+    // has focus. A step that loads its content keeps Next locked while it
+    // waits, and its first field takes the focus once rendered. With these
+    // instant replies Chromium reports the body after the template step and
+    // the re-enabled Next after the briefing: both cases are covered.
+    test('Next puts focus on the first field of the new step', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await modal.locator('.template-card').first().click();
+        await clickNext(modal, page);
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toBeFocused({ timeout: 15000 });
+        await clickNext(modal, page);
+        await expect(modal.locator('.carousel-item.active #pf_title')).toBeFocused({ timeout: 15000 });
+        await clickNext(modal, page);
+        await expect(modal.locator('.carousel-item.active #section-card-0 .section-header')).toBeFocused({ timeout: 15000 });
+        // The placement step renders in the same task that locked Next and
+        // enables it again as Generate: the pressed button keeps the focus.
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active #placement_title').waitFor({ state: 'visible', timeout: 15000 });
+        await waitForSlideSettled(modal);
+        await expect(modal.locator('button.btn-success[name="next"]')).toBeFocused();
+    });
+
+    test('Enter in a field puts focus on the first field of the new step', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await modal.locator('.template-card').first().click();
+        await clickNext(modal, page);
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toBeFocused({ timeout: 15000 });
+        await waitForSlideSettled(modal);
+        await page.keyboard.press('Enter');
+        await expect(modal.locator('.carousel-item.active #pf_title')).toBeFocused({ timeout: 15000 });
+    });
+
+    // A step that fails to load shows the error and unlocks Next (briefing
+    // mode "optional"), and has no field. The failure arrives late, as a slow
+    // server's would: Chromium has moved the focus off the disabled Next by
+    // then. (A reply within a few milliseconds can still find it there; the
+    // test above covers that case.)
+    for (const step of ['briefing', 'page-fields', 'content'] as const) {
+        test(`Next to a ${step} step that fails to load puts focus on Next`, async ({ authenticatedPage: page }) => {
+            const endpoints = { 'briefing': 'generate-briefing', 'page-fields': 'generate-page-fields', 'content': 'generate-content' };
+            await mockUpToContent(page);
+            await page.route('**/nr-landingpage/wizard/' + endpoints[step] + '**', async (route) => {
+                await new Promise((resolve) => setTimeout(resolve, 500));
+                await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Step failed' }) });
+            });
+
+            const modal = await openWizard(page, await navigateToModule(page));
+            await modal.locator('.template-card').first().click();
+            await clickNext(modal, page);
+            if (step !== 'briefing') {
+                await modal.locator('.carousel-item.active #briefing_title').waitFor({ state: 'visible', timeout: 15000 });
+                await clickNext(modal, page);
+            }
+            if (step === 'content') {
+                await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
+                await clickNext(modal, page);
+            }
+            await expect(modal.locator('.carousel-item.active .alert-danger')).toBeVisible({ timeout: 15000 });
+            await waitForSlideSettled(modal);
+            await expect(modal.locator('button[name="next"]')).toBeFocused();
+        });
+    }
 
     /**
      * Go Back without moving focus: a real click on the button would blur the
@@ -1540,10 +1755,9 @@ test.describe('Landing Page Wizard', () => {
         await okButton.click();
 
         // Wait for the save request to be captured
-        await page.waitForTimeout(2000);
+        await expect.poll(() => capturedSaveBody !== null, { timeout: 15000 }).toBe(true);
 
         // Verify the save request was made with imageUid values
-        expect(capturedSaveBody).not.toBeNull();
         const sections = (capturedSaveBody as Record<string, unknown>)?.contentSections as Array<Record<string, unknown>>;
         expect(sections).toBeDefined();
         expect(sections.length).toBe(2);

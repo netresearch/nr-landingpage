@@ -15,7 +15,8 @@ import '@typo3/backend/element/spinner-element.js';
  */
 class LandingPageWizard {
     constructor() {
-        this._busy = false;
+        // The running save or section regeneration, or null (see isBusy()).
+        this._busy = null;
         this._briefingForm = null;
         this._briefingQuestions = null;
         this._pageFieldsForm = null;
@@ -148,7 +149,7 @@ class LandingPageWizard {
         this._generationInfoLoaded = false;
         this._run++;
         this._render++;
-        this._busy = false;
+        this._busy = null;
         if (parentPageId > 0) {
             WizardState.setParentPageId(parentPageId);
         }
@@ -364,13 +365,56 @@ class LandingPageWizard {
 
     /**
      * True when another slide render, or a new wizard, has started since
-     * `token` was taken.
+     * `token` was taken, or when the slide is no longer in the document: the
+     * wizard was closed. Core resets its own state on `wizard-dismissed`, so
+     * locking or unlocking Next for a closed wizard that was not opened again
+     * throws.
      *
      * @param {number} token  The value beginRender() returned
+     * @param {HTMLElement} container  The slide the renderer writes into
      * @returns {boolean}
      */
-    isStaleRender(token) {
-        return token !== this._render;
+    isStaleRender(token, container) {
+        return token !== this._render || !container.isConnected;
+    }
+
+    /**
+     * True while a save or a section regeneration runs: another one must not
+     * start. A section regeneration whose card has been replaced since — the
+     * content step rendered its sections anew after Back and Next — does not
+     * count: its reply is dropped (isStaleSectionReply()), and Regenerate on
+     * the new card would otherwise do nothing until it arrives.
+     *
+     * @returns {boolean}
+     */
+    isBusy() {
+        const owner = this._busy;
+        return owner !== null && (owner.card === null || owner.card.isConnected);
+    }
+
+    /**
+     * Mark a save or a section regeneration as running and return its owner,
+     * which releaseBusy() takes when the request is over.
+     *
+     * @param {HTMLElement|null} card  The section card being regenerated
+     * @returns {{card: HTMLElement|null}}
+     */
+    takeBusy(card) {
+        this._busy = { card };
+        return this._busy;
+    }
+
+    /**
+     * Clear the busy flag if `owner` still holds it. A new wizard (open()
+     * resets the flag) or a regeneration on a replaced card may have taken it
+     * since, and their request is still running.
+     *
+     * @param {{card: HTMLElement|null}} owner  The value takeBusy() returned
+     */
+    releaseBusy(owner) {
+        if (this._busy === owner) {
+            this._busy = null;
+        }
     }
 
     /**
@@ -379,11 +423,12 @@ class LandingPageWizard {
      * later steps.
      *
      * @param {number} token  The template renderer's token from beginRender()
+     * @param {HTMLElement} container  The template slide
      * @returns {Promise<Object|null>}  null outside that first render, when the
      *     request fails (non-fatal: the wizard continues without pre-fill), and
      *     when another render has started in the meantime
      */
-    async loadGenerationInfo(token) {
+    async loadGenerationInfo(token, container) {
         if (!WizardState.regenerateMode || WizardState.sourcePageUid <= 0 || this._generationInfoLoaded) {
             return null;
         }
@@ -393,7 +438,7 @@ class LandingPageWizard {
             const generationInfo = await this.fetchJson(this.getAjaxUrl('generationInfo'), {
                 pageUid: WizardState.sourcePageUid,
             });
-            if (this.isStaleRender(token)) {
+            if (this.isStaleRender(token, container)) {
                 return null;
             }
             if (generationInfo.briefingAnswers) {
@@ -424,6 +469,42 @@ class LandingPageWizard {
         }
     }
 
+    /**
+     * Give a step that has finished loading its content a defined focus.
+     *
+     * Core locks Next as the step slides in (`forceSelection`), which
+     * disables the button that has focus, and moves focus nowhere; a step that
+     * then waits for a reply leaves it on the body. Like core's modal, which
+     * focuses a control of the dialog once it has opened, this focuses the
+     * step's first field — or, for a step without one (an error, no content),
+     * Next when it is enabled. Only when the focus has been lost (see
+     * focusIfLost()): call it after the step has locked or unlocked Next.
+     *
+     * Focus still on Next counts as lost when the step has a field. Next is
+     * locked from the moment the step slides in until its reply has been
+     * rendered, so no one can have moved focus there in between: it is the
+     * press that started the step. Chromium does not always move focus off
+     * the disabled button: after Next from the template step it reports the
+     * body, after Next from the briefing still the button, enabled again.
+     *
+     * @param {HTMLElement} container  The step's slide
+     */
+    focusStep(container) {
+        const field = container.querySelector(
+            'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])',
+        );
+        const next = container.closest('.modal')?.querySelector('button[name="next"]');
+        if (field) {
+            if (container.ownerDocument.activeElement === next) {
+                field.focus();
+            } else {
+                this.focusIfLost(field);
+            }
+        } else if (next && !next.disabled) {
+            this.focusIfLost(next);
+        }
+    }
+
     // ── Slide renderers ──────────────────────────────────────────
 
     /**
@@ -443,10 +524,10 @@ class LandingPageWizard {
         try {
             // In re-generate mode, load generation info in parallel with templates
             const templatePromise = this.fetchJson(this.getAjaxUrl('templates'));
-            const generationInfo = await this.loadGenerationInfo(token);
+            const generationInfo = await this.loadGenerationInfo(token, container);
 
             const templates = await templatePromise;
-            if (this.isStaleRender(token)) {
+            if (this.isStaleRender(token, container)) {
                 return;
             }
             container.innerHTML = '';
@@ -597,7 +678,7 @@ class LandingPageWizard {
                 container.appendChild(warning);
             }
         } catch (error) {
-            if (this.isStaleRender(token)) {
+            if (this.isStaleRender(token, container)) {
                 return;
             }
             this.showSlideError(container, this.label('wizard.error.templates', error.message));
@@ -628,7 +709,7 @@ class LandingPageWizard {
             const questions = await this.fetchJson(this.getAjaxUrl('generateBriefing'), {
                 templateUid: template.uid,
             });
-            if (this.isStaleRender(token)) {
+            if (this.isStaleRender(token, container)) {
                 return;
             }
 
@@ -710,14 +791,16 @@ class LandingPageWizard {
             if (template.briefingMode === 'optional') {
                 MultiStepWizard.unlockNextStep();
             }
+            this.focusStep(container);
         } catch (error) {
-            if (this.isStaleRender(token)) {
+            if (this.isStaleRender(token, container)) {
                 return;
             }
             this.showSlideError(container, this.label('wizard.error.briefing', error.message));
             if (template.briefingMode !== 'required') {
                 MultiStepWizard.unlockNextStep();
             }
+            this.focusStep(container);
         }
     }
 
@@ -776,7 +859,7 @@ class LandingPageWizard {
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
             });
-            if (this.isStaleRender(token)) {
+            if (this.isStaleRender(token, container)) {
                 return;
             }
 
@@ -833,12 +916,14 @@ class LandingPageWizard {
             this._pageFieldsForm = form;
             WizardState.setPageFields(fields);
             MultiStepWizard.unlockNextStep();
+            this.focusStep(container);
         } catch (error) {
-            if (this.isStaleRender(token)) {
+            if (this.isStaleRender(token, container)) {
                 return;
             }
             this.showSlideError(container, this.label('wizard.error.pageFields', error.message));
             MultiStepWizard.unlockNextStep();
+            this.focusStep(container);
         }
     }
 
@@ -863,7 +948,7 @@ class LandingPageWizard {
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
             });
-            if (this.isStaleRender(token)) {
+            if (this.isStaleRender(token, container)) {
                 return;
             }
 
@@ -888,12 +973,14 @@ class LandingPageWizard {
                 this.renderContentSections(container, sections, images);
             }
             MultiStepWizard.unlockNextStep();
+            this.focusStep(container);
         } catch (error) {
-            if (this.isStaleRender(token)) {
+            if (this.isStaleRender(token, container)) {
                 return;
             }
             this.showSlideError(container, this.label('wizard.error.content', error.message));
             MultiStepWizard.unlockNextStep();
+            this.focusStep(container);
         }
     }
 
@@ -1438,15 +1525,15 @@ class LandingPageWizard {
      * @param {number} index
      */
     async regenerateSection(container, index) {
-        if (this._busy) {
+        if (this.isBusy()) {
             return;
         }
-        this._busy = true;
         const run = this._run;
 
         // The card lives in the modal, which is in the top document, not in
         // this module's frame: look it up in the content step's own element.
         const card = container.querySelector('#section-card-' + index);
+        const owner = this.takeBusy(card);
         if (card) {
             const cardBody = card.querySelector('.card-body');
             if (cardBody) {
@@ -1483,11 +1570,7 @@ class LandingPageWizard {
             Notification.error(this.label('wizard.notification.regenerationFailed'), error.message);
             this.rerenderContentSlide(container);
         } finally {
-            // open() has already cleared the flag for a new wizard, which may
-            // have set it again for its own request since.
-            if (!this.isStaleRun(run)) {
-                this._busy = false;
-            }
+            this.releaseBusy(owner);
         }
     }
 
@@ -1688,7 +1771,7 @@ class LandingPageWizard {
      * @param {HTMLFormElement} form
      */
     async saveLandingPage(form) {
-        if (this._busy) {
+        if (this.isBusy()) {
             return;
         }
 
@@ -1709,7 +1792,7 @@ class LandingPageWizard {
         const slug = slugInput?.value?.trim() || '';
         const parentPageId = parseInt(parentInput?.value || '0', 10);
 
-        this._busy = true;
+        const owner = this.takeBusy(null);
         const run = this._run;
 
         try {
@@ -1753,10 +1836,7 @@ class LandingPageWizard {
                 '',
             );
         } finally {
-            // See regenerateSection(): a new wizard owns the flag now.
-            if (!this.isStaleRun(run)) {
-                this._busy = false;
-            }
+            this.releaseBusy(owner);
         }
     }
 
