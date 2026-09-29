@@ -22,6 +22,10 @@ class LandingPageWizard {
         // Re-generate mode: the generation info is applied on the first render
         // of the template step only.
         this._generationInfoLoaded = false;
+        // Counts open() calls. A slide renderer that awaits a reply compares
+        // it afterwards: a wizard closed and opened again in the meantime is
+        // not the one the reply belongs to (see isStaleRun()).
+        this._run = 0;
     }
 
     /**
@@ -137,6 +141,7 @@ class LandingPageWizard {
         this._briefingQuestions = null;
         this._pageFieldsForm = null;
         this._generationInfoLoaded = false;
+        this._run++;
         if (parentPageId > 0) {
             WizardState.setParentPageId(parentPageId);
         }
@@ -290,6 +295,21 @@ class LandingPageWizard {
         }
     }
 
+    /**
+     * True when the wizard was opened again since `run` was taken.
+     *
+     * A renderer that awaits a reply checks this before it touches anything:
+     * `MultiStepWizard` and `WizardState` are singletons, so a reply for a
+     * closed wizard would otherwise lock, unlock or press Next in the wizard
+     * opened after it, and write into its state.
+     *
+     * @param {number} run  The value of `_run` when the renderer started
+     * @returns {boolean}
+     */
+    isStaleRun(run) {
+        return run !== this._run;
+    }
+
     // ── Slide renderers ──────────────────────────────────────────
 
     /**
@@ -301,6 +321,7 @@ class LandingPageWizard {
      * and typed since, and stay on this step so another template can be picked.
      */
     async renderTemplateSlide($slide) {
+        const run = this._run;
         const container = this.getSlideElement($slide);
         container.innerHTML = this.spinnerHtml(this.label('wizard.loading.templates'));
         MultiStepWizard.lockNextStep();
@@ -316,6 +337,9 @@ class LandingPageWizard {
                     generationInfo = await this.fetchJson(this.getAjaxUrl('generationInfo'), {
                         pageUid: WizardState.sourcePageUid,
                     });
+                    if (this.isStaleRun(run)) {
+                        return;
+                    }
                     // Store briefing answers and parent page for later steps
                     if (generationInfo.briefingAnswers) {
                         WizardState.setBriefingAnswers(generationInfo.briefingAnswers);
@@ -330,6 +354,9 @@ class LandingPageWizard {
             }
 
             const templates = await templatePromise;
+            if (this.isStaleRun(run)) {
+                return;
+            }
             container.innerHTML = '';
 
             if (!templates || templates.length === 0) {
@@ -368,6 +395,7 @@ class LandingPageWizard {
             const preSelectUid = generationInfo?.templateUid || 0;
             const checkedUid = WizardState.getTemplate()?.uid;
             const cards = [];
+            let keptCard = null;
 
             // Selection is marked by a 2px border (.border-2, core at 13.4 and
             // 14.3) in the scheme-aware primary colour plus aria-checked.
@@ -456,10 +484,23 @@ class LandingPageWizard {
                     // template the wizard state still holds checked, with its
                     // tab stop, and Next unlocked.
                     selectCard(card, template, false);
+                    keptCard = card;
                 }
             });
 
             container.appendChild(grid);
+
+            // Back disables core's Back button on this first step while it
+            // still has focus, which drops focus to the body. Put it on the
+            // checked card, the group's tab stop — unless the user has moved
+            // it somewhere else while the templates were loading. The modal
+            // lives in the top document, not in this module's frame.
+            if (keptCard) {
+                const active = keptCard.ownerDocument.activeElement;
+                if (!active || active === keptCard.ownerDocument.body || active.disabled === true) {
+                    keptCard.focus();
+                }
+            }
 
             // Warn if original template was deleted and could not be pre-selected
             if (preSelectUid > 0 && !WizardState.getTemplate()) {
@@ -469,6 +510,9 @@ class LandingPageWizard {
                 container.appendChild(warning);
             }
         } catch (error) {
+            if (this.isStaleRun(run)) {
+                return;
+            }
             this.showSlideError(container, this.label('wizard.error.templates', error.message));
         }
     }
@@ -477,6 +521,7 @@ class LandingPageWizard {
      * Step 2: Briefing questions.
      */
     async renderBriefingSlide($slide) {
+        const run = this._run;
         const container = this.getSlideElement($slide);
         const template = WizardState.getTemplate();
 
@@ -496,6 +541,9 @@ class LandingPageWizard {
             const questions = await this.fetchJson(this.getAjaxUrl('generateBriefing'), {
                 templateUid: template.uid,
             });
+            if (this.isStaleRun(run)) {
+                return;
+            }
 
             container.innerHTML = '';
 
@@ -576,6 +624,9 @@ class LandingPageWizard {
                 MultiStepWizard.unlockNextStep();
             }
         } catch (error) {
+            if (this.isStaleRun(run)) {
+                return;
+            }
             this.showSlideError(container, this.label('wizard.error.briefing', error.message));
             if (template.briefingMode !== 'required') {
                 MultiStepWizard.unlockNextStep();
@@ -621,6 +672,7 @@ class LandingPageWizard {
      * Step 3: Page fields (SEO, metadata).
      */
     async renderPageFieldsSlide($slide) {
+        const run = this._run;
         this.collectAndStoreBriefingAnswers();
 
         const container = this.getSlideElement($slide);
@@ -637,6 +689,9 @@ class LandingPageWizard {
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
             });
+            if (this.isStaleRun(run)) {
+                return;
+            }
 
             container.innerHTML = '';
 
@@ -692,6 +747,9 @@ class LandingPageWizard {
             WizardState.setPageFields(fields);
             MultiStepWizard.unlockNextStep();
         } catch (error) {
+            if (this.isStaleRun(run)) {
+                return;
+            }
             this.showSlideError(container, this.label('wizard.error.pageFields', error.message));
             MultiStepWizard.unlockNextStep();
         }
@@ -701,6 +759,7 @@ class LandingPageWizard {
      * Step 4: Content sections.
      */
     async renderContentSlide($slide) {
+        const run = this._run;
         this.collectAndStorePageFields();
 
         const container = this.getSlideElement($slide);
@@ -717,6 +776,9 @@ class LandingPageWizard {
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
             });
+            if (this.isStaleRun(run)) {
+                return;
+            }
 
             const sections = result.sections || [];
             const images = result.images || [];
@@ -740,6 +802,9 @@ class LandingPageWizard {
             }
             MultiStepWizard.unlockNextStep();
         } catch (error) {
+            if (this.isStaleRun(run)) {
+                return;
+            }
             this.showSlideError(container, this.label('wizard.error.content', error.message));
             MultiStepWizard.unlockNextStep();
         }

@@ -15,7 +15,7 @@ import {
     contentSectionsWithImages,
     pageFieldsWithSeo,
 } from './fixtures';
-import { Locator, Page } from '@playwright/test';
+import { Locator, Page, Request } from '@playwright/test';
 
 /**
  * E2E tests for the Landing Page Wizard.
@@ -470,6 +470,145 @@ test.describe('Landing Page Wizard', () => {
         const modal = await openWizard(page, getModuleFrame(page));
         await expect(modal.locator('#briefing_title')).toHaveValue('Stored title', { timeout: 15000 });
         await expect(modal.locator('.carousel-item.active #briefing_title')).toBeVisible();
+    });
+
+    test('re-generate: a reply for a closed wizard does not move the one opened after it', async ({ authenticatedPage: page }) => {
+        // The first generation-info request is held until the test releases
+        // it, so its renderer is still waiting when the wizard is closed and
+        // opened again.
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => { release = resolve; });
+        let arrived!: (request: Request) => void;
+        const firstRequest = new Promise<Request>((resolve) => { arrived = resolve; });
+        let infoRequests = 0;
+        await page.route('**/nr-landingpage/wizard/generation-info**', async (route) => {
+            infoRequests++;
+            if (infoRequests === 1) {
+                arrived(route.request());
+                await held;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ success: true, data: {
+                    templateUid: sampleTemplate.uid,
+                    briefingAnswers: { title: 'Stored title' },
+                    parentPageId: 0,
+                } }),
+            });
+        });
+        let pageFieldsRequests = 0;
+        await page.route('**/nr-landingpage/wizard/generate-page-fields**', async (route) => {
+            pageFieldsRequests++;
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { title: 'PF', slug: 'pf' } }) });
+        });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        await openRegenerateWizard(page);
+        const stale = await firstRequest;
+        await page.keyboard.press('Escape');
+        await page.locator('dialog').waitFor({ state: 'hidden', timeout: 15000 });
+
+        const modal = await openWizard(page, getModuleFrame(page));
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toHaveValue('Stored title', { timeout: 15000 });
+        await waitForSlideSettled(modal);
+
+        // Now the closed wizard's renderer gets its reply. Unguarded, it
+        // checks the stored template and presses Next in the open wizard
+        // straight away: the carousel starts sliding to the page fields.
+        const finished = page.waitForEvent('requestfinished', (request) => request === stale);
+        release();
+        await finished;
+        // The reply's body is parsed after the request has finished; give that
+        // and the renderer's continuation time to run before looking.
+        await page.waitForTimeout(1000);
+
+        await waitForSlideSettled(modal);
+        await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', 'landing-page-briefing');
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toHaveValue('Stored title');
+        expect(pageFieldsRequests).toBe(0);
+        expect(infoRequests).toBe(2);
+    });
+
+    test('a briefing reply for a closed wizard does not unlock Next in the one opened after it', async ({ authenticatedPage: page }) => {
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => { release = resolve; });
+        let arrived!: (request: Request) => void;
+        const firstRequest = new Promise<Request>((resolve) => { arrived = resolve; });
+        let briefingRequests = 0;
+        await page.route('**/nr-landingpage/wizard/generate-briefing**', async (route) => {
+            briefingRequests++;
+            if (briefingRequests === 1) {
+                arrived(route.request());
+                await held;
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: [] }) });
+        });
+        // Briefing mode "optional": a finished briefing render unlocks Next.
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+
+        const first = await openWizard(page, await navigateToModule(page));
+        await first.locator('.template-card').first().click();
+        await clickNext(first, page);
+        const stale = await firstRequest;
+        await page.keyboard.press('Escape');
+        await page.locator('dialog').waitFor({ state: 'hidden', timeout: 15000 });
+
+        // The new wizard starts on the template step with nothing checked, so
+        // Next is locked.
+        const modal = await openWizard(page, getModuleFrame(page));
+        await expect(modal.locator('.carousel-item.active .template-card')).toHaveCount(1, { timeout: 15000 });
+        await waitForSlideSettled(modal);
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+
+        const finished = page.waitForEvent('requestfinished', (request) => request === stale);
+        release();
+        await finished;
+        // See the generation-info case above: let the reply be parsed first.
+        await page.waitForTimeout(1000);
+
+        await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', 'landing-page-template');
+        await expect(modal.locator('.template-card[aria-checked="true"]')).toHaveCount(0);
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+    });
+
+    test('Back to the template step puts focus on the checked template', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await modal.getByRole('radio', { name: templateWithEmptyCTypes.title }).click();
+        await clickNext(modal, page);
+        await modal.locator('#briefing_title').waitFor({ state: 'visible', timeout: 15000 });
+
+        // Back disables the Back button on the first step, which takes the
+        // focus away from it.
+        await modal.locator('[role="radiogroup"]').evaluate((g) => g.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        const group = modal.locator('[role="radiogroup"]:not([data-stale])');
+        await expect(group).toBeVisible({ timeout: 15000 });
+        await expect(group.getByRole('radio', { name: templateWithEmptyCTypes.title })).toBeFocused();
+    });
+
+    test('re-generate: Back to the template step puts focus on the checked template', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generation-info', {
+            templateUid: templateWithEmptyCTypes.uid,
+            briefingAnswers: { title: 'Stored title' },
+            parentPageId: 0,
+        });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const modal = await openRegenerateWizard(page);
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toHaveValue('Stored title', { timeout: 15000 });
+        await waitForSlideSettled(modal);
+
+        await modal.locator('[role="radiogroup"]').evaluate((g) => g.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        const group = modal.locator('[role="radiogroup"]:not([data-stale])');
+        await expect(group).toBeVisible({ timeout: 15000 });
+        await expect(group.getByRole('radio', { name: templateWithEmptyCTypes.title })).toBeFocused();
     });
 
     /**
