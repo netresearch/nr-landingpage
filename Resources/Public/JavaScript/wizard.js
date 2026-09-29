@@ -22,10 +22,15 @@ class LandingPageWizard {
         // Re-generate mode: the generation info is applied on the first render
         // of the template step only.
         this._generationInfoLoaded = false;
-        // Counts open() calls. A slide renderer that awaits a reply compares
-        // it afterwards: a wizard closed and opened again in the meantime is
-        // not the one the reply belongs to (see isStaleRun()).
+        // Counts open() calls. An action that awaits a reply (save,
+        // regenerate a section, image search and generation) compares it
+        // afterwards: a wizard closed and opened again in the meantime is not
+        // the one the reply belongs to (see isStaleRun()).
         this._run = 0;
+        // Counts slide renders, and open() calls. A slide renderer compares it
+        // after each reply: any render started since — Back, Next, or a new
+        // wizard — makes its reply stale (see beginRender()).
+        this._render = 0;
     }
 
     /**
@@ -142,6 +147,8 @@ class LandingPageWizard {
         this._pageFieldsForm = null;
         this._generationInfoLoaded = false;
         this._run++;
+        this._render++;
+        this._busy = false;
         if (parentPageId > 0) {
             WizardState.setParentPageId(parentPageId);
         }
@@ -298,12 +305,12 @@ class LandingPageWizard {
     /**
      * True when the wizard was opened again since `run` was taken.
      *
-     * A renderer that awaits a reply checks this before it touches anything:
+     * An action that awaits a reply checks this before it touches anything:
      * `MultiStepWizard` and `WizardState` are singletons, so a reply for a
-     * closed wizard would otherwise lock, unlock or press Next in the wizard
-     * opened after it, and write into its state.
+     * closed wizard would otherwise write into the state of the wizard opened
+     * after it, or dismiss it.
      *
-     * @param {number} run  The value of `_run` when the renderer started
+     * @param {number} run  The value of `_run` when the action started
      * @returns {boolean}
      */
     isStaleRun(run) {
@@ -311,16 +318,42 @@ class LandingPageWizard {
     }
 
     /**
+     * Start a slide render and return its token.
+     *
+     * Every slide render takes one, so a reply that arrives after the user
+     * has moved on — Back while the briefing loads, another template picked
+     * and Next again, or a closed and reopened wizard — is recognised by its
+     * renderer (isStaleRender()) and dropped: it must not lock or unlock Next
+     * on the step now shown, press Next, or replace that step's form.
+     *
+     * @returns {number}
+     */
+    beginRender() {
+        return ++this._render;
+    }
+
+    /**
+     * True when another slide render, or a new wizard, has started since
+     * `token` was taken.
+     *
+     * @param {number} token  The value beginRender() returned
+     * @returns {boolean}
+     */
+    isStaleRender(token) {
+        return token !== this._render;
+    }
+
+    /**
      * Re-generate mode, first render of the template step only: fetch the
      * generation info and store its briefing answers and parent page for the
      * later steps.
      *
-     * @param {number} run  The value of `_run` when the renderer started
+     * @param {number} token  The template renderer's token from beginRender()
      * @returns {Promise<Object|null>}  null outside that first render, when the
      *     request fails (non-fatal: the wizard continues without pre-fill), and
-     *     when the wizard was opened again in the meantime
+     *     when another render has started in the meantime
      */
-    async loadGenerationInfo(run) {
+    async loadGenerationInfo(token) {
         if (!WizardState.regenerateMode || WizardState.sourcePageUid <= 0 || this._generationInfoLoaded) {
             return null;
         }
@@ -330,7 +363,7 @@ class LandingPageWizard {
             const generationInfo = await this.fetchJson(this.getAjaxUrl('generationInfo'), {
                 pageUid: WizardState.sourcePageUid,
             });
-            if (this.isStaleRun(run)) {
+            if (this.isStaleRender(token)) {
                 return null;
             }
             if (generationInfo.briefingAnswers) {
@@ -372,7 +405,7 @@ class LandingPageWizard {
      * and typed since, and stay on this step so another template can be picked.
      */
     async renderTemplateSlide($slide) {
-        const run = this._run;
+        const token = this.beginRender();
         const container = this.getSlideElement($slide);
         container.innerHTML = this.spinnerHtml(this.label('wizard.loading.templates'));
         MultiStepWizard.lockNextStep();
@@ -380,10 +413,10 @@ class LandingPageWizard {
         try {
             // In re-generate mode, load generation info in parallel with templates
             const templatePromise = this.fetchJson(this.getAjaxUrl('templates'));
-            const generationInfo = await this.loadGenerationInfo(run);
+            const generationInfo = await this.loadGenerationInfo(token);
 
             const templates = await templatePromise;
-            if (this.isStaleRun(run)) {
+            if (this.isStaleRender(token)) {
                 return;
             }
             container.innerHTML = '';
@@ -534,7 +567,7 @@ class LandingPageWizard {
                 container.appendChild(warning);
             }
         } catch (error) {
-            if (this.isStaleRun(run)) {
+            if (this.isStaleRender(token)) {
                 return;
             }
             this.showSlideError(container, this.label('wizard.error.templates', error.message));
@@ -545,7 +578,7 @@ class LandingPageWizard {
      * Step 2: Briefing questions.
      */
     async renderBriefingSlide($slide) {
-        const run = this._run;
+        const token = this.beginRender();
         const container = this.getSlideElement($slide);
         const template = WizardState.getTemplate();
 
@@ -565,7 +598,7 @@ class LandingPageWizard {
             const questions = await this.fetchJson(this.getAjaxUrl('generateBriefing'), {
                 templateUid: template.uid,
             });
-            if (this.isStaleRun(run)) {
+            if (this.isStaleRender(token)) {
                 return;
             }
 
@@ -648,7 +681,7 @@ class LandingPageWizard {
                 MultiStepWizard.unlockNextStep();
             }
         } catch (error) {
-            if (this.isStaleRun(run)) {
+            if (this.isStaleRender(token)) {
                 return;
             }
             this.showSlideError(container, this.label('wizard.error.briefing', error.message));
@@ -696,7 +729,7 @@ class LandingPageWizard {
      * Step 3: Page fields (SEO, metadata).
      */
     async renderPageFieldsSlide($slide) {
-        const run = this._run;
+        const token = this.beginRender();
         this.collectAndStoreBriefingAnswers();
 
         const container = this.getSlideElement($slide);
@@ -713,7 +746,7 @@ class LandingPageWizard {
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
             });
-            if (this.isStaleRun(run)) {
+            if (this.isStaleRender(token)) {
                 return;
             }
 
@@ -771,7 +804,7 @@ class LandingPageWizard {
             WizardState.setPageFields(fields);
             MultiStepWizard.unlockNextStep();
         } catch (error) {
-            if (this.isStaleRun(run)) {
+            if (this.isStaleRender(token)) {
                 return;
             }
             this.showSlideError(container, this.label('wizard.error.pageFields', error.message));
@@ -783,7 +816,7 @@ class LandingPageWizard {
      * Step 4: Content sections.
      */
     async renderContentSlide($slide) {
-        const run = this._run;
+        const token = this.beginRender();
         this.collectAndStorePageFields();
 
         const container = this.getSlideElement($slide);
@@ -800,7 +833,7 @@ class LandingPageWizard {
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
             });
-            if (this.isStaleRun(run)) {
+            if (this.isStaleRender(token)) {
                 return;
             }
 
@@ -826,7 +859,7 @@ class LandingPageWizard {
             }
             MultiStepWizard.unlockNextStep();
         } catch (error) {
-            if (this.isStaleRun(run)) {
+            if (this.isStaleRender(token)) {
                 return;
             }
             this.showSlideError(container, this.label('wizard.error.content', error.message));
@@ -1143,9 +1176,13 @@ class LandingPageWizard {
             async () => {
                 const query = searchInput.value.trim();
                 if (!query) return;
+                const run = this._run;
                 searchBtn.disabled = true;
                 try {
                     const result = await this.fetchJson(this.getAjaxUrl('searchImages'), { query });
+                    if (this.isStaleRun(run)) {
+                        return;
+                    }
                     const found = result.images || [];
                     if (found.length === 0) {
                         Notification.info(this.label('wizard.content.imageSearchEmpty'));
@@ -1153,6 +1190,9 @@ class LandingPageWizard {
                         this.renderImageCards(imageList, found, index);
                     }
                 } catch (err) {
+                    if (this.isStaleRun(run)) {
+                        return;
+                    }
                     Notification.error(this.label('wizard.error.imageSearch'), err.message);
                 } finally {
                     searchBtn.disabled = false;
@@ -1180,6 +1220,7 @@ class LandingPageWizard {
                 this.label('wizard.content.imageGenerateButton'),
                 'btn btn-sm btn-default',
                 async () => {
+                    const run = this._run;
                     generateBtn.disabled = true;
                     generateBtn.textContent = this.label('wizard.content.imageGenerating');
                     try {
@@ -1190,12 +1231,18 @@ class LandingPageWizard {
                             imagePrompt: sectionData.imagePrompt || '',
                             sectionHeader: sectionData.header || sectionData.section || '',
                         });
+                        if (this.isStaleRun(run)) {
+                            return;
+                        }
                         const img = result.image;
                         if (img) {
                             this.renderImageCards(imageList, [img], index);
                             Notification.success(this.label('wizard.content.imageGenerated'));
                         }
                     } catch (err) {
+                        if (this.isStaleRun(run)) {
+                            return;
+                        }
                         Notification.error(this.label('wizard.error.imageGenerate'), err.message);
                     } finally {
                         generateBtn.disabled = false;
@@ -1365,6 +1412,7 @@ class LandingPageWizard {
             return;
         }
         this._busy = true;
+        const run = this._run;
 
         const card = document.getElementById('section-card-' + index);
         if (card) {
@@ -1385,6 +1433,9 @@ class LandingPageWizard {
                 parentPageId: WizardState.getParentPageId(),
                 sectionIndex: index,
             });
+            if (this.isStaleRun(run)) {
+                return;
+            }
 
             WizardState.updateContentSection(index, newSection);
             Notification.success(
@@ -1394,10 +1445,17 @@ class LandingPageWizard {
 
             this.rerenderContentSlide(container);
         } catch (error) {
+            if (this.isStaleRun(run)) {
+                return;
+            }
             Notification.error(this.label('wizard.notification.regenerationFailed'), error.message);
             this.rerenderContentSlide(container);
         } finally {
-            this._busy = false;
+            // open() has already cleared the flag for a new wizard, which may
+            // have set it again for its own request since.
+            if (!this.isStaleRun(run)) {
+                this._busy = false;
+            }
         }
     }
 
@@ -1405,6 +1463,7 @@ class LandingPageWizard {
      * Step 5: Placement & Save.
      */
     async renderPlacementSlide($slide) {
+        this.beginRender();
         const container = this.getSlideElement($slide);
         container.innerHTML = '';
 
@@ -1619,6 +1678,7 @@ class LandingPageWizard {
         const parentPageId = parseInt(parentInput?.value || '0', 10);
 
         this._busy = true;
+        const run = this._run;
 
         try {
             const result = await this.fetchJson(this.getAjaxUrl('save'), {
@@ -1632,7 +1692,14 @@ class LandingPageWizard {
                 sourcePageUid: WizardState.sourcePageUid || 0,
             });
 
-            MultiStepWizard.dismiss();
+            // The page exists whether or not this wizard is still open, so
+            // the notification and the page tree refresh stay. Closing the
+            // wizard and leaving for the page module do not: after a close
+            // and reopen they would hit the wizard the user is working in.
+            const current = !this.isStaleRun(run);
+            if (current) {
+                MultiStepWizard.dismiss();
+            }
 
             Notification.success(
                 this.label('wizard.notification.created'),
@@ -1644,7 +1711,7 @@ class LandingPageWizard {
                 top.document.dispatchEvent(new CustomEvent('typo3:pagetree:refresh'));
 
                 const pageLayoutUrl = TYPO3.settings.NrLandingpage?.moduleUrls?.pageLayout || '';
-                if (pageLayoutUrl) {
+                if (current && pageLayoutUrl) {
                     top.TYPO3.Backend.ContentContainer.setUrl(pageLayoutUrl + '&id=' + result.pageUid);
                 }
             }
@@ -1654,7 +1721,10 @@ class LandingPageWizard {
                 '',
             );
         } finally {
-            this._busy = false;
+            // See regenerateSection(): a new wizard owns the flag now.
+            if (!this.isStaleRun(run)) {
+                this._busy = false;
+            }
         }
     }
 
