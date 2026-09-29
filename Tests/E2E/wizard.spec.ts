@@ -15,7 +15,7 @@ import {
     contentSectionsWithImages,
     pageFieldsWithSeo,
 } from './fixtures';
-import { Locator, Page, Request } from '@playwright/test';
+import { Locator, Page } from '@playwright/test';
 
 /**
  * E2E tests for the Landing Page Wizard.
@@ -472,19 +472,44 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal.locator('.carousel-item.active #briefing_title')).toBeVisible();
     });
 
+    /**
+     * Count, per endpoint, the wizard replies whose JSON body has been parsed,
+     * in every frame (wizard.js runs in the module frame). A renderer resumes
+     * right after that parse, in the same task, so once a count is reached the
+     * renderer has reacted to that reply — or has decided not to.
+     */
+    async function countParsedReplies(page: Page): Promise<void> {
+        await page.addInitScript(() => {
+            const parse = Response.prototype.json;
+            const counts: Record<string, number> = {};
+            (window as any).__parsedReplies = counts;
+            Response.prototype.json = async function (this: Response) {
+                const data = await parse.call(this);
+                const endpoint = new URL(this.url).pathname.split('/').pop() ?? '';
+                counts[endpoint] = (counts[endpoint] ?? 0) + 1;
+                return data;
+            };
+        });
+    }
+
+    function parsedReplies(page: Page, endpoint: string): Promise<number> {
+        return getModuleFrame(page).locator('body').evaluate((_, e) => (window as any).__parsedReplies?.[e] ?? 0, endpoint);
+    }
+
     test('re-generate: a reply for a closed wizard does not move the one opened after it', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
         // The first generation-info request is held until the test releases
         // it, so its renderer is still waiting when the wizard is closed and
         // opened again.
         let release!: () => void;
         const held = new Promise<void>((resolve) => { release = resolve; });
-        let arrived!: (request: Request) => void;
-        const firstRequest = new Promise<Request>((resolve) => { arrived = resolve; });
+        let arrived!: () => void;
+        const firstRequest = new Promise<void>((resolve) => { arrived = resolve; });
         let infoRequests = 0;
         await page.route('**/nr-landingpage/wizard/generation-info**', async (route) => {
             infoRequests++;
             if (infoRequests === 1) {
-                arrived(route.request());
+                arrived();
                 await held;
             }
             await route.fulfill({
@@ -506,23 +531,20 @@ test.describe('Landing Page Wizard', () => {
         await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
 
         await openRegenerateWizard(page);
-        const stale = await firstRequest;
+        await firstRequest;
         await page.keyboard.press('Escape');
         await page.locator('dialog').waitFor({ state: 'hidden', timeout: 15000 });
 
         const modal = await openWizard(page, getModuleFrame(page));
         await expect(modal.locator('.carousel-item.active #briefing_title')).toHaveValue('Stored title', { timeout: 15000 });
         await waitForSlideSettled(modal);
+        expect(await parsedReplies(page, 'generation-info')).toBe(1);
 
         // Now the closed wizard's renderer gets its reply. Unguarded, it
         // checks the stored template and presses Next in the open wizard
         // straight away: the carousel starts sliding to the page fields.
-        const finished = page.waitForEvent('requestfinished', (request) => request === stale);
         release();
-        await finished;
-        // The reply's body is parsed after the request has finished; give that
-        // and the renderer's continuation time to run before looking.
-        await page.waitForTimeout(1000);
+        await expect.poll(() => parsedReplies(page, 'generation-info'), { timeout: 15000 }).toBe(2);
 
         await waitForSlideSettled(modal);
         await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', 'landing-page-briefing');
@@ -532,15 +554,16 @@ test.describe('Landing Page Wizard', () => {
     });
 
     test('a briefing reply for a closed wizard does not unlock Next in the one opened after it', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
         let release!: () => void;
         const held = new Promise<void>((resolve) => { release = resolve; });
-        let arrived!: (request: Request) => void;
-        const firstRequest = new Promise<Request>((resolve) => { arrived = resolve; });
+        let arrived!: () => void;
+        const firstRequest = new Promise<void>((resolve) => { arrived = resolve; });
         let briefingRequests = 0;
         await page.route('**/nr-landingpage/wizard/generate-briefing**', async (route) => {
             briefingRequests++;
             if (briefingRequests === 1) {
-                arrived(route.request());
+                arrived();
                 await held;
             }
             await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: [] }) });
@@ -551,7 +574,7 @@ test.describe('Landing Page Wizard', () => {
         const first = await openWizard(page, await navigateToModule(page));
         await first.locator('.template-card').first().click();
         await clickNext(first, page);
-        const stale = await firstRequest;
+        await firstRequest;
         await page.keyboard.press('Escape');
         await page.locator('dialog').waitFor({ state: 'hidden', timeout: 15000 });
 
@@ -561,12 +584,10 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal.locator('.carousel-item.active .template-card')).toHaveCount(1, { timeout: 15000 });
         await waitForSlideSettled(modal);
         await expect(modal.locator('button[name="next"]')).toBeDisabled();
+        expect(await parsedReplies(page, 'generate-briefing')).toBe(0);
 
-        const finished = page.waitForEvent('requestfinished', (request) => request === stale);
         release();
-        await finished;
-        // See the generation-info case above: let the reply be parsed first.
-        await page.waitForTimeout(1000);
+        await expect.poll(() => parsedReplies(page, 'generate-briefing'), { timeout: 15000 }).toBe(1);
 
         await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', 'landing-page-template');
         await expect(modal.locator('.template-card[aria-checked="true"]')).toHaveCount(0);
