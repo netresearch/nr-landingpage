@@ -154,6 +154,12 @@ Tests/
   E2E/                   Playwright E2E test skeleton
 ```
 
+## Security and Architecture
+
+[docs/SECURITY-ASSURANCE.md](docs/SECURITY-ASSURANCE.md) describes the actors, components and data flows, what
+the extension guarantees in terms of security and where its limits are. Report vulnerabilities as described in
+the [Netresearch security policy](https://github.com/netresearch/.github/blob/main/SECURITY.md).
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
