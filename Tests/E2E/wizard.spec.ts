@@ -973,6 +973,37 @@ test.describe('Landing Page Wizard', () => {
         }
     }
 
+    // The same late replies after the wizard was opened again: the new wizard
+    // starts on the template step with nothing checked, so Next is locked,
+    // and no content is loaded.
+    for (const step of ['page-fields', 'content'] as const) {
+        for (const status of [200, 500]) {
+            test(`a ${step} reply (${status}) for a closed wizard changes nothing in the one opened after it`, async ({ authenticatedPage: page }) => {
+                await countParsedReplies(page);
+                const endpoint = step === 'page-fields' ? 'generate-page-fields' : 'generate-content';
+                await mockUpToContent(page);
+                const held = await holdFirstReply(page, '/nr-landingpage/wizard/' + endpoint, step === 'page-fields' ? { title: 'T', slug: 't' } : sampleContentSections, status);
+
+                const first = await openWizard(page, await navigateToModule(page));
+                await nextToStep(first, page, step);
+                await held.first;
+                await closeWizard(page);
+
+                const modal = await openWizard(page, getModuleFrame(page));
+                await expect(modal.locator('.carousel-item.active .template-card')).toHaveCount(1, { timeout: 15000 });
+                await waitForSlideSettled(modal);
+                await expect(modal.locator('button[name="next"]')).toBeDisabled();
+
+                held.release();
+                await expect.poll(() => parsedReplies(page, endpoint), { timeout: 15000 }).toBe(1);
+
+                await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', 'landing-page-template');
+                await expect(modal.locator('button[name="next"]')).toBeDisabled();
+                expect((await wizardState(page)).contentSections).toEqual([]);
+            });
+        }
+    }
+
     test('a briefing reply that arrives after Back does not lock Next on the template step', async ({ authenticatedPage: page }) => {
         await countParsedReplies(page);
         await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [templateWithRequiredBriefing]);
