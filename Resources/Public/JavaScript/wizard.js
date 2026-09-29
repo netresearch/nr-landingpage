@@ -20,6 +20,9 @@ class LandingPageWizard {
         this._briefingForm = null;
         this._briefingQuestions = null;
         this._pageFieldsForm = null;
+        // Whether the user has pressed a key or a pointer in the wizard since
+        // it opened (see focusStep()).
+        this._userActed = false;
         // Re-generate mode: the generation info is applied on the first render
         // of the template step only.
         this._generationInfoLoaded = false;
@@ -150,6 +153,7 @@ class LandingPageWizard {
         this._run++;
         this._render++;
         this._busy = null;
+        this._userActed = false;
         if (parentPageId > 0) {
             WizardState.setParentPageId(parentPageId);
         }
@@ -238,6 +242,12 @@ class LandingPageWizard {
                     e.stopPropagation();
                 }
             });
+
+            // See focusStep(): until the user presses a key or a pointer in
+            // the wizard, the focus is where core put it on opening.
+            const userActed = () => { this._userActed = true; };
+            modal.addEventListener('keydown', userActed, true);
+            modal.addEventListener('pointerdown', userActed, true);
 
             modal.addEventListener('keydown', (e) => {
                 if (e.key !== 'Enter') return;
@@ -455,16 +465,19 @@ class LandingPageWizard {
 
     /**
      * Focus `element` when the focus has been lost: nothing focused, the
-     * body, or a control that was disabled while it had focus. Focus the user
-     * has moved somewhere else stays there. The modal lives in the top
-     * document, not in this module's frame, so the element's own document is
-     * the one asked.
+     * body, a control that was disabled while it had focus, or a control in a
+     * step that is no longer shown (Enter in a field presses Next and leaves
+     * the focus in that field; Chromium moves it to the body only later).
+     * Focus the user has moved somewhere else stays there. The modal lives in
+     * the top document, not in this module's frame, so the element's own
+     * document is the one asked.
      *
      * @param {HTMLElement} element
      */
     focusIfLost(element) {
         const active = element.ownerDocument.activeElement;
-        if (!active || active === element.ownerDocument.body || active.disabled === true) {
+        if (!active || active === element.ownerDocument.body || active.disabled === true
+            || active.closest('.carousel-item:not(.active)') !== null) {
             element.focus();
         }
     }
@@ -476,16 +489,24 @@ class LandingPageWizard {
      * disables the button that has focus, and moves focus nowhere; a step that
      * then waits for a reply leaves it on the body. Like core's modal, which
      * focuses a control of the dialog once it has opened, this focuses the
-     * step's first field — or, for a step without one (an error, no content),
-     * Next when it is enabled. Only when the focus has been lost (see
-     * focusIfLost()): call it after the step has locked or unlocked Next.
+     * step's first field. A step without one (an error, no content) gets
+     * Next when it is enabled, otherwise Previous (a required briefing that
+     * failed to load keeps Next locked), otherwise Cancel. Only when the focus
+     * has been lost (see focusIfLost()): call it after the step has locked or
+     * unlocked Next.
      *
-     * Focus still on Next counts as lost when the step has a field. Next is
-     * locked from the moment the step slides in until its reply has been
-     * rendered, so no one can have moved focus there in between: it is the
-     * press that started the step. Chromium does not always move focus off
-     * the disabled button: after Next from the template step it reports the
-     * body, after Next from the briefing still the button, enabled again.
+     * Two more places count as lost, because the step change left the focus
+     * there, not the user:
+     * - Next, when the step has a field. Next is locked from the moment the
+     *   step slides in until its reply has been rendered, so no one can have
+     *   moved focus there in between: it is the press that started the step.
+     *   Chromium does not always move focus off the disabled button: after
+     *   Next from the template step it reports the body, after Next from the
+     *   briefing still the button, enabled again.
+     * - Core's initial focus (the modal's active footer button, Cancel) while
+     *   the user has not pressed a key or a pointer in the wizard yet: in
+     *   re-generate mode the template step advances by itself, and the focus
+     *   core set on opening is still there.
      *
      * @param {HTMLElement} container  The step's slide
      */
@@ -493,15 +514,20 @@ class LandingPageWizard {
         const field = container.querySelector(
             'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])',
         );
-        const next = container.closest('.modal')?.querySelector('button[name="next"]');
-        if (field) {
-            if (container.ownerDocument.activeElement === next) {
-                field.focus();
-            } else {
-                this.focusIfLost(field);
-            }
-        } else if (next && !next.disabled) {
-            this.focusIfLost(next);
+        const modal = container.closest('.modal');
+        const button = (name) => modal?.querySelector('button[name="' + name + '"]:not([disabled])') ?? null;
+        const target = field ?? button('next') ?? button('prev') ?? button('cancel');
+        if (!target) {
+            return;
+        }
+        const active = container.ownerDocument.activeElement;
+        const pressedNext = active !== null && active.getAttribute('name') === 'next' && modal?.contains(active) === true;
+        const initialFocus = !this._userActed && active?.classList.contains('t3js-active') === true
+            && modal?.contains(active) === true;
+        if (target !== active && ((field !== null && pressedNext) || initialFocus)) {
+            target.focus();
+        } else {
+            this.focusIfLost(target);
         }
     }
 
@@ -699,6 +725,7 @@ class LandingPageWizard {
             msg.textContent = this.label('wizard.briefing.skipped');
             container.appendChild(msg);
             MultiStepWizard.unlockNextStep();
+            this.focusStep(container);
             return;
         }
 
@@ -1623,6 +1650,7 @@ class LandingPageWizard {
 
         // Repurpose the Next button as "Generate Landing Page" action
         this.replaceNextButtonWithGenerate(form);
+        this.focusStep(container);
     }
 
     /**

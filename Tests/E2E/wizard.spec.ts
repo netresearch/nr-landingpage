@@ -1223,11 +1223,91 @@ test.describe('Landing Page Wizard', () => {
         await clickNext(modal, page);
         await expect(modal.locator('.carousel-item.active #section-card-0 .section-header')).toBeFocused({ timeout: 15000 });
         // The placement step renders in the same task that locked Next and
-        // enables it again as Generate: the pressed button keeps the focus.
+        // enables it again as Generate; the pressed button still has focus.
         await clickNext(modal, page);
-        await modal.locator('.carousel-item.active #placement_title').waitFor({ state: 'visible', timeout: 15000 });
+        await expect(modal.locator('.carousel-item.active #placement_title')).toBeFocused({ timeout: 15000 });
+    });
+
+    test('Enter in a content field puts focus on the first field of the placement step', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await modal.locator('.carousel-item.active #section-card-0 .section-header').focus();
+        await page.keyboard.press('Enter');
+        await expect(modal.locator('.carousel-item.active #placement_title')).toBeFocused({ timeout: 15000 });
+    });
+
+    test('a required briefing that fails to load puts focus on Previous', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [templateWithRequiredBriefing]);
+        // Required: the step shows the error and keeps Next locked. The reply
+        // arrives late, after Chromium has moved the focus off the locked Next.
+        await page.route('**/nr-landingpage/wizard/generate-briefing**', async (route) => {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Step failed' }) });
+        });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await modal.locator('.template-card').first().click();
+        await clickNext(modal, page);
+        await expect(modal.locator('.carousel-item.active .alert-danger')).toBeVisible({ timeout: 15000 });
         await waitForSlideSettled(modal);
-        await expect(modal.locator('button.btn-success[name="next"]')).toBeFocused();
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+        await expect(modal.locator('button[name="prev"]')).toBeFocused();
+    });
+
+    // Re-generate mode: the template step advances by itself, and the focus
+    // core put on Cancel when the modal opened would stay there.
+    test('re-generate: the briefing reached by the automatic advance gets the focus', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generation-info', {
+            templateUid: sampleTemplate.uid,
+            briefingAnswers: { title: 'Stored title' },
+            parentPageId: 0,
+        });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const modal = await openRegenerateWizard(page);
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toBeFocused({ timeout: 15000 });
+    });
+
+    test('re-generate: a skipped briefing reached by the automatic advance puts focus on Next', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generation-info', {
+            templateUid: sampleTemplate.uid,
+            briefingAnswers: {},
+            parentPageId: 0,
+        });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [{ ...sampleTemplate, briefingMode: 'none' }]);
+
+        const modal = await openRegenerateWizard(page);
+        await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', 'landing-page-briefing', { timeout: 15000 });
+        await waitForSlideSettled(modal);
+        await expect(modal.locator('button[name="next"]')).toBeFocused();
+    });
+
+    test('re-generate: focus the user puts on Cancel while the briefing loads stays there', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generation-info', {
+            templateUid: sampleTemplate.uid,
+            briefingAnswers: { title: 'Stored title' },
+            parentPageId: 0,
+        });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        const briefing = await holdFirstReply(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const modal = await openRegenerateWizard(page);
+        await briefing.first;
+        await waitForSlideSettled(modal);
+        const cancel = modal.locator('button[name="cancel"]');
+        await expect(cancel).toBeFocused();
+        // Away and back with the keyboard: now the user has put it there.
+        await page.keyboard.press('Tab');
+        await expect(cancel).not.toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+        await expect(cancel).toBeFocused();
+
+        briefing.release();
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toBeVisible({ timeout: 15000 });
+        await expect(cancel).toBeFocused();
     });
 
     test('Enter in a field puts focus on the first field of the new step', async ({ authenticatedPage: page }) => {
