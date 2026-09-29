@@ -694,6 +694,32 @@ test.describe('Landing Page Wizard', () => {
         });
     }
 
+    test('an image search reply for sections replaced by Back and Next does not choose an image in the new ones', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        await mockUpToContent(page, contentWithImageChoice);
+        const held = await holdFirstReply(page, '/nr-landingpage/wizard/search-images', { images: [{ uid: 21, name: 'stale.jpg', title: 'Stale', recommended: true }] });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await modal.locator('#section-card-0 .border-top').getByRole('button', { name: 'Search' }).click();
+        await held.first;
+
+        // Back to the page fields and Next again: the content step renders
+        // its sections anew, from a new generate-content reply.
+        await modal.locator('#section-card-0').evaluate((card) => card.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active #section-card-0:not([data-stale])').waitFor({ state: 'visible', timeout: 15000 });
+        await waitForSlideSettled(modal);
+        expect((await wizardState(page)).contentSections[0].imageUid).toBe(0);
+
+        held.release();
+        await expect.poll(() => parsedReplies(page, 'search-images'), { timeout: 15000 }).toBe(1);
+        expect((await wizardState(page)).contentSections[0].imageUid).toBe(0);
+        await expect(modal.locator('[data-image-uid="21"]')).toHaveCount(0);
+    });
+
     test('a save reply for a closed wizard does not close the one opened after it', async ({ authenticatedPage: page }) => {
         await countParsedReplies(page);
         await mockUpToContent(page);

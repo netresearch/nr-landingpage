@@ -318,6 +318,22 @@ class LandingPageWizard {
     }
 
     /**
+     * True when an image search or generation reply no longer belongs to the
+     * section it was asked for: the wizard was opened again, or the section's
+     * image list was replaced — the content step rendered again (Back and
+     * Next) or the section was regenerated. Applied anyway, a recommended
+     * image in the reply would be chosen for a section the user never saw it
+     * in.
+     *
+     * @param {number} run  The value of `_run` when the request started
+     * @param {HTMLElement} imageList  The section's image list at that time
+     * @returns {boolean}
+     */
+    isStaleImageReply(run, imageList) {
+        return this.isStaleRun(run) || !imageList.isConnected;
+    }
+
+    /**
      * Start a slide render and return its token.
      *
      * Every slide render takes one, so a reply that arrives after the user
@@ -1180,7 +1196,7 @@ class LandingPageWizard {
                 searchBtn.disabled = true;
                 try {
                     const result = await this.fetchJson(this.getAjaxUrl('searchImages'), { query });
-                    if (this.isStaleRun(run)) {
+                    if (this.isStaleImageReply(run, imageList)) {
                         return;
                     }
                     const found = result.images || [];
@@ -1190,7 +1206,7 @@ class LandingPageWizard {
                         this.renderImageCards(imageList, found, index);
                     }
                 } catch (err) {
-                    if (this.isStaleRun(run)) {
+                    if (this.isStaleImageReply(run, imageList)) {
                         return;
                     }
                     Notification.error(this.label('wizard.error.imageSearch'), err.message);
@@ -1231,7 +1247,7 @@ class LandingPageWizard {
                             imagePrompt: sectionData.imagePrompt || '',
                             sectionHeader: sectionData.header || sectionData.section || '',
                         });
-                        if (this.isStaleRun(run)) {
+                        if (this.isStaleImageReply(run, imageList)) {
                             return;
                         }
                         const img = result.image;
@@ -1240,7 +1256,7 @@ class LandingPageWizard {
                             Notification.success(this.label('wizard.content.imageGenerated'));
                         }
                     } catch (err) {
-                        if (this.isStaleRun(run)) {
+                        if (this.isStaleImageReply(run, imageList)) {
                             return;
                         }
                         Notification.error(this.label('wizard.error.imageGenerate'), err.message);
