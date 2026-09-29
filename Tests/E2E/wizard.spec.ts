@@ -152,6 +152,271 @@ test.describe('Landing Page Wizard', () => {
         await expect(templateCard).toContainText('Test Template');
     });
 
+    test('template cards are a single choice: checking B unchecks A', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+
+        const group = modal.getByRole('radiogroup');
+        await expect(group).toBeVisible({ timeout: 10000 });
+        const a = group.getByRole('radio', { name: sampleTemplate.title });
+        const b = group.getByRole('radio', { name: templateWithEmptyCTypes.title });
+        await expect(a).toHaveAttribute('aria-checked', 'false');
+        await expect(b).toHaveAttribute('aria-checked', 'false');
+
+        await a.click();
+        await expect(a).toHaveAttribute('aria-checked', 'true');
+        await expect(b).toHaveAttribute('aria-checked', 'false');
+        await expect(a).toHaveClass(/border-2/);
+
+        await b.click();
+        await expect(a).toHaveAttribute('aria-checked', 'false');
+        await expect(b).toHaveAttribute('aria-checked', 'true');
+        await expect(a).not.toHaveClass(/border-2/);
+        await expect(b).toHaveClass(/border-2/);
+        await expect(a).toHaveAttribute('tabindex', '-1');
+        await expect(b).toHaveAttribute('tabindex', '0');
+    });
+
+    test('template radio cards read out their description and briefing mode', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+
+        const a = modal.getByRole('radio', { name: sampleTemplate.title });
+        await expect(a).toBeVisible({ timeout: 10000 });
+        await expect(a).toHaveAccessibleDescription(sampleTemplate.description + ' Briefing: ' + sampleTemplate.briefingMode);
+    });
+
+    test('going Back to the template step keeps the checked template', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+
+        const b = modal.getByRole('radio', { name: templateWithEmptyCTypes.title });
+        await b.click();
+        await clickNext(modal, page);
+        await modal.locator('#briefing_title').waitFor({ state: 'visible', timeout: 15000 });
+
+        // Back re-runs the template slide's renderer. Mark the old group so the
+        // assertions below can only pass on the freshly rendered cards.
+        await modal.locator('[role="radiogroup"]').evaluate((g) => g.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        const group = modal.locator('[role="radiogroup"]:not([data-stale])');
+        await expect(group).toBeVisible({ timeout: 15000 });
+        const a = group.getByRole('radio', { name: sampleTemplate.title });
+        const b2 = group.getByRole('radio', { name: templateWithEmptyCTypes.title });
+        await expect(b2).toHaveAttribute('aria-checked', 'true');
+        await expect(b2).toHaveAttribute('tabindex', '0');
+        await expect(a).toHaveAttribute('aria-checked', 'false');
+        await expect(a).toHaveAttribute('tabindex', '-1');
+        await expect(modal.locator('button[name="next"]')).toBeEnabled();
+    });
+
+    test('arrow keys in the briefing step stay with the control, not the carousel', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [templateWithRequiredBriefing]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', [
+            { label: 'Tone', type: 'select', options: ['Formal', 'Casual'], required: false },
+        ]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+
+        // Bootstrap adds its transitional classes synchronously when it slides,
+        // so the state right after a key press shows whether a slide started.
+        const stayed = () => modal.evaluate((root) => {
+            const active = root.querySelector('.carousel-item.active');
+            return root.querySelector('.carousel-item-next, .carousel-item-prev, .carousel-item-start, .carousel-item-end') === null
+                && !!active && active.querySelector('#briefing_title') !== null;
+        });
+
+        // briefingMode "required" and an empty title: Next stays locked.
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+        const select = modal.locator('#briefing_q_0');
+        await select.selectOption('Formal');
+        await select.focus();
+
+        // ArrowRight would slide forward past the locked Next; the select
+        // still gets the key and moves to the next option.
+        await page.keyboard.press('ArrowRight');
+        expect(await stayed()).toBe(true);
+        await expect(select).toHaveValue('Casual');
+
+        // ArrowLeft would slide back to the template step.
+        await page.keyboard.press('ArrowLeft');
+        expect(await stayed()).toBe(true);
+        await expect(select).toHaveValue('Formal');
+
+        // In a text input the arrow keys still move the caret.
+        const title = modal.locator('#briefing_title');
+        await title.fill('abc');
+        await title.press('End');
+        await page.keyboard.press('ArrowLeft');
+        expect(await stayed()).toBe(true);
+        expect(await title.evaluate((input: HTMLInputElement) => input.selectionStart)).toBe(2);
+
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toBeVisible();
+    });
+
+    test('briefing answers survive Back to the template step and Next again', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', [
+            { label: 'Tone', type: 'select', options: ['Formal', 'Casual'], required: false },
+        ]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+
+        await modal.locator('#briefing_title').fill('Kept title');
+        await modal.locator('#briefing_q_0').selectOption('Casual');
+
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        await expect(modal.locator('.carousel-item.active [role="radiogroup"]')).toBeVisible({ timeout: 15000 });
+        // Mark the old form: the assertions below must read the re-rendered one.
+        await modal.locator('#briefing_title').evaluate((input) => input.setAttribute('data-stale', '1'));
+
+        await clickNext(modal, page);
+        const title = modal.locator('#briefing_title:not([data-stale])');
+        await expect(title).toBeVisible({ timeout: 15000 });
+        await expect(title).toHaveValue('Kept title');
+        await expect(modal.locator('#briefing_q_0')).toHaveValue('Casual');
+    });
+
+    /**
+     * Go Back without moving focus: a real click on the button would blur the
+     * field and fire its change event, which hides whether the input listener
+     * alone keeps the answers.
+     */
+    async function backWithoutBlur(modal: Locator): Promise<void> {
+        await modal.locator('button[name="prev"]:not([disabled])').evaluate((button: HTMLButtonElement) => button.click());
+        await expect(modal.locator('.carousel-item.active [role="radiogroup"]')).toBeVisible({ timeout: 15000 });
+        await modal.locator('#briefing_title').evaluate((input) => input.setAttribute('data-stale', '1'));
+    }
+
+    test('typed briefing title is stored by the input listener alone', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+
+        // The wizard state lives in the module frame's realm (wizard.js is
+        // loaded there); read it while the field keeps focus, so no change
+        // event can have fired: only the input listener can have stored it.
+        const storedTitle = () => frame.locator('body').evaluate(async () => {
+            const state = (await import('@netresearch/nr-landingpage/wizard-state.js')).default;
+            return [state.getTitle(), state.getBriefingAnswers().title ?? null];
+        });
+        const title = modal.locator('#briefing_title');
+        await title.focus();
+        await page.keyboard.type('Typed title');
+        await expect.poll(() => page.evaluate(() => document.activeElement?.id ?? null)).toBe('briefing_title');
+        expect(await storedTitle()).toEqual(['Typed title', 'Typed title']);
+    });
+
+    test('briefing answer set with a change event only is kept by the change listener', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', [
+            { label: 'Tone', type: 'select', options: ['Formal', 'Casual'], required: false },
+        ]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+
+        // Some controls (and autofill) report a new value with change and no
+        // input event; dispatch exactly that.
+        await modal.locator('#briefing_q_0').evaluate((select: HTMLSelectElement) => {
+            select.value = 'Casual';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        await backWithoutBlur(modal);
+
+        await clickNext(modal, page);
+        await expect(modal.locator('#briefing_title:not([data-stale])')).toBeVisible({ timeout: 15000 });
+        await expect(modal.locator('#briefing_q_0')).toHaveValue('Casual');
+    });
+
+    test('a briefing title typed and cleared again leaves the page title empty', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-page-fields', {});
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+        await selectTemplateAndAdvanceToBriefing(modal, page);
+
+        const title = modal.locator('#briefing_title');
+        await title.focus();
+        await page.keyboard.type('Draft');
+        await title.fill('');
+
+        await advanceToPageFields(modal, page);
+        await expect(modal.locator('#pf_title')).toHaveValue('');
+        await expect(modal.locator('#pf_slug')).toHaveValue('');
+    });
+
+    test('template radio group: roving tabindex and arrow keys', async ({ authenticatedPage: page }) => {
+        // The cards are created by the module frame's script and live in the
+        // top document's modal, so focus is read from that document directly.
+        const focusedLabel = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? null);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+
+        const frame = await navigateToModule(page);
+        const modal = await openWizard(page, frame);
+
+        const group = modal.getByRole('radiogroup');
+        await expect(group).toBeVisible({ timeout: 10000 });
+        const a = group.getByRole('radio', { name: sampleTemplate.title });
+        const b = group.getByRole('radio', { name: templateWithEmptyCTypes.title });
+        // Nothing checked yet: the first card is the only tab stop.
+        await expect(a).toHaveAttribute('tabindex', '0');
+        await expect(b).toHaveAttribute('tabindex', '-1');
+
+        // The modal moves focus to its active footer button once it has
+        // opened; wait for that, or it takes the focus back from the card.
+        await expect.poll(() => page.evaluate(() => document.activeElement?.classList.contains('t3js-active') ?? false)).toBe(true);
+        await a.focus();
+        await expect.poll(focusedLabel).toBe(sampleTemplate.title);
+        await page.keyboard.press(' ');
+        await expect(a).toHaveAttribute('aria-checked', 'true');
+
+        await page.keyboard.press('ArrowDown');
+        await expect(b).toHaveAttribute('aria-checked', 'true');
+        await expect(a).toHaveAttribute('aria-checked', 'false');
+        await expect.poll(focusedLabel).toBe(templateWithEmptyCTypes.title);
+
+        // Wraps around.
+        await page.keyboard.press('ArrowRight');
+        await expect(a).toHaveAttribute('aria-checked', 'true');
+        await expect.poll(focusedLabel).toBe(sampleTemplate.title);
+
+        await page.keyboard.press('ArrowUp');
+        await expect(b).toHaveAttribute('aria-checked', 'true');
+        await expect.poll(focusedLabel).toBe(templateWithEmptyCTypes.title);
+
+        // Arrow keys stay inside the group: the wizard's carousel reads
+        // ArrowRight as "next step" and would slide, bypassing the Next button.
+        // Bootstrap adds its transitional classes synchronously, so the state
+        // right after the key press shows whether a slide started.
+        await page.keyboard.press('ArrowRight');
+        const slid = await modal.evaluate((root) => {
+            const active = root.querySelector('.carousel-item.active');
+            return root.querySelector('.carousel-item-next, .carousel-item-prev, .carousel-item-start, .carousel-item-end') !== null
+                || !active || active.querySelector('.template-card') === null;
+        });
+        expect(slid).toBe(false);
+        await expect(a).toHaveAttribute('aria-checked', 'true');
+        await expect(modal.locator('.carousel-item.active .template-card').first()).toBeVisible();
+    });
+
     test('wizard shows empty template message when no templates', async ({ authenticatedPage: page }) => {
         await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', []);
 
@@ -226,7 +491,7 @@ test.describe('Landing Page Wizard', () => {
         const firstCard = modal.locator('#section-card-0');
         await expect(firstCard).toBeVisible();
 
-        const headerInput = firstCard.locator('input.form-control-lg');
+        const headerInput = firstCard.locator('input.section-header');
         await expect(headerInput).toHaveValue('Welcome to Our Page');
         await expect(firstCard.locator('textarea.section-bodytext')).toBeVisible();
         await expect(firstCard.locator('button', { hasText: /regenerate/i })).toBeVisible();
@@ -249,8 +514,8 @@ test.describe('Landing Page Wizard', () => {
         await advanceToPageFields(modal, page);
         await advanceToContent(modal, page);
 
-        await expect(modal.locator('#section-card-0 .badge.bg-secondary')).toHaveText('text');
-        await expect(modal.locator('#section-card-1 .badge.bg-secondary')).toHaveText('textmedia');
+        await expect(modal.locator('#section-card-0 .badge.badge-default')).toHaveText('text');
+        await expect(modal.locator('#section-card-1 .badge.badge-default')).toHaveText('textmedia');
     });
 
     // -- Bug 1: SEO fields populated from LLM response --

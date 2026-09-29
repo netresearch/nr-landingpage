@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Tests\Unit\EventListener;
 
 use Doctrine\DBAL\Result;
+use DOMDocument;
+use DOMXPath;
 use Netresearch\NrLandingpage\EventListener\AddGenerationInfoListener;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -192,6 +194,7 @@ final class AddGenerationInfoListenerTest extends UnitTestCase
         self::assertStringContainsString('AI-Generated Landing Page', $content);
         self::assertStringContainsString('Test Template', $content);
         self::assertStringContainsString('callout-info', $content);
+        self::assertStringNotContainsString('callout-warning', $content);
         self::assertStringNotContainsString('alert-warning', $content);
         self::assertStringContainsString('Re-Generate Landing Page', $content);
         self::assertStringContainsString('btn btn-default', $content);
@@ -241,8 +244,25 @@ final class AddGenerationInfoListenerTest extends UnitTestCase
         $this->createListener($pool)($event);
 
         $content = $event->getHeaderContent();
-        self::assertStringContainsString('alert-warning', $content);
+        self::assertStringContainsString('callout callout-warning', $content);
+        self::assertStringNotContainsString('alert-warning', $content);
         self::assertStringContainsString('template configuration has changed', $content);
+
+        // The warning is its own callout next to the info callout, never nested in it.
+        $document = new DOMDocument();
+        $document->loadHTML('<?xml encoding="UTF-8"><div id="root">' . $content . '</div>', LIBXML_NOERROR);
+        $xpath = new DOMXPath($document);
+        self::assertSame(1, $xpath->query('//*[contains(concat(" ", @class, " "), " callout-warning ")]')?->length);
+        self::assertSame(
+            0,
+            $xpath->query('//*[contains(concat(" ", @class, " "), " callout-info ")]//*[contains(concat(" ", @class, " "), " callout-warning ")]')?->length,
+            'The warning callout must not be nested inside the info callout.',
+        );
+        self::assertSame(
+            1,
+            $xpath->query('//div[@id="root"]/*[contains(concat(" ", @class, " "), " callout-warning ")]')?->length,
+            'The warning callout is a sibling of the info callout.',
+        );
     }
 
     #[Test]

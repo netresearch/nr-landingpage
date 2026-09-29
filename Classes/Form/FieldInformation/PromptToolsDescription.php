@@ -45,12 +45,12 @@ class PromptToolsDescription extends AbstractNode
             . '<p style="margin-bottom:0.25rem;">'
             . '<strong>' . htmlspecialchars($optimizeTitle) . '</strong>'
             . '<br>'
-            . '<span class="text-body-secondary">' . htmlspecialchars($optimizeDesc) . '</span>'
+            . '<span class="text-variant">' . htmlspecialchars($optimizeDesc) . '</span>'
             . '</p>'
             . '<p style="margin-bottom:0;">'
             . '<strong>' . htmlspecialchars($previewTitle) . '</strong>'
             . '<br>'
-            . '<span class="text-body-secondary">' . htmlspecialchars($previewDesc) . '</span>'
+            . '<span class="text-variant">' . htmlspecialchars($previewDesc) . '</span>'
             . '</p>'
             . '</div>';
 
