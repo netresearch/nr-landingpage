@@ -163,7 +163,9 @@ briefing answers, configuration hash). To re-generate a page:
 2.  Click the :guilabel:`Re-generate` button in the document header
 3.  The wizard opens with the original template pre-selected and
     briefing answers pre-filled
-4.  Modify answers if needed and complete the wizard
+4.  Modify answers if needed and complete the wizard. To use a different
+    template, go back to the template step; the answers you edited are
+    kept
 5.  A **new page** is created alongside the original (the original is
     not overwritten)
 

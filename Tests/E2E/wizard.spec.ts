@@ -2,6 +2,7 @@ import {
     test,
     expect,
     navigateToModule,
+    getModuleFrame,
     openWizard,
     waitForSlideSettled,
     mockAjaxRoute,
@@ -380,6 +381,95 @@ test.describe('Landing Page Wizard', () => {
         await expect(title).toBeVisible({ timeout: 15000 });
         await expect(title).toHaveValue('Kept title');
         await expect(modal.locator('#briefing_q_0')).toHaveValue('Casual');
+    });
+
+    /**
+     * Re-generate mode: the module renders the launch button with the page to
+     * re-generate, as the page tree's "Re-generate" action does. The page does
+     * not exist here; its generation info is mocked like every other reply.
+     */
+    async function openRegenerateWizard(page: Page): Promise<Locator> {
+        const frame = await navigateToModule(page);
+        const moduleFrame = page.frames().find((f) => f.url().includes('/module/'));
+        expect(moduleFrame).toBeDefined();
+        const url = new URL(moduleFrame!.url());
+        url.searchParams.set('regeneratePageUid', '42');
+        await moduleFrame!.goto(url.toString());
+        await expect(frame.locator('#nr-landingpage-launch-wizard')).toHaveAttribute('data-regenerate-page-uid', '42');
+        return openWizard(page, frame);
+    }
+
+    test('re-generate: Back to the template step stays there and keeps the edited briefing', async ({ authenticatedPage: page }) => {
+        let infoRequests = 0;
+        await page.route('**/nr-landingpage/wizard/generation-info**', async (route) => {
+            infoRequests++;
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ success: true, data: {
+                    templateUid: templateWithEmptyCTypes.uid,
+                    briefingAnswers: { title: 'Stored title' },
+                    configHash: '',
+                    generatedAt: 0,
+                    sourcePageUid: 0,
+                    parentPageId: 0,
+                } }),
+            });
+        });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const modal = await openRegenerateWizard(page);
+
+        // First render: the stored template is checked and the wizard moves on
+        // to the briefing, pre-filled from the generation info.
+        const title = modal.locator('#briefing_title');
+        await expect(title).toBeVisible({ timeout: 15000 });
+        await expect(title).toHaveValue('Stored title');
+        expect(infoRequests).toBe(1);
+
+        await title.fill('Edited title');
+
+        await modal.locator('[role="radiogroup"]').evaluate((g) => g.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        const group = modal.locator('[role="radiogroup"]:not([data-stale])');
+        await expect(group).toBeVisible({ timeout: 15000 });
+        await waitForSlideSettled(modal);
+
+        // (a) The wizard stays on the template step, the stored template still
+        // checked, so another one can be picked.
+        await expect(modal.locator('.carousel-item.active [role="radiogroup"]:not([data-stale])')).toBeVisible();
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toHaveCount(0);
+        await expect(group.getByRole('radio', { name: templateWithEmptyCTypes.title })).toHaveAttribute('aria-checked', 'true');
+        await expect(modal.locator('button[name="next"]')).toBeEnabled();
+        expect(infoRequests).toBe(1);
+
+        // (b) Forward again: the briefing shows what the user typed, not the
+        // stored answers.
+        await modal.locator('#briefing_title').evaluate((input) => input.setAttribute('data-stale', '1'));
+        await clickNext(modal, page);
+        const freshTitle = modal.locator('#briefing_title:not([data-stale])');
+        await expect(freshTitle).toBeVisible({ timeout: 15000 });
+        await expect(freshTitle).toHaveValue('Edited title');
+    });
+
+    test('re-generate: opening the wizard again applies the generation info again', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generation-info', {
+            templateUid: sampleTemplate.uid,
+            briefingAnswers: { title: 'Stored title' },
+            parentPageId: 0,
+        });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const first = await openRegenerateWizard(page);
+        await expect(first.locator('#briefing_title')).toHaveValue('Stored title', { timeout: 15000 });
+        await first.locator('button[name="cancel"]').click();
+        await page.locator('dialog').waitFor({ state: 'hidden', timeout: 15000 });
+
+        const modal = await openWizard(page, getModuleFrame(page));
+        await expect(modal.locator('#briefing_title')).toHaveValue('Stored title', { timeout: 15000 });
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toBeVisible();
     });
 
     /**
