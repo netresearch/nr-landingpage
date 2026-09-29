@@ -310,6 +310,57 @@ class LandingPageWizard {
         return run !== this._run;
     }
 
+    /**
+     * Re-generate mode, first render of the template step only: fetch the
+     * generation info and store its briefing answers and parent page for the
+     * later steps.
+     *
+     * @param {number} run  The value of `_run` when the renderer started
+     * @returns {Promise<Object|null>}  null outside that first render, when the
+     *     request fails (non-fatal: the wizard continues without pre-fill), and
+     *     when the wizard was opened again in the meantime
+     */
+    async loadGenerationInfo(run) {
+        if (!WizardState.regenerateMode || !(WizardState.sourcePageUid > 0) || this._generationInfoLoaded) {
+            return null;
+        }
+        this._generationInfoLoaded = true;
+
+        try {
+            const generationInfo = await this.fetchJson(this.getAjaxUrl('generationInfo'), {
+                pageUid: WizardState.sourcePageUid,
+            });
+            if (this.isStaleRun(run)) {
+                return null;
+            }
+            if (generationInfo.briefingAnswers) {
+                WizardState.setBriefingAnswers(generationInfo.briefingAnswers);
+            }
+            if (generationInfo.parentPageId > 0 && WizardState.getParentPageId() === 0) {
+                WizardState.setParentPageId(generationInfo.parentPageId);
+            }
+            return generationInfo;
+        } catch (infoError) {
+            return null;
+        }
+    }
+
+    /**
+     * Focus `element` when the focus has been lost: nothing focused, the
+     * body, or a control that was disabled while it had focus. Focus the user
+     * has moved somewhere else stays there. The modal lives in the top
+     * document, not in this module's frame, so the element's own document is
+     * the one asked.
+     *
+     * @param {HTMLElement} element
+     */
+    focusIfLost(element) {
+        const active = element.ownerDocument.activeElement;
+        if (!active || active === element.ownerDocument.body || active.disabled === true) {
+            element.focus();
+        }
+    }
+
     // ── Slide renderers ──────────────────────────────────────────
 
     /**
@@ -328,30 +379,8 @@ class LandingPageWizard {
 
         try {
             // In re-generate mode, load generation info in parallel with templates
-            let generationInfo = null;
             const templatePromise = this.fetchJson(this.getAjaxUrl('templates'));
-
-            if (WizardState.regenerateMode && WizardState.sourcePageUid > 0 && !this._generationInfoLoaded) {
-                this._generationInfoLoaded = true;
-                try {
-                    generationInfo = await this.fetchJson(this.getAjaxUrl('generationInfo'), {
-                        pageUid: WizardState.sourcePageUid,
-                    });
-                    if (this.isStaleRun(run)) {
-                        return;
-                    }
-                    // Store briefing answers and parent page for later steps
-                    if (generationInfo.briefingAnswers) {
-                        WizardState.setBriefingAnswers(generationInfo.briefingAnswers);
-                    }
-                    if (generationInfo.parentPageId > 0 && WizardState.getParentPageId() === 0) {
-                        WizardState.setParentPageId(generationInfo.parentPageId);
-                    }
-                } catch (infoError) {
-                    // Non-fatal — continue without pre-fill
-                    generationInfo = null;
-                }
-            }
+            const generationInfo = await this.loadGenerationInfo(run);
 
             const templates = await templatePromise;
             if (this.isStaleRun(run)) {
@@ -492,14 +521,9 @@ class LandingPageWizard {
 
             // Back disables core's Back button on this first step while it
             // still has focus, which drops focus to the body. Put it on the
-            // checked card, the group's tab stop — unless the user has moved
-            // it somewhere else while the templates were loading. The modal
-            // lives in the top document, not in this module's frame.
+            // checked card, the group's tab stop.
             if (keptCard) {
-                const active = keptCard.ownerDocument.activeElement;
-                if (!active || active === keptCard.ownerDocument.body || active.disabled === true) {
-                    keptCard.focus();
-                }
+                this.focusIfLost(keptCard);
             }
 
             // Warn if original template was deleted and could not be pre-selected
