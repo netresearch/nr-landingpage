@@ -1758,7 +1758,8 @@ class LandingPageWizard {
         );
         modal.addEventListener('confirm.button.ok', () => {
             modal.hideModal();
-            this.saveLandingPage(form);
+            // saveLandingPage() reports its own errors; nothing awaits it.
+            void this.saveLandingPage(form);
         });
         modal.addEventListener('confirm.button.cancel', () => {
             modal.hideModal();
