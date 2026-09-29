@@ -19,6 +19,9 @@ class LandingPageWizard {
         this._briefingForm = null;
         this._briefingQuestions = null;
         this._pageFieldsForm = null;
+        // Re-generate mode: the generation info is applied on the first render
+        // of the template step only.
+        this._generationInfoLoaded = false;
     }
 
     /**
@@ -133,6 +136,7 @@ class LandingPageWizard {
         this._briefingForm = null;
         this._briefingQuestions = null;
         this._pageFieldsForm = null;
+        this._generationInfoLoaded = false;
         if (parentPageId > 0) {
             WizardState.setParentPageId(parentPageId);
         }
@@ -291,9 +295,10 @@ class LandingPageWizard {
     /**
      * Step 1: Template selection.
      *
-     * In re-generate mode, fetches generation info first to pre-select the
-     * template and store briefing answers. The template card is highlighted
-     * but all cards remain clickable (user may switch).
+     * In re-generate mode, the first render fetches the generation info to
+     * pre-select the stored template, store the briefing answers and advance.
+     * Back re-runs this renderer; later renders keep what the user has chosen
+     * and typed since, and stay on this step so another template can be picked.
      */
     async renderTemplateSlide($slide) {
         const container = this.getSlideElement($slide);
@@ -305,7 +310,8 @@ class LandingPageWizard {
             let generationInfo = null;
             const templatePromise = this.fetchJson(this.getAjaxUrl('templates'));
 
-            if (WizardState.regenerateMode && WizardState.sourcePageUid > 0) {
+            if (WizardState.regenerateMode && WizardState.sourcePageUid > 0 && !this._generationInfoLoaded) {
+                this._generationInfoLoaded = true;
                 try {
                     generationInfo = await this.fetchJson(this.getAjaxUrl('generationInfo'), {
                         pageUid: WizardState.sourcePageUid,
@@ -440,7 +446,8 @@ class LandingPageWizard {
                     }
                 });
 
-                // Auto-select and auto-advance in re-generate mode
+                // Auto-select and auto-advance in re-generate mode, on the
+                // first render only: preSelectUid is 0 on later renders.
                 if (preSelectUid > 0 && template.uid === preSelectUid) {
                     selectCard(card, template, false);
                     MultiStepWizard.triggerStepButton('next');
