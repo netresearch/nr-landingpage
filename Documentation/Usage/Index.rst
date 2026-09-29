@@ -132,10 +132,10 @@ media library can be mixed in where the AI places an image placeholder.
 
 When the template has animations enabled, the AI may include
 ``<script data-creative>`` blocks that use GSAP for scroll-triggered
-reveals, entrance animations, and typewriter effects. These scripts
-are automatically checked against a security allowlist before the
-page is saved — see :ref:`script-allowlist` in the Configuration
-reference.
+reveals, entrance animations, and typewriter effects. When the content
+is generated and again when the page is saved, a script block that
+names one of the JavaScript APIs listed in ``CreativeHtmlSanitizer``
+(for example ``fetch``, ``eval`` or ``document.cookie``) is removed.
 
 Step 5: Placement & Save
 -------------------------
