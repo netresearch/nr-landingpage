@@ -433,7 +433,9 @@ import sys, json; print(json.load(sys.stdin)['raw'].get('primary_url', ''))" 2>/
             PARALLEL_JOBS=$(( ($(nproc) + 1) / 2 ))
         fi
 
-        COMMAND="find Tests/Functional -name '*Test.php' | xargs -P${PARALLEL_JOBS} -I{} php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c phpunit.functional.xml --testsuite functional --fail-on-empty-test-suite {}"
+        # xargs never starts phpunit on an empty list and exits 0, so an empty or
+        # missing Tests/Functional has to fail here before the pipe.
+        COMMAND="files=\$(find Tests/Functional -name '*Test.php') && [ -n \"\$files\" ] || { echo 'No *Test.php files found under Tests/Functional' >&2; exit 1; }; printf '%s\n' \"\$files\" | xargs -P${PARALLEL_JOBS} -I{} php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c phpunit.functional.xml --testsuite functional --fail-on-empty-test-suite {}"
         CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${ROOT_DIR}/.Build/Web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid,mode=1777"
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-parallel-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
         SUITE_EXIT_CODE=$?
