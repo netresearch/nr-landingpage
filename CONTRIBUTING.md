@@ -47,6 +47,24 @@ The codebase enforces layer dependencies via phpat architecture tests:
 3. Ensure all CI checks pass
 4. Open a pull request with a description of what changed and why
 
+## Governance and policies
+
+This repository follows the policies of the Netresearch GitHub organisation:
+
+- [Governance](https://github.com/netresearch/.github/blob/main/GOVERNANCE.md) -- project roles, how decisions are made and how disagreements are resolved.
+- [Roadmap](https://github.com/netresearch/.github/blob/main/ROADMAP.md) -- planned and excluded work for the coming year.
+- [Handling of dependency and code analysis findings](https://github.com/netresearch/.github/blob/main/SECURITY.md#handling-of-dependency-and-code-analysis-findings) -- which findings block a change, the deadlines for the others, and how exceptions are recorded.
+- [Secret management](https://github.com/netresearch/.github/blob/main/SECURITY.md#secret-management) -- where CI and release secrets are stored, who can access them and when they are rotated.
+- [Access roster](https://github.com/netresearch/.github/blob/main/docs/access-roster.md) -- who has admin, maintain and write access to this repository.
+
+Checks that run on every pull request in this repository:
+
+- `.github/workflows/ci.yml` calls the shared `netresearch/typo3-ci-workflows` CI: PHP syntax lint, PHP-CS-Fixer (`composer ci:cgl`), PHPStan level 10 with the phpat layer rules (`phpstan.neon`), the unit suite (`composer ci:tests`) and the functional suite on SQLite, for PHP 8.2 to 8.4 and TYPO3 13.4 and 14.3.
+- `.github/workflows/e2e.yml` runs the Playwright suite in `Tests/E2E/` against a TYPO3 instance.
+- `.github/workflows/docs.yml` renders `Documentation/` when a pull request changes it.
+
+These workflows run no dependency vulnerability scan and no static security scanner. Dependency updates arrive as pull requests from Renovate (`renovate.json`, which extends the shared `netresearch/renovate-config`).
+
 ## Reporting Issues
 
 Please open an issue with:
