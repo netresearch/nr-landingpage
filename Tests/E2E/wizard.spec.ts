@@ -473,6 +473,555 @@ test.describe('Landing Page Wizard', () => {
     });
 
     /**
+     * Count, per endpoint, the wizard replies whose JSON body has been parsed,
+     * in every frame (wizard.js runs in the module frame). A renderer resumes
+     * right after that parse, in the same task, so once a count is reached the
+     * renderer has reacted to that reply — or has decided not to.
+     */
+    async function countParsedReplies(page: Page): Promise<void> {
+        await page.addInitScript(() => {
+            const parse = Response.prototype.json;
+            const counts: Record<string, number> = {};
+            (window as any).__parsedReplies = counts;
+            Response.prototype.json = async function (this: Response) {
+                try {
+                    return await parse.call(this);
+                } finally {
+                    const endpoint = new URL(this.url).pathname.split('/').pop() ?? '';
+                    counts[endpoint] = (counts[endpoint] ?? 0) + 1;
+                }
+            };
+        });
+    }
+
+    function parsedReplies(page: Page, endpoint: string): Promise<number> {
+        return getModuleFrame(page).locator('body').evaluate((_, e) => (window as any).__parsedReplies?.[e] ?? 0, endpoint);
+    }
+
+    /**
+     * Route `path` so that its first request waits until `release()` is
+     * called; `first` resolves once that request has arrived.
+     */
+    async function holdFirstReply(page: Page, path: string, data: unknown): Promise<{ first: Promise<void>; release: () => void; count: () => number }> {
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => { release = resolve; });
+        let arrived!: () => void;
+        const first = new Promise<void>((resolve) => { arrived = resolve; });
+        let requests = 0;
+        await page.route('**' + path + '**', async (route) => {
+            requests++;
+            if (requests === 1) {
+                arrived();
+                await held;
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data }) });
+        });
+        return { first, release, count: () => requests };
+    }
+
+    /** The wizard state in the module frame's realm, where wizard.js runs. */
+    function wizardState(page: Page): Promise<{ template: number | null; contentSections: Array<Record<string, unknown>> }> {
+        return getModuleFrame(page).locator('body').evaluate(async () => {
+            const state = (await import('@netresearch/nr-landingpage/wizard-state.js')).default;
+            return JSON.parse(JSON.stringify({ template: state.getTemplate()?.uid ?? null, contentSections: state.getContentSections() }));
+        });
+    }
+
+    async function closeWizard(page: Page): Promise<void> {
+        await page.keyboard.press('Escape');
+        await page.locator('dialog').waitFor({ state: 'hidden', timeout: 15000 });
+    }
+
+    /** From the template step of an open wizard to the content step. */
+    async function walkToContent(modal: Locator, page: Page): Promise<void> {
+        await modal.locator('.template-card').first().click();
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active #briefing_title').waitFor({ state: 'visible', timeout: 15000 });
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active #section-card-0').waitFor({ state: 'visible', timeout: 15000 });
+        await waitForSlideSettled(modal);
+    }
+
+    /** From the content step to the confirmed save. */
+    async function saveFromContent(modal: Locator, page: Page): Promise<void> {
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active #placement_parent').waitFor({ state: 'visible', timeout: 15000 });
+        await modal.locator('#placement_parent').fill('1');
+        await modal.locator('button.btn-success').click();
+        const ok = page.locator('dialog:not([data-severity=""])').last().locator('button[name="ok"]');
+        await ok.waitFor({ state: 'visible', timeout: 10000 });
+        await ok.click();
+    }
+
+    async function mockUpToContent(page: Page, content: unknown = sampleContentSections): Promise<void> {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-page-fields', { title: 'T', slug: 't' });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-content', content);
+    }
+
+    const staleSection = { section: 'STALE', ctype: 'text', header: 'STALE header', subheader: '', bodytext: '<p>stale</p>' };
+
+    test('a regenerated section of a closed wizard is not written into the one opened after it', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        await mockUpToContent(page);
+        const regenerate = await holdFirstReply(page, '/nr-landingpage/wizard/regenerate-section', staleSection);
+        let saved: { contentSections: Array<Record<string, unknown>> } | null = null;
+        await page.route('**/nr-landingpage/wizard/save**', async (route) => {
+            saved = route.request().postDataJSON();
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { pageUid: 0 } }) });
+        });
+
+        const first = await openWizard(page, await navigateToModule(page));
+        await walkToContent(first, page);
+        await first.locator('#section-card-0 .card-header button').first().click();
+        await regenerate.first;
+        await closeWizard(page);
+
+        const modal = await openWizard(page, getModuleFrame(page));
+        await walkToContent(modal, page);
+        regenerate.release();
+        await expect.poll(() => parsedReplies(page, 'regenerate-section'), { timeout: 15000 }).toBe(1);
+
+        expect((await wizardState(page)).contentSections[0].header).toBe(sampleContentSections.sections[0].header);
+        await saveFromContent(modal, page);
+        await expect.poll(() => saved !== null, { timeout: 15000 }).toBe(true);
+        expect(saved!.contentSections[0].header).toBe(sampleContentSections.sections[0].header);
+    });
+
+    test('a pending section regeneration of a closed wizard does not block Save in the one opened after it', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const regenerate = await holdFirstReply(page, '/nr-landingpage/wizard/regenerate-section', staleSection);
+        let saves = 0;
+        await page.route('**/nr-landingpage/wizard/save**', async (route) => {
+            saves++;
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { pageUid: 0 } }) });
+        });
+
+        const first = await openWizard(page, await navigateToModule(page));
+        await walkToContent(first, page);
+        await first.locator('#section-card-0 .card-header button').first().click();
+        await regenerate.first;
+        await closeWizard(page);
+
+        const modal = await openWizard(page, getModuleFrame(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+        await expect.poll(() => saves, { timeout: 10000 }).toBe(1);
+        regenerate.release();
+    });
+
+    test('a section regeneration of a closed wizard finishing does not unlock a second one in the wizard opened after it', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        await mockUpToContent(page);
+        // The first two requests (one per wizard) are held until released.
+        const releases: Array<() => void> = [];
+        const arrivals: Array<Promise<void>> = [];
+        const arrived: Array<() => void> = [];
+        for (let i = 0; i < 2; i++) {
+            arrivals.push(new Promise<void>((resolve) => { arrived.push(resolve); }));
+        }
+        let requests = 0;
+        await page.route('**/nr-landingpage/wizard/regenerate-section**', async (route) => {
+            const mine = requests++;
+            if (mine < 2) {
+                await new Promise<void>((resolve) => { releases[mine] = resolve; arrived[mine](); });
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: staleSection }) });
+        });
+
+        const first = await openWizard(page, await navigateToModule(page));
+        await walkToContent(first, page);
+        await first.locator('#section-card-0 .card-header button').first().click();
+        await arrivals[0];
+        await closeWizard(page);
+
+        const modal = await openWizard(page, getModuleFrame(page));
+        await walkToContent(modal, page);
+        await modal.locator('#section-card-0 .card-header button').first().click();
+        await arrivals[1];
+
+        // The closed wizard's request finishes while the open wizard's is
+        // still running: the open wizard must still count as busy.
+        releases[0]();
+        await expect.poll(() => parsedReplies(page, 'regenerate-section'), { timeout: 15000 }).toBe(1);
+        // Not busy, this click would send its request at once — before the
+        // open wizard's own request is released below.
+        await modal.locator('#section-card-1 .card-header button').first().click();
+        releases[1]();
+        await expect.poll(() => parsedReplies(page, 'regenerate-section'), { timeout: 15000 }).toBe(2);
+        expect(requests).toBe(2);
+    });
+
+    test('a section regeneration shows its loading spinner in the section card', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const regenerate = await holdFirstReply(page, '/nr-landingpage/wizard/regenerate-section', staleSection);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await modal.locator('#section-card-0 .card-header button').first().click();
+        await regenerate.first;
+
+        const status = modal.locator('#section-card-0 .card-body [role="status"]');
+        await expect(status).toBeVisible();
+        await expect(status.locator('typo3-backend-spinner')).toHaveCount(1);
+        regenerate.release();
+        await expect(modal.locator('#section-card-0 .card-body [role="status"]')).toHaveCount(0, { timeout: 15000 });
+    });
+
+    test('a section regeneration reply after leaving the content step and coming back is dropped', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        await mockUpToContent(page);
+        const regenerate = await holdFirstReply(page, '/nr-landingpage/wizard/regenerate-section', staleSection);
+        let saved: { contentSections: Array<Record<string, unknown>> } | null = null;
+        await page.route('**/nr-landingpage/wizard/save**', async (route) => {
+            saved = route.request().postDataJSON();
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { pageUid: 0 } }) });
+        });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await modal.locator('#section-card-0 .card-header button').first().click();
+        await regenerate.first;
+
+        // Back to the page fields and Next again: the content step renders
+        // its sections anew, from a new generate-content reply.
+        await modal.locator('#section-card-0').evaluate((card) => card.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active #section-card-0:not([data-stale])').waitFor({ state: 'visible', timeout: 15000 });
+        await waitForSlideSettled(modal);
+
+        regenerate.release();
+        await expect.poll(() => parsedReplies(page, 'regenerate-section'), { timeout: 15000 }).toBe(1);
+        expect((await wizardState(page)).contentSections[0].header).toBe(sampleContentSections.sections[0].header);
+
+        // The request is over for this wizard: Save works, with the sections
+        // the user sees.
+        await saveFromContent(modal, page);
+        await expect.poll(() => saved !== null, { timeout: 15000 }).toBe(true);
+        expect(saved!.contentSections[0].header).toBe(sampleContentSections.sections[0].header);
+    });
+
+    // Sections that declare "no image chosen" (imageUid 0): a recommended image
+    // in a reply is then chosen automatically, which is what a stale reply
+    // must not do to the next wizard's state.
+    const contentWithImageChoice = {
+        sections: [0, 1].map((i) => ({
+            section: 'Section ' + i, ctype: 'textmedia', header: 'Header ' + i, subheader: '',
+            bodytext: '<p>Body ' + i + '</p>', imagePrompt: 'prompt ' + i, imageKeywords: ['beach'], imageUid: 0,
+        })),
+        images: [[], []],
+        aiGenerationAvailable: true,
+        hasImageTask: true,
+    };
+
+    for (const action of [
+        { name: 'image search', path: '/nr-landingpage/wizard/search-images', endpoint: 'search-images', button: 'Search', reply: { images: [{ uid: 21, name: 'stale.jpg', title: 'Stale', recommended: true }] } },
+        { name: 'image generation', path: '/nr-landingpage/wizard/generate-image', endpoint: 'generate-image', button: 'Generate with AI', reply: { image: { uid: 21, name: 'stale.png', title: 'Stale', recommended: true, generated: true } } },
+    ]) {
+        test(`an ${action.name} reply for a closed wizard does not choose an image in the one opened after it`, async ({ authenticatedPage: page }) => {
+            await countParsedReplies(page);
+            await mockUpToContent(page, contentWithImageChoice);
+            const held = await holdFirstReply(page, action.path, action.reply);
+
+            const first = await openWizard(page, await navigateToModule(page));
+            await walkToContent(first, page);
+            await first.locator('#section-card-0 .border-top').getByRole('button', { name: action.button }).click();
+            await held.first;
+            await closeWizard(page);
+
+            const modal = await openWizard(page, getModuleFrame(page));
+            await walkToContent(modal, page);
+            expect((await wizardState(page)).contentSections[0].imageUid).toBe(0);
+
+            held.release();
+            await expect.poll(() => parsedReplies(page, action.endpoint), { timeout: 15000 }).toBe(1);
+            expect((await wizardState(page)).contentSections[0].imageUid).toBe(0);
+            await expect(modal.locator('[data-image-uid="21"]')).toHaveCount(0);
+        });
+    }
+
+    test('an image search reply for sections replaced by Back and Next does not choose an image in the new ones', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        await mockUpToContent(page, contentWithImageChoice);
+        const held = await holdFirstReply(page, '/nr-landingpage/wizard/search-images', { images: [{ uid: 21, name: 'stale.jpg', title: 'Stale', recommended: true }] });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await modal.locator('#section-card-0 .border-top').getByRole('button', { name: 'Search' }).click();
+        await held.first;
+
+        // Back to the page fields and Next again: the content step renders
+        // its sections anew, from a new generate-content reply.
+        await modal.locator('#section-card-0').evaluate((card) => card.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active #section-card-0:not([data-stale])').waitFor({ state: 'visible', timeout: 15000 });
+        await waitForSlideSettled(modal);
+        expect((await wizardState(page)).contentSections[0].imageUid).toBe(0);
+
+        held.release();
+        await expect.poll(() => parsedReplies(page, 'search-images'), { timeout: 15000 }).toBe(1);
+        expect((await wizardState(page)).contentSections[0].imageUid).toBe(0);
+        await expect(modal.locator('[data-image-uid="21"]')).toHaveCount(0);
+    });
+
+    test('a save reply for a closed wizard does not close the one opened after it', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        await mockUpToContent(page);
+        const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', { pageUid: 5 });
+
+        const frame = await navigateToModule(page);
+        const first = await openWizard(page, frame);
+        await walkToContent(first, page);
+        await saveFromContent(first, page);
+        await save.first;
+        await expect(page.locator('dialog:visible')).toHaveCount(1);
+        await closeWizard(page);
+
+        const modal = await openWizard(page, getModuleFrame(page));
+        await expect(modal.locator('.carousel-item.active .template-card')).toHaveCount(1, { timeout: 15000 });
+        await waitForSlideSettled(modal);
+
+        // Record the two calls a save reply makes to leave the wizard: both
+        // happen synchronously in the reply's continuation, so they are in
+        // the record once the reply has been parsed. The navigation itself
+        // and the modal's closing animation would come later.
+        await page.evaluate(() => {
+            const container = (window as any).TYPO3.Backend.ContentContainer;
+            const setUrl = container.setUrl;
+            (window as any).__setUrlCalls = [];
+            container.setUrl = function (...args: unknown[]) {
+                (window as any).__setUrlCalls.push(args[0]);
+                return setUrl.apply(this, args);
+            };
+        });
+        await getModuleFrame(page).locator('body').evaluate(async () => {
+            const modal = (await import('@typo3/backend/modal.js')).default;
+            const dismiss = modal.dismiss;
+            (window as any).__dismissCalls = 0;
+            modal.dismiss = function (...args: unknown[]) {
+                (window as any).__dismissCalls++;
+                return dismiss.apply(this, args);
+            };
+        });
+
+        save.release();
+        await expect.poll(() => parsedReplies(page, 'save'), { timeout: 15000 }).toBe(1);
+
+        expect(await getModuleFrame(page).locator('body').evaluate(() => (window as any).__dismissCalls)).toBe(0);
+        expect(await page.evaluate(() => (window as any).__setUrlCalls)).toEqual([]);
+        await expect(modal.locator('.carousel-item.active .template-card')).toHaveCount(1);
+    });
+
+    test('a briefing reply that arrives after Back does not lock Next on the template step', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [templateWithRequiredBriefing]);
+        // briefingMode "required" and an empty title: a finished briefing
+        // render locks Next.
+        const briefing = await holdFirstReply(page, '/nr-landingpage/wizard/generate-briefing', [{ label: 'Q', type: 'text' }]);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await modal.locator('.template-card').first().click();
+        await clickNext(modal, page);
+        await briefing.first;
+        await waitForSlideSettled(modal);
+        await modal.locator('[role="radiogroup"]').evaluate((g) => g.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        const group = modal.locator('[role="radiogroup"]:not([data-stale])');
+        await expect(group.locator('.template-card[aria-checked="true"]')).toHaveCount(1, { timeout: 15000 });
+        await waitForSlideSettled(modal);
+        await expect(modal.locator('button[name="next"]')).toBeEnabled();
+
+        briefing.release();
+        await expect.poll(() => parsedReplies(page, 'generate-briefing'), { timeout: 15000 }).toBe(1);
+        await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', 'landing-page-template');
+        await expect(modal.locator('button[name="next"]')).toBeEnabled();
+    });
+
+    test('the briefing of a template left with Back does not replace the briefing of the one picked next', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        const a = { ...templateWithRequiredBriefing, uid: 11, title: 'Template A' };
+        const b = { ...templateWithRequiredBriefing, uid: 12, title: 'Template B' };
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [a, b]);
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => { release = resolve; });
+        let arrived!: () => void;
+        const firstForA = new Promise<void>((resolve) => { arrived = resolve; });
+        await page.route('**/nr-landingpage/wizard/generate-briefing**', async (route) => {
+            const uid = route.request().postDataJSON()?.templateUid;
+            if (uid === a.uid) {
+                arrived();
+                await held;
+            }
+            const data = [{ label: 'Question for ' + (uid === a.uid ? 'A' : 'B'), type: 'text' }];
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data }) });
+        });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await modal.getByRole('radio', { name: 'Template A' }).click();
+        await clickNext(modal, page);
+        await firstForA;
+        await waitForSlideSettled(modal);
+        await modal.locator('[role="radiogroup"]').evaluate((g) => g.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        const group = modal.locator('[role="radiogroup"]:not([data-stale])');
+        await expect(group).toBeVisible({ timeout: 15000 });
+        await waitForSlideSettled(modal);
+        await group.getByRole('radio', { name: 'Template B' }).click();
+        await clickNext(modal, page);
+        await expect(modal.locator('.carousel-item.active')).toContainText('Question for B', { timeout: 15000 });
+        await waitForSlideSettled(modal);
+
+        release();
+        await expect.poll(() => parsedReplies(page, 'generate-briefing'), { timeout: 15000 }).toBe(2);
+        expect((await wizardState(page)).template).toBe(b.uid);
+        await expect(modal.locator('.carousel-item.active')).toContainText('Question for B');
+        await expect(modal.locator('.carousel-item.active')).not.toContainText('Question for A');
+    });
+
+    test('re-generate: a reply for a closed wizard does not move the one opened after it', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        // The first generation-info request is held until the test releases
+        // it, so its renderer is still waiting when the wizard is closed and
+        // opened again.
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => { release = resolve; });
+        let arrived!: () => void;
+        const firstRequest = new Promise<void>((resolve) => { arrived = resolve; });
+        let infoRequests = 0;
+        await page.route('**/nr-landingpage/wizard/generation-info**', async (route) => {
+            infoRequests++;
+            if (infoRequests === 1) {
+                arrived();
+                await held;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ success: true, data: {
+                    templateUid: sampleTemplate.uid,
+                    briefingAnswers: { title: 'Stored title' },
+                    parentPageId: 0,
+                } }),
+            });
+        });
+        let pageFieldsRequests = 0;
+        await page.route('**/nr-landingpage/wizard/generate-page-fields**', async (route) => {
+            pageFieldsRequests++;
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { title: 'PF', slug: 'pf' } }) });
+        });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        await openRegenerateWizard(page);
+        await firstRequest;
+        await page.keyboard.press('Escape');
+        await page.locator('dialog').waitFor({ state: 'hidden', timeout: 15000 });
+
+        const modal = await openWizard(page, getModuleFrame(page));
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toHaveValue('Stored title', { timeout: 15000 });
+        await waitForSlideSettled(modal);
+        expect(await parsedReplies(page, 'generation-info')).toBe(1);
+
+        // Now the closed wizard's renderer gets its reply. Unguarded, it
+        // checks the stored template and presses Next in the open wizard
+        // straight away: the carousel starts sliding to the page fields.
+        release();
+        await expect.poll(() => parsedReplies(page, 'generation-info'), { timeout: 15000 }).toBe(2);
+
+        await waitForSlideSettled(modal);
+        await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', 'landing-page-briefing');
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toHaveValue('Stored title');
+        expect(pageFieldsRequests).toBe(0);
+        expect(infoRequests).toBe(2);
+    });
+
+    test('a briefing reply for a closed wizard does not unlock Next in the one opened after it', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => { release = resolve; });
+        let arrived!: () => void;
+        const firstRequest = new Promise<void>((resolve) => { arrived = resolve; });
+        let briefingRequests = 0;
+        await page.route('**/nr-landingpage/wizard/generate-briefing**', async (route) => {
+            briefingRequests++;
+            if (briefingRequests === 1) {
+                arrived();
+                await held;
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: [] }) });
+        });
+        // Briefing mode "optional": a finished briefing render unlocks Next.
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+
+        const first = await openWizard(page, await navigateToModule(page));
+        await first.locator('.template-card').first().click();
+        await clickNext(first, page);
+        await firstRequest;
+        await page.keyboard.press('Escape');
+        await page.locator('dialog').waitFor({ state: 'hidden', timeout: 15000 });
+
+        // The new wizard starts on the template step with nothing checked, so
+        // Next is locked.
+        const modal = await openWizard(page, getModuleFrame(page));
+        await expect(modal.locator('.carousel-item.active .template-card')).toHaveCount(1, { timeout: 15000 });
+        await waitForSlideSettled(modal);
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+        expect(await parsedReplies(page, 'generate-briefing')).toBe(0);
+
+        release();
+        await expect.poll(() => parsedReplies(page, 'generate-briefing'), { timeout: 15000 }).toBe(1);
+
+        await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', 'landing-page-template');
+        await expect(modal.locator('.template-card[aria-checked="true"]')).toHaveCount(0);
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+    });
+
+    test('Back to the template step puts focus on the checked template', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await modal.getByRole('radio', { name: templateWithEmptyCTypes.title }).click();
+        await clickNext(modal, page);
+        await modal.locator('#briefing_title').waitFor({ state: 'visible', timeout: 15000 });
+
+        // Back disables the Back button on the first step, which takes the
+        // focus away from it.
+        await modal.locator('[role="radiogroup"]').evaluate((g) => g.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        const group = modal.locator('[role="radiogroup"]:not([data-stale])');
+        await expect(group).toBeVisible({ timeout: 15000 });
+        await expect(group.getByRole('radio', { name: templateWithEmptyCTypes.title })).toBeFocused();
+    });
+
+    test('re-generate: Back to the template step puts focus on the checked template', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generation-info', {
+            templateUid: templateWithEmptyCTypes.uid,
+            briefingAnswers: { title: 'Stored title' },
+            parentPageId: 0,
+        });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate, templateWithEmptyCTypes]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const modal = await openRegenerateWizard(page);
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toHaveValue('Stored title', { timeout: 15000 });
+        await waitForSlideSettled(modal);
+
+        await modal.locator('[role="radiogroup"]').evaluate((g) => g.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        const group = modal.locator('[role="radiogroup"]:not([data-stale])');
+        await expect(group).toBeVisible({ timeout: 15000 });
+        await expect(group.getByRole('radio', { name: templateWithEmptyCTypes.title })).toBeFocused();
+    });
+
+    /**
      * Go Back without moving focus: a real click on the button would blur the
      * field and fire its change event, which hides whether the input listener
      * alone keeps the answers.
