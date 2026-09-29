@@ -74,7 +74,7 @@ public issues.
   `Tests/Unit/Service/TemplateServiceTest.php`.
 - **Record permissions.** Pages, content elements and file references are written through DataHandler as
   the current backend user (`PageCreatorService::createDataHandler()`), so TYPO3's page, table, field and
-  workspace permissions apply to everything the wizard creates.
+  workspace permissions apply to these records.
 - **Page fields.** Fields in `PageCreatorService::RESERVED_PAGE_FIELDS` are never taken from the request;
   when a template lists page fields, only those fields are written (`PageCreatorService::buildPageData()`).
 - **Content types and positions.** In structured mode a content type outside the template's allowed list
@@ -86,8 +86,9 @@ public issues.
   with `http://`, `https://`, `/`, `mailto:` or `tel:` (`ContentGeneratorService::getSanitizer()`). Tests:
   `Tests/Unit/Service/ContentGeneratorServiceValidationTest.php`.
 - **Creative-mode HTML.** `CreativeHtmlSanitizer::sanitize()` runs on the LLM response and again on save.
-  It removes `script` elements (when animation is enabled, it keeps `<script data-creative>` blocks that
-  contain none of the API names in `CreativeHtmlSanitizer::BLOCKED_APIS`), event handler attributes,
+  It applies pattern-based filters aimed at `script` elements (when animation is enabled, it keeps
+  `<script data-creative>` blocks that contain none of the API names in `CreativeHtmlSanitizer::BLOCKED_APIS`),
+  event handler attributes,
   `javascript:`, `vbscript:` and `data:` values in `href`, `src` and `action`, CSS `url()` and `@import`,
   the elements `iframe`, `object`, `embed`, `form`, `input`, `textarea` and `button`, and `img` elements with
   a `src`. Tests: `Tests/Unit/Service/CreativeHtmlSanitizerTest.php`.
