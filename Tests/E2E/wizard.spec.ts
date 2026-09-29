@@ -524,6 +524,29 @@ test.describe('Landing Page Wizard', () => {
         return { first, release, count: () => requests };
     }
 
+    /**
+     * Route `path` so that its first two requests (one per wizard) each wait
+     * until `releases[i]()` is called; `arrivals[i]` resolves once request i
+     * has arrived. Later requests are answered at once.
+     */
+    async function holdFirstTwoReplies(page: Page, path: string, data: unknown): Promise<{ arrivals: Array<Promise<void>>; releases: Array<() => void>; count: () => number }> {
+        const releases: Array<() => void> = [];
+        const arrivals: Array<Promise<void>> = [];
+        const arrived: Array<() => void> = [];
+        for (let i = 0; i < 2; i++) {
+            arrivals.push(new Promise<void>((resolve) => { arrived.push(resolve); }));
+        }
+        let requests = 0;
+        await page.route('**' + path + '**', async (route) => {
+            const mine = requests++;
+            if (mine < 2) {
+                await new Promise<void>((resolve) => { releases[mine] = resolve; arrived[mine](); });
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data }) });
+        });
+        return { arrivals, releases, count: () => requests };
+    }
+
     /** The wizard state in the module frame's realm, where wizard.js runs. */
     function wizardState(page: Page): Promise<{ template: number | null; contentSections: Array<Record<string, unknown>> }> {
         return getModuleFrame(page).locator('body').evaluate(async () => {
@@ -547,6 +570,24 @@ test.describe('Landing Page Wizard', () => {
         await clickNext(modal, page);
         await modal.locator('.carousel-item.active #section-card-0').waitFor({ state: 'visible', timeout: 15000 });
         await waitForSlideSettled(modal);
+    }
+
+    /**
+     * From the template step of an open wizard, check the first template and
+     * press Next until the given step has been entered (not waiting for it
+     * to render).
+     */
+    async function nextToStep(modal: Locator, page: Page, step: 'briefing' | 'page-fields' | 'content'): Promise<void> {
+        await modal.locator('.template-card').first().click();
+        await clickNext(modal, page);
+        if (step !== 'briefing') {
+            await modal.locator('.carousel-item.active #briefing_title').waitFor({ state: 'visible', timeout: 15000 });
+            await clickNext(modal, page);
+        }
+        if (step === 'content') {
+            await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
+            await clickNext(modal, page);
+        }
     }
 
     /** From the content step to the confirmed save. */
@@ -622,20 +663,7 @@ test.describe('Landing Page Wizard', () => {
         await countParsedReplies(page);
         await mockUpToContent(page);
         // The first two requests (one per wizard) are held until released.
-        const releases: Array<() => void> = [];
-        const arrivals: Array<Promise<void>> = [];
-        const arrived: Array<() => void> = [];
-        for (let i = 0; i < 2; i++) {
-            arrivals.push(new Promise<void>((resolve) => { arrived.push(resolve); }));
-        }
-        let requests = 0;
-        await page.route('**/nr-landingpage/wizard/regenerate-section**', async (route) => {
-            const mine = requests++;
-            if (mine < 2) {
-                await new Promise<void>((resolve) => { releases[mine] = resolve; arrived[mine](); });
-            }
-            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: staleSection }) });
-        });
+        const { arrivals, releases, count } = await holdFirstTwoReplies(page, '/nr-landingpage/wizard/regenerate-section', staleSection);
 
         const first = await openWizard(page, await navigateToModule(page));
         await walkToContent(first, page);
@@ -657,7 +685,7 @@ test.describe('Landing Page Wizard', () => {
         await modal.locator('#section-card-1 .card-header button').first().click();
         releases[1]();
         await expect.poll(() => parsedReplies(page, 'regenerate-section'), { timeout: 15000 }).toBe(2);
-        expect(requests).toBe(2);
+        expect(count()).toBe(2);
     });
 
     test('a section regeneration shows its loading spinner in the section card', async ({ authenticatedPage: page }) => {
@@ -875,20 +903,7 @@ test.describe('Landing Page Wizard', () => {
         await mockUpToContent(page);
         // The first two save requests (one per wizard) are held until
         // released. pageUid 0: no reply navigates to the page module.
-        const releases: Array<() => void> = [];
-        const arrivals: Array<Promise<void>> = [];
-        const arrived: Array<() => void> = [];
-        for (let i = 0; i < 2; i++) {
-            arrivals.push(new Promise<void>((resolve) => { arrived.push(resolve); }));
-        }
-        let requests = 0;
-        await page.route('**/nr-landingpage/wizard/save**', async (route) => {
-            const mine = requests++;
-            if (mine < 2) {
-                await new Promise<void>((resolve) => { releases[mine] = resolve; arrived[mine](); });
-            }
-            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { pageUid: 0 } }) });
-        });
+        const { arrivals, releases, count } = await holdFirstTwoReplies(page, '/nr-landingpage/wizard/save', { pageUid: 0 });
 
         const first = await openWizard(page, await navigateToModule(page));
         await walkToContent(first, page);
@@ -914,7 +929,7 @@ test.describe('Landing Page Wizard', () => {
         await ok.click();
         releases[1]();
         await expect.poll(() => parsedReplies(page, 'save'), { timeout: 15000 }).toBe(2);
-        expect(requests).toBe(2);
+        expect(count()).toBe(2);
     });
 
     // A slide renderer whose wizard was closed, and not opened again, gets its
@@ -944,16 +959,7 @@ test.describe('Landing Page Wizard', () => {
                 const held = await holdFirstReply(page, '/nr-landingpage/wizard/' + endpoint, data, status);
 
                 const modal = await openWizard(page, await navigateToModule(page));
-                await modal.locator('.template-card').first().click();
-                await clickNext(modal, page);
-                if (step !== 'briefing') {
-                    await modal.locator('.carousel-item.active #briefing_title').waitFor({ state: 'visible', timeout: 15000 });
-                    await clickNext(modal, page);
-                }
-                if (step === 'content') {
-                    await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
-                    await clickNext(modal, page);
-                }
+                await nextToStep(modal, page, step);
                 await held.first;
                 await closeWizard(page);
 
@@ -1220,16 +1226,7 @@ test.describe('Landing Page Wizard', () => {
             });
 
             const modal = await openWizard(page, await navigateToModule(page));
-            await modal.locator('.template-card').first().click();
-            await clickNext(modal, page);
-            if (step !== 'briefing') {
-                await modal.locator('.carousel-item.active #briefing_title').waitFor({ state: 'visible', timeout: 15000 });
-                await clickNext(modal, page);
-            }
-            if (step === 'content') {
-                await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
-                await clickNext(modal, page);
-            }
+            await nextToStep(modal, page, step);
             await expect(modal.locator('.carousel-item.active .alert-danger')).toBeVisible({ timeout: 15000 });
             await waitForSlideSettled(modal);
             await expect(modal.locator('button[name="next"]')).toBeFocused();
