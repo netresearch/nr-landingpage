@@ -89,7 +89,8 @@ Tests run in Docker containers via `Build/Scripts/runTests.sh`.
 | PHPStan | - | `./Build/Scripts/runTests.sh -p 8.4 -s phpstan` |
 | CGL | - | `./Build/Scripts/runTests.sh -p 8.4 -s cgl` |
 
-**Important:** Always use `-p 8.4` flag — the extension requires PHP 8.4+.
+The examples use PHP 8.4. The extension requires PHP ^8.2 (`composer.json`),
+and CI tests PHP 8.2, 8.3 and 8.4 (`.github/workflows/ci.yml`).
 
 ## Key Files
 
