@@ -655,6 +655,57 @@ test.describe('Landing Page Wizard', () => {
         expect(requests).toBe(2);
     });
 
+    test('a section regeneration shows its loading spinner in the section card', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const regenerate = await holdFirstReply(page, '/nr-landingpage/wizard/regenerate-section', staleSection);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await modal.locator('#section-card-0 .card-header button').first().click();
+        await regenerate.first;
+
+        const status = modal.locator('#section-card-0 .card-body [role="status"]');
+        await expect(status).toBeVisible();
+        await expect(status.locator('typo3-backend-spinner')).toHaveCount(1);
+        regenerate.release();
+        await expect(modal.locator('#section-card-0 .card-body [role="status"]')).toHaveCount(0, { timeout: 15000 });
+    });
+
+    test('a section regeneration reply after leaving the content step and coming back is dropped', async ({ authenticatedPage: page }) => {
+        await countParsedReplies(page);
+        await mockUpToContent(page);
+        const regenerate = await holdFirstReply(page, '/nr-landingpage/wizard/regenerate-section', staleSection);
+        let saved: { contentSections: Array<Record<string, unknown>> } | null = null;
+        await page.route('**/nr-landingpage/wizard/save**', async (route) => {
+            saved = route.request().postDataJSON();
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { pageUid: 0 } }) });
+        });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await modal.locator('#section-card-0 .card-header button').first().click();
+        await regenerate.first;
+
+        // Back to the page fields and Next again: the content step renders
+        // its sections anew, from a new generate-content reply.
+        await modal.locator('#section-card-0').evaluate((card) => card.setAttribute('data-stale', '1'));
+        await modal.locator('button[name="prev"]:not([disabled])').click();
+        await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active #section-card-0:not([data-stale])').waitFor({ state: 'visible', timeout: 15000 });
+        await waitForSlideSettled(modal);
+
+        regenerate.release();
+        await expect.poll(() => parsedReplies(page, 'regenerate-section'), { timeout: 15000 }).toBe(1);
+        expect((await wizardState(page)).contentSections[0].header).toBe(sampleContentSections.sections[0].header);
+
+        // The request is over for this wizard: Save works, with the sections
+        // the user sees.
+        await saveFromContent(modal, page);
+        await expect.poll(() => saved !== null, { timeout: 15000 }).toBe(true);
+        expect(saved!.contentSections[0].header).toBe(sampleContentSections.sections[0].header);
+    });
+
     // Sections that declare "no image chosen" (imageUid 0): a recommended image
     // in a reply is then chosen automatically, which is what a stale reply
     // must not do to the next wizard's state.

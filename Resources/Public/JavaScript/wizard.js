@@ -334,6 +334,20 @@ class LandingPageWizard {
     }
 
     /**
+     * True when a section regeneration reply no longer belongs to the section
+     * it was asked for: the wizard was opened again, or the content step has
+     * rendered its sections anew since (the user left the step and came
+     * back), which replaces the section card.
+     *
+     * @param {number} run  The value of `_run` when the request started
+     * @param {HTMLElement|null} card  The section card at that time
+     * @returns {boolean}
+     */
+    isStaleSectionReply(run, card) {
+        return this.isStaleRun(run) || (card !== null && !card.isConnected);
+    }
+
+    /**
      * Start a slide render and return its token.
      *
      * Every slide render takes one, so a reply that arrives after the user
@@ -1430,7 +1444,9 @@ class LandingPageWizard {
         this._busy = true;
         const run = this._run;
 
-        const card = document.getElementById('section-card-' + index);
+        // The card lives in the modal, which is in the top document, not in
+        // this module's frame: look it up in the content step's own element.
+        const card = container.querySelector('#section-card-' + index);
         if (card) {
             const cardBody = card.querySelector('.card-body');
             if (cardBody) {
@@ -1449,7 +1465,7 @@ class LandingPageWizard {
                 parentPageId: WizardState.getParentPageId(),
                 sectionIndex: index,
             });
-            if (this.isStaleRun(run)) {
+            if (this.isStaleSectionReply(run, card)) {
                 return;
             }
 
@@ -1461,7 +1477,7 @@ class LandingPageWizard {
 
             this.rerenderContentSlide(container);
         } catch (error) {
-            if (this.isStaleRun(run)) {
+            if (this.isStaleSectionReply(run, card)) {
                 return;
             }
             Notification.error(this.label('wizard.notification.regenerationFailed'), error.message);
