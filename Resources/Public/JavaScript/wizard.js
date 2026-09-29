@@ -321,7 +321,7 @@ class LandingPageWizard {
      *     when the wizard was opened again in the meantime
      */
     async loadGenerationInfo(run) {
-        if (!WizardState.regenerateMode || !(WizardState.sourcePageUid > 0) || this._generationInfoLoaded) {
+        if (!WizardState.regenerateMode || WizardState.sourcePageUid <= 0 || this._generationInfoLoaded) {
             return null;
         }
         this._generationInfoLoaded = true;
