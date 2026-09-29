@@ -1285,6 +1285,24 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal.locator('button[name="next"]')).toBeFocused();
     });
 
+    test('re-generate: a key pressed in an earlier wizard does not count for the one opened after it', async ({ authenticatedPage: page }) => {
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generation-info', {
+            templateUid: sampleTemplate.uid,
+            briefingAnswers: { title: 'Stored title' },
+            parentPageId: 0,
+        });
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+        await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+
+        const first = await openRegenerateWizard(page);
+        await expect(first.locator('.carousel-item.active #briefing_title')).toBeFocused({ timeout: 15000 });
+        await page.keyboard.press('Tab');
+        await closeWizard(page);
+
+        const modal = await openWizard(page, getModuleFrame(page));
+        await expect(modal.locator('.carousel-item.active #briefing_title')).toBeFocused({ timeout: 15000 });
+    });
+
     test('re-generate: focus the user puts on Cancel while the briefing loads stays there', async ({ authenticatedPage: page }) => {
         await mockAjaxRoute(page, '/nr-landingpage/wizard/generation-info', {
             templateUid: sampleTemplate.uid,
