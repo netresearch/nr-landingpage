@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # AGENTS.md
 
 > AI agent guide for the `nr_landingpage` TYPO3 extension

@@ -4,6 +4,9 @@
 ## Usage: install-v14
 ## Example: ddev install-v14
 
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
+
 set -e
 
 VERSION=v14

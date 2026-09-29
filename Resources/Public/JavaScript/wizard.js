@@ -1,3 +1,8 @@
+/*
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileCopyrightText: Netresearch DTT GmbH
+ */
+
 import WizardState from '@netresearch/nr-landingpage/wizard-state.js';
 import MultiStepWizard from '@typo3/backend/multi-step-wizard.js';
 import Modal from '@typo3/backend/modal.js';

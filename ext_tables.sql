@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
+
 CREATE TABLE tx_nrlandingpage_domain_model_template (
     title varchar(255) NOT NULL DEFAULT '',
     identifier varchar(255) NOT NULL DEFAULT '',

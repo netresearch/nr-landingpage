@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # TYPO3 Landing Page Generator (nr_landingpage)
 
 A TYPO3 extension that generates landing pages via LLM using an interactive step-by-step backend wizard.

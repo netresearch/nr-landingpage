@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
+
 # Makefile for nr_landingpage TYPO3 extension development
 
 .PHONY: help up start down restart install sync test test-unit test-func test-e2e coverage mutation lint lint-fix phpstan rector rector-fix clean ci ci-full
