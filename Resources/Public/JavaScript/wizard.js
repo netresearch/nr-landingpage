@@ -351,8 +351,9 @@ class LandingPageWizard {
 
             // The template cards are a single choice: WAI-ARIA radio group with
             // roving tabindex. Arrow keys move focus and check, Space and Enter
-            // check. Enter then also reaches the modal's Enter-to-Next handler,
-            // which presses Next once a card is checked.
+            // check. The card handler prevents the default of that Enter, so the
+            // modal's Enter-to-Next handler leaves it alone and Next stays a
+            // separate step.
             const grid = document.createElement('div');
             grid.className = 'row g-3';
             grid.setAttribute('role', 'radiogroup');
