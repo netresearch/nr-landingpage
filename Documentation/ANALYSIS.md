@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Documentation Analysis Report
 
 **Generated:** 2026-03-08 19:58:23 UTC

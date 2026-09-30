@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Design: Optional FAL Images in Creative HTML Mode
 
 **Date:** 2026-03-11

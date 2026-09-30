@@ -1,5 +1,10 @@
 <?php
 
+/*
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileCopyrightText: Netresearch DTT GmbH
+ */
+
 $EM_CONF[$_EXTKEY] = [
     'title' => 'Landing Page Generator',
     'description' => 'Generate Landing Pages via LLM using a step-by-step Backend Wizard',

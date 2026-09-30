@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # TYPO3 Landing Page Generator (nr_landingpage)
 
 A TYPO3 extension that generates landing pages via LLM using an interactive step-by-step backend wizard.
@@ -34,7 +37,7 @@ Templates are managed as TCA records (`tx_nrlandingpage_domain_model_template`) 
 - **System Prompt** -- the LLM prompt used for content generation
 - **Allowed CTypes** -- which content element types the template may produce
 - **Page Fields** -- which page-level fields (e.g. `og:title`, `description`) are generated
-- **Reference Pages** -- existing pages used as style/structure reference for the LLM
+- **Reference Pages** -- existing pages named as references; the prompt optimizer lists their UIDs in its request, and their content is not sent to the LLM
 - **Briefing Mode** -- `required`, `optional`, or `none`
 - **Publish Mode** -- whether pages are created hidden or visible
 - **Backend User Groups** -- restrict template visibility to specific groups
@@ -65,7 +68,7 @@ with that page pre-selected as the parent.
 The extension dispatches events that allow customization:
 
 - `BeforePageCreationEvent` -- modify page data before the page record is written
-- `AfterContentGenerationEvent` -- modify generated content sections before they are saved
+- `AfterContentGenerationEvent` -- react after the page and its content elements were created (receives the template, the page UID and the content element UIDs)
 
 ## Development
 
@@ -153,6 +156,12 @@ Tests/
   Architecture/          phpat architecture tests
   E2E/                   Playwright E2E test skeleton
 ```
+
+## Security and Architecture
+
+[docs/SECURITY-ASSURANCE.md](docs/SECURITY-ASSURANCE.md) describes the actors, components and data flows, what
+the extension guarantees in terms of security and where its limits are. Report vulnerabilities as described in
+the [Netresearch security policy](https://github.com/netresearch/.github/blob/main/SECURITY.md).
 
 ## Contributing
 
