@@ -13,7 +13,7 @@ public issues.
 
 | Actor | How it interacts with the extension |
 |-------|-------------------------------------|
-| Wizard user | A TYPO3 backend user with access to the "Landing Pages" backend module (`Configuration/Backend/Modules.php`, `access: user`). Runs the wizard, answers briefing questions, edits the generated content and saves the page. |
+| Wizard user | A TYPO3 backend user who opens the wizard in the "Landing Pages" backend module (`Configuration/Backend/Modules.php`), directly or through the page tree context menu (`Classes/ContextMenu/LandingPageItemProvider.php`). The wizard talks to the AJAX routes in `Configuration/Backend/AjaxRoutes.php`. Runs the wizard, answers briefing questions, edits the generated content and saves the page. |
 | Template editor | A backend user allowed to edit records of `tx_nrlandingpage_domain_model_template` (`Configuration/TCA/tx_nrlandingpage_domain_model_template.php`). Sets the system prompt, the allowed content types, page fields, generation mode, animation and the backend user groups of a template. |
 | Integrator / administrator | Configures the LLM and image-generation providers in `netresearch/nr-llm`, the site settings for colours (`Configuration/Sets/NrLandingpage/`) and the TYPO3 permissions of editors. |
 | LLM provider | External service reached through `netresearch/nr-llm`. Receives prompts and returns text. |
@@ -51,8 +51,9 @@ public issues.
    (`ImageSearchService`) or from an image-generation provider; generated images are stored in the folder
    `generated-landingpage/` of the default FAL storage (`ImageProviderService::storeGeneratedImage()`).
 5. On save, `PageCreatorService::createLandingPage()` writes `pages`, `tt_content` and `sys_file_reference`
-   records through DataHandler, then, when animation is enabled, two `html` content elements that load GSAP
-   and run the animation script. It stores generation metadata in the `pages` columns defined in
+   records through DataHandler, then, when animation is enabled, an `html` content element that loads GSAP
+   and, when at least one section carries a valid animation, a second one that runs the animation script
+   (`PageCreatorService::createGsapElements()`). It stores generation metadata in the `pages` columns defined in
    `ext_tables.sql` (template UID, briefing answers as JSON, config hash, timestamp, source page).
 6. TYPO3 renders the created page to frontend visitors. With animation enabled, the page loads
    `Resources/Public/JavaScript/vendor/gsap/3/*.min.js` from the extension.
@@ -75,8 +76,10 @@ public issues.
 - **Record permissions.** Pages, content elements and file references are written through DataHandler as
   the current backend user (`PageCreatorService::createDataHandler()`), so TYPO3's page, table, field and
   workspace permissions apply to these records.
-- **Page fields.** Fields in `PageCreatorService::RESERVED_PAGE_FIELDS` are never taken from the request;
-  when a template lists page fields, only those fields are written (`PageCreatorService::buildPageData()`).
+- **Page fields.** The page-field values of the request never set a field listed in
+  `PageCreatorService::RESERVED_PAGE_FIELDS`; `title` and `slug` come only from the request's dedicated
+  `title` and `slug` values. When a template lists page fields, only those fields are written
+  (`PageCreatorService::buildPageData()`).
 - **Content types and positions.** In structured mode a content type outside the template's allowed list
   is replaced by `text`, both when the LLM answers (`ContentGeneratorService::validateSections()`) and when
   the page is saved (`LandingPageWizardController::saveAction()`). When the LLM answers, column positions
@@ -130,7 +133,7 @@ public issues.
   `var/log/llm_response_<template>_<timestamp>.txt` (`LlmCompletionTrait::dumpLlmResponse()`).
 - **Error details.** Apart from image generation, a failed AJAX action returns the exception message to the
   backend user and logs the trace (`LandingPageWizardController::errorResponse()`).
-- **Templates without groups are visible to every user of the module.**
+- **Templates without backend user groups carry no group restriction** (`TemplateService::isTemplateAccessible()`).
 - **Visibility of new pages** depends on the template's publish mode; re-generated pages are always created
   hidden (`PageCreatorService::addGenerationMetadata()`).
 
@@ -140,14 +143,15 @@ public issues.
 |----------|------------------------------------|
 | CWE-79 Cross-site scripting | HTML allowlist for structured mode; `CreativeHtmlSanitizer` for creative mode; sandboxed preview iframe; DOM-element modal content; tests listed above. |
 | CWE-89 SQL injection | QueryBuilder with named parameters in the controller and services. |
-| CWE-862 / CWE-863 Missing or incorrect authorisation | Group check for templates in `TemplateService`; DataHandler permission checks for all writes. |
+| CWE-862 / CWE-863 Missing or incorrect authorisation | Group check for templates in `TemplateService`; DataHandler permission checks for the page, content element and file reference records the wizard creates. |
 | CWE-434 Unrestricted upload of dangerous file type | Content-based MIME check and extension allowlist for generated images. |
 | CWE-20 Improper input validation | Typed extraction of request values; CType, column, orientation and animation values restricted to known sets or ranges. |
 
 ## Secure design principles applied
 
-- **Least privilege:** the extension writes records only as the current backend user through DataHandler
-  and adds no access bypass.
+- **Least privilege:** pages, content elements and file references are written as the current backend
+  user through DataHandler; generated images go to FAL and unparseable LLM responses to `var/log`, as
+  described above.
 - **Fail closed:** an inaccessible or missing template leads to an error response, not to a fallback
   template.
 - **Defence in depth:** creative HTML is filtered when the LLM answers and again when the page is saved.
@@ -159,4 +163,5 @@ public issues.
 | Path | Origin | Licence |
 |------|--------|---------|
 | `Resources/Public/JavaScript/vendor/gsap/3/gsap.min.js`, `ScrollTrigger.min.js`, `TextPlugin.min.js` | GSAP 3.14.2 by GreenSock (<https://gsap.com>), version recorded in `GsapService::VERSION` | Terms at <https://gsap.com/standard-license>, as stated in each file's header |
+| `Build/phpunit/FunctionalTestsBootstrap.php` | Same code as `Resources/Core/Build/FunctionalTestsBootstrap.php` of `typo3/testing-framework` | GPL-2.0-or-later (typo3/testing-framework) |
 | `Build/Scripts/runTests.sh` | Based on the test runner of TYPO3BestPractices/tea and the netresearch typo3-testing-skill template, as its header states | See the header of the file |
