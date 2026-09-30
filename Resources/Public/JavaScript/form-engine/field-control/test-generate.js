@@ -80,7 +80,8 @@ class TestGenerate {
               Notification.warning(this.lang('fieldControl.testGenerate.validation.titleRequired', 'Please enter a sample title'));
               return;
             }
-            this.runTestGenerate(modal, templateUid, title);
+            // runTestGenerate catches and reports its request errors itself.
+            void this.runTestGenerate(modal, templateUid, title);
           },
         },
       ],
