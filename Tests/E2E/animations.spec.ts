@@ -26,7 +26,7 @@ async function pageWithMap(
     await page.setContent(
         `<!doctype html><html><body style="margin:0">${body}`
         + `<script type="application/json" data-nr-landingpage-animations>${JSON.stringify(map)}</script>`
-        + '</body></html>',
+            + '</body></html>',
     );
     if (beforeRuntime) {
         await page.evaluate(beforeRuntime);
@@ -40,6 +40,21 @@ async function opacity(page: Page, selector: string): Promise<string> {
 
 async function transform(page: Page, selector: string): Promise<string> {
     return page.locator(selector).evaluate((element) => (element as HTMLElement).style.transform);
+}
+
+/**
+ * Loads the stand-ins into a page and runs a stored script against them.
+ * Returns the page errors, collected from before the page content is set.
+ */
+async function runWithStandIn(page: Page, html: string, script: string): Promise<string[]> {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.setContent(html);
+    for (const path of STAND_INS) {
+        await page.addScriptTag({ path });
+    }
+    await page.addScriptTag({ content: script });
+    return errors;
 }
 
 test.describe('animation runtime', () => {
@@ -132,29 +147,22 @@ test.describe('animation runtime', () => {
 
 test.describe('GSAP stand-ins for pages generated with GSAP', () => {
     test('keep the content of a stored GSAP script visible', async ({ page }) => {
-        const errors: string[] = [];
-        page.on('pageerror', (error) => errors.push(error.message));
-
         // The script shape AnimationScriptBuilder generated before the runtime
         // replaced GSAP: typewriter empties the text before calling gsap.to().
-        await page.setContent(
+        const errors = await runWithStandIn(
+            page,
             '<!doctype html><html><body>'
             + '<div id="c8"><h2>Old heading</h2><p>Old para</p></div>'
             + '<div id="c9"><p>Faded</p></div>'
             + '</body></html>',
+            "gsap.registerPlugin(ScrollTrigger, TextPlugin);"
+            + "gsap.matchMedia().add('(prefers-reduced-motion: no-preference)', function() {});"
+            + "document.querySelectorAll('#c8 h1, #c8 h2, #c8 p').forEach(function(el) {"
+            + " var t = el.textContent; el.textContent = '';"
+            + " gsap.to(el, {scrollTrigger: '#c8', text: t, duration: 1, delay: 0, ease: 'none'}); });"
+            + "gsap.from('#c9', {scrollTrigger: '#c9', opacity: 0, y: 40, duration: 0.8, delay: 0});"
+            + "gsap.to('#c9', {scrollTrigger: {trigger: '#c9', scrub: true}, y: -30, ease: 'none'});",
         );
-        for (const path of STAND_INS) {
-            await page.addScriptTag({ path });
-        }
-        await page.addScriptTag({
-            content: "gsap.registerPlugin(ScrollTrigger, TextPlugin);"
-                + "gsap.matchMedia().add('(prefers-reduced-motion: no-preference)', function() {});"
-                + "document.querySelectorAll('#c8 h1, #c8 h2, #c8 p').forEach(function(el) {"
-                + " var t = el.textContent; el.textContent = '';"
-                + " gsap.to(el, {scrollTrigger: '#c8', text: t, duration: 1, delay: 0, ease: 'none'}); });"
-                + "gsap.from('#c9', {scrollTrigger: '#c9', opacity: 0, y: 40, duration: 0.8, delay: 0});"
-                + "gsap.to('#c9', {scrollTrigger: {trigger: '#c9', scrub: true}, y: -30, ease: 'none'});",
-        });
 
         await expect(page.locator('#c8 h2')).toHaveText('Old heading');
         await expect(page.locator('#c8 p')).toHaveText('Old para');
@@ -163,35 +171,28 @@ test.describe('GSAP stand-ins for pages generated with GSAP', () => {
     });
 
     test('accept other GSAP calls and apply the end state that decides visibility', async ({ page }) => {
-        const errors: string[] = [];
-        page.on('pageerror', (error) => errors.push(error.message));
-
         // Shapes a script written in creative mode may use; the page hides
         // the content in CSS and relies on GSAP to show it.
-        await page.setContent(
+        const errors = await runWithStandIn(
+            page,
             '<!doctype html><html><head><style>'
             + '#a, #d { opacity: 0 } #c { opacity: 0; visibility: hidden }'
             + '</style></head><body>'
             + '<div id="a">A</div><div id="b">B</div><div id="c">C</div><div id="d">D</div>'
             + '<p class="item">One</p><p class="item">Two</p>'
             + '</body></html>',
+            "gsap.registerPlugin(ScrollTrigger, TextPlugin);"
+            + "gsap.set('.item', {y: 20});"
+            + "gsap.timeline({scrollTrigger: {trigger: '#a', start: 'top 80%'}})"
+            + ".fromTo('#a', {opacity: 0}, {opacity: 1, duration: 1})"
+            + ".to('#b', {text: {value: 'Typed'}, duration: 1});"
+            + "ScrollTrigger.create({trigger: '#c', onEnter: function () { gsap.to('#c', {autoAlpha: 1}); }});"
+            + "ScrollTrigger.refresh();"
+            + "gsap.utils.toArray('.item').forEach(function (el, i) { gsap.from(el, {y: 20, delay: i * 0.1}); });"
+            + "gsap.matchMedia().add('(min-width: 1px)', function () { gsap.to('#d', {opacity: 1}); });"
+            + "gsap.quickTo('#a', 'x')(10);"
+            + "document.body.dataset.done = 'yes';",
         );
-        for (const path of STAND_INS) {
-            await page.addScriptTag({ path });
-        }
-        await page.addScriptTag({
-            content: "gsap.registerPlugin(ScrollTrigger, TextPlugin);"
-                + "gsap.set('.item', {y: 20});"
-                + "gsap.timeline({scrollTrigger: {trigger: '#a', start: 'top 80%'}})"
-                + ".fromTo('#a', {opacity: 0}, {opacity: 1, duration: 1})"
-                + ".to('#b', {text: {value: 'Typed'}, duration: 1});"
-                + "ScrollTrigger.create({trigger: '#c', onEnter: function () { gsap.to('#c', {autoAlpha: 1}); }});"
-                + "ScrollTrigger.refresh();"
-                + "gsap.utils.toArray('.item').forEach(function (el, i) { gsap.from(el, {y: 20, delay: i * 0.1}); });"
-                + "gsap.matchMedia().add('(min-width: 1px)', function () { gsap.to('#d', {opacity: 1}); });"
-                + "gsap.quickTo('#a', 'x')(10);"
-                + "document.body.dataset.done = 'yes';",
-        });
 
         expect(errors).toEqual([]);
         await expect(page.locator('body')).toHaveAttribute('data-done', 'yes');
@@ -204,26 +205,19 @@ test.describe('GSAP stand-ins for pages generated with GSAP', () => {
     });
 
     test('never hide visible content and settle tweens used as promises', async ({ page }) => {
-        const errors: string[] = [];
-        page.on('pageerror', (error) => errors.push(error.message));
-
-        await page.setContent(
+        const errors = await runWithStandIn(
+            page,
             '<!doctype html><html><head><style>.card, #r { opacity: 0 }</style></head><body>'
             + '<h1 id="hero">Hero</h1><div class="card">1</div><div class="card">2</div><div id="r">R</div>'
             + '</body></html>',
+            "gsap.to('#hero', {opacity: 0, y: -50, scrollTrigger: {trigger: '#hero', scrub: true}});"
+            + "gsap.to('#hero', {autoAlpha: 0, delay: 2});"
+            + "gsap.matchMedia().add('(max-width: 1px)', function () { gsap.set('#hero', {visibility: 'hidden'}); });"
+            + "ScrollTrigger.batch(gsap.utils.toArray('.card'), {onEnter: function (batch) { gsap.to(batch, {opacity: 1}); }});"
+            + "gsap.context(function () { gsap.to('#r', {opacity: 1}); });"
+            + "gsap.to('#hero', {y: 10}).then(function () { document.body.dataset.then = 'yes'; });"
+            + "(async function () { await gsap.timeline().to('#hero', {y: 0}); document.body.dataset.awaited = 'yes'; })();",
         );
-        for (const path of STAND_INS) {
-            await page.addScriptTag({ path });
-        }
-        await page.addScriptTag({
-            content: "gsap.to('#hero', {opacity: 0, y: -50, scrollTrigger: {trigger: '#hero', scrub: true}});"
-                + "gsap.to('#hero', {autoAlpha: 0, delay: 2});"
-                + "gsap.matchMedia().add('(max-width: 1px)', function () { gsap.set('#hero', {visibility: 'hidden'}); });"
-                + "ScrollTrigger.batch(gsap.utils.toArray('.card'), {onEnter: function (batch) { gsap.to(batch, {opacity: 1}); }});"
-                + "gsap.context(function () { gsap.to('#r', {opacity: 1}); });"
-                + "gsap.to('#hero', {y: 10}).then(function () { document.body.dataset.then = 'yes'; });"
-                + "(async function () { await gsap.timeline().to('#hero', {y: 0}); document.body.dataset.awaited = 'yes'; })();",
-        });
 
         expect(errors).toEqual([]);
         await expect(page.locator('#hero')).toHaveCSS('opacity', '1');
@@ -233,6 +227,40 @@ test.describe('GSAP stand-ins for pages generated with GSAP', () => {
         await expect(page.locator('#r')).toHaveCSS('opacity', '1');
         await expect(page.locator('body')).toHaveAttribute('data-then', 'yes');
         await expect(page.locator('body')).toHaveAttribute('data-awaited', 'yes');
+    });
+
+    test('leave content that a script only animates from, and run on after await', async ({ page }) => {
+        const errors = await runWithStandIn(
+            page,
+            '<!doctype html><html><body><h1 id="t">Welcome to our page</h1><h2 id="u">Second</h2>'
+            + '<p id="v">Third</p><p id="w">Fourth</p><p id="y">Fifth</p>'
+            + '<span id="count">1200</span></body></html>',
+            "gsap.registerPlugin(ScrollTrigger, Observer);"
+            + "Observer.create({target: window, type: 'wheel,touch', onUp: function () {}, onDown: function () {}});"
+            + "gsap.from('#t', {text: ''});"
+            + "gsap.timeline().from('#u', {text: {value: ''}});"
+            + "gsap.from('#v', {text: 'Loading'});"
+            + "gsap.to('#w', {text: ''});"
+            + "gsap.fromTo('#y', {text: 'Start'}, {text: ''});"
+            + "var counter = {val: 0}; var span = document.getElementById('count');"
+            + "gsap.to(counter, {val: 1200, duration: 2, onUpdate: function () { span.textContent = Math.round(counter.val); }});"
+            + "(async function () {"
+            + " const tween = await gsap.to('#t', {opacity: 1}); tween.kill();"
+            + " async function build() { return gsap.timeline(); } (await build()).play();"
+            + " for await (const el of gsap.utils.toArray('#t')) { el.dataset.seen = 'yes'; }"
+            + " document.body.dataset.done = 'yes';"
+            + "})();",
+        );
+
+        await expect(page.locator('body')).toHaveAttribute('data-done', 'yes');
+        expect(errors).toEqual([]);
+        await expect(page.locator('#t')).toHaveText('Welcome to our page');
+        await expect(page.locator('#u')).toHaveText('Second');
+        await expect(page.locator('#v')).toHaveText('Third');
+        await expect(page.locator('#w')).toHaveText('Fourth');
+        await expect(page.locator('#y')).toHaveText('Fifth');
+        await expect(page.locator('#count')).toHaveText('1200');
+        await expect(page.locator('#t')).toHaveAttribute('data-seen', 'yes');
     });
 
     // Script shapes from review probes, each run against an element that the
@@ -256,13 +284,11 @@ test.describe('GSAP stand-ins for pages generated with GSAP', () => {
     };
     for (const [name, script] of Object.entries(SHAPES)) {
         test(`run the shape ${name} to its end and show the element`, async ({ page }) => {
-            const errors: string[] = [];
-            page.on('pageerror', (error) => errors.push(error.message));
-            await page.setContent('<!doctype html><html><head><style>#x{opacity:0}</style></head><body><div id="x">X</div></body></html>');
-            for (const path of STAND_INS) {
-                await page.addScriptTag({ path });
-            }
-            await page.addScriptTag({ content: 'gsap.registerPlugin(ScrollTrigger, TextPlugin);' + script + "document.body.dataset.done='yes';" });
+            const errors = await runWithStandIn(
+                page,
+                '<!doctype html><html><head><style>#x{opacity:0}</style></head><body><div id="x">X</div></body></html>',
+                'gsap.registerPlugin(ScrollTrigger, TextPlugin);' + script + "document.body.dataset.done='yes';",
+            );
 
             expect(errors).toEqual([]);
             await expect(page.locator('body')).toHaveAttribute('data-done', 'yes');
