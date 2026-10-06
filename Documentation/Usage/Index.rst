@@ -334,9 +334,10 @@ longer ships. Pages generated with them keep the animation elements
 "[Animation Library]" and "[Animation Script]", and creative pages also
 keep the scripts the LLM wrote into their sections. The files these
 pages load are now small stand-ins of the extension: they accept every
-GSAP call without animating, apply end values for opacity, visibility
-and text at once, and run ``matchMedia()`` and ScrollTrigger enter
-callbacks once. Content that the extension's own animation script hid
+GSAP call without animating, apply end values that show content
+(opacity, visibility, text) at once and ignore those that would hide
+it, and run ``gsap.context()``, ``matchMedia()`` and ScrollTrigger
+enter callbacks once. Content that the extension's own animation script hid
 or emptied stays visible.
 
 A script written by the LLM can still depend on GSAP in ways the

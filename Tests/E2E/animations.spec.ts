@@ -202,4 +202,36 @@ test.describe('GSAP stand-ins for pages generated with GSAP', () => {
         await expect(page.locator('#d')).toHaveCSS('opacity', '1');
         await expect(page.locator('.item')).toHaveCount(2);
     });
+
+    test('never hide visible content and settle tweens used as promises', async ({ page }) => {
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+
+        await page.setContent(
+            '<!doctype html><html><head><style>.card, #r { opacity: 0 }</style></head><body>'
+            + '<h1 id="hero">Hero</h1><div class="card">1</div><div class="card">2</div><div id="r">R</div>'
+            + '</body></html>',
+        );
+        for (const path of STAND_INS) {
+            await page.addScriptTag({ path });
+        }
+        await page.addScriptTag({
+            content: "gsap.to('#hero', {opacity: 0, y: -50, scrollTrigger: {trigger: '#hero', scrub: true}});"
+                + "gsap.to('#hero', {autoAlpha: 0, delay: 2});"
+                + "gsap.matchMedia().add('(max-width: 1px)', function () { gsap.set('#hero', {visibility: 'hidden'}); });"
+                + "ScrollTrigger.batch(gsap.utils.toArray('.card'), {onEnter: function (batch) { gsap.to(batch, {opacity: 1}); }});"
+                + "gsap.context(function () { gsap.to('#r', {opacity: 1}); });"
+                + "gsap.to('#hero', {y: 10}).then(function () { document.body.dataset.then = 'yes'; });"
+                + "(async function () { await gsap.timeline().to('#hero', {y: 0}); document.body.dataset.awaited = 'yes'; })();",
+        });
+
+        expect(errors).toEqual([]);
+        await expect(page.locator('#hero')).toHaveCSS('opacity', '1');
+        await expect(page.locator('#hero')).toHaveCSS('visibility', 'visible');
+        await expect(page.locator('.card').nth(0)).toHaveCSS('opacity', '1');
+        await expect(page.locator('.card').nth(1)).toHaveCSS('opacity', '1');
+        await expect(page.locator('#r')).toHaveCSS('opacity', '1');
+        await expect(page.locator('body')).toHaveAttribute('data-then', 'yes');
+        await expect(page.locator('body')).toHaveAttribute('data-awaited', 'yes');
+    });
 });
