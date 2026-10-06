@@ -340,8 +340,10 @@ pages load are now a small stand-in of the extension:
    one inert value that does nothing.
 -  The animation script the extension generated keeps its content
    visible, including the text of typewriter sections.
--  Scripts the LLM wrote are not emulated. Content such a script hides
-   and expects GSAP to show again can stay hidden.
+-  Scripts the LLM wrote are not emulated: nothing is animated and their
+   callbacks do not run, apart from continuations of ``await`` and
+   ``.then()``. Content such a script hides and expects GSAP to show
+   again can stay hidden.
 
 Re-generate pages generated with GSAP to use the current animations.
 Deleting the two animation elements is enough only for structured
