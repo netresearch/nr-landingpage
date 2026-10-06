@@ -149,6 +149,12 @@
     }
     var map = readAnimationMap();
     var pending = new Map();
+    // Threshold 0: an element counts as in view as soon as any part of it is.
+    // A ratio threshold is never reached by an element taller than the
+    // viewport divided by that ratio, which would then stay hidden.
+    // The margin covers the start states' offsets of up to 60px: the observer
+    // sees the moved box, so an element at the top of the page that starts
+    // 40px higher would otherwise never intersect.
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (entry.isIntersecting && pending.has(entry.target)) {
@@ -158,7 +164,7 @@
           run();
         }
       });
-    }, { threshold: 0.15 });
+    }, { threshold: 0, rootMargin: '64px' });
 
     Object.keys(map).forEach(function (uid) {
       var element = document.getElementById('c' + uid);

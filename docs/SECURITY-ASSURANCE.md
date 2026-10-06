@@ -110,6 +110,8 @@ public issues.
   staggers, encoded so that it cannot close its element (`AnimationScriptBuilder`,
   `ContentGeneratorService::validateAnimation()`). The code that runs is the extension's own
   `Resources/Public/JavaScript/frontend/animations.js`; the extension ships no third-party JavaScript.
+  `Resources/Public/JavaScript/vendor/gsap/3/*.min.js` are the extension's own stand-ins for pages generated
+  with GSAP: they accept the stored script's calls without animating, so its content stays visible.
 - **Generated images.** The downloaded file must have an `image/*` MIME type detected from its content and
   an extension listed in `$GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext']`
   (`ImageProviderService::storeGeneratedImage()`). A failed generation returns a generic message to the

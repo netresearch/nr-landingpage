@@ -330,7 +330,9 @@ Pages Generated With GSAP
 -------------------------
 
 Earlier versions of the extension loaded the GSAP library, which it no
-longer ships. On pages generated with them, the animation elements
-"[Animation Library]" and "[Animation Script]" no longer animate
-anything; the content stays visible. Re-generate such pages, or delete
-the two elements, to use the current animations.
+longer ships. Pages generated with them keep the animation elements
+"[Animation Library]" and "[Animation Script]". The files they load are
+now small stand-ins of the extension that accept the stored script's
+calls without animating: the content stays visible, including the text
+of typewriter sections. Re-generate such pages, or delete the two
+elements, to use the current animations.

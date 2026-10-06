@@ -554,7 +554,8 @@ elements with hidden headers:
 
 The script animates each listed content element when it scrolls into
 view: fade, slide, zoom and scale reveals, staggered children, a
-typewriter effect for headings and paragraphs, and parallax. It does
+typewriter effect for headings and paragraphs that contain plain text
+(one with inline markup such as a link stays as it is), and parallax. It does
 nothing when the visitor's system asks for reduced motion, and content
 stays visible if the script does not load.
 
