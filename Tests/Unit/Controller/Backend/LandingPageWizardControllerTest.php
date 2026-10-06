@@ -11,6 +11,7 @@ namespace Netresearch\NrLandingpage\Tests\Unit\Controller\Backend;
 
 use Netresearch\NrLandingpage\Controller\Backend\LandingPageWizardController;
 use Netresearch\NrLandingpage\Domain\Model\Template;
+use Netresearch\NrLandingpage\Service\BackendAccessGuard;
 use Netresearch\NrLandingpage\Service\BackendLayoutService;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
@@ -24,6 +25,7 @@ use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Http\Message\ServerRequestInterface;
@@ -49,7 +51,18 @@ final class LandingPageWizardControllerTest extends UnitTestCase
     private ImageProviderService&MockObject $imageProviderService;
     private PageCreatorService&MockObject $pageCreatorService;
     private PromptOptimizerService&MockObject $promptOptimizerService;
+    private BackendAccessGuard&MockObject $accessGuard;
     private LandingPageWizardController $subject;
+
+    private bool $moduleAccess = true;
+
+    private bool $templateEditAccess = true;
+
+    /** @var list<int> */
+    private array $unreadablePageIds = [];
+
+    /** @var list<int> */
+    private array $unreadableFileUids = [];
 
     protected function setUp(): void
     {
@@ -78,10 +91,23 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         $backendLayoutService->method('formatColumnMapForPrompt')->willReturn('');
         $contentGeneratorService = new ContentGeneratorService($this->completionService, $llmServiceManager, $configRepo, $cTypeMetadataService, $backendLayoutService, new \Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer());
         $this->imageSearchService = $this->createMock(ImageSearchService::class);
+        $this->imageSearchService->method('isReadable')->willReturnCallback(
+            fn(int $uid): bool => !in_array($uid, $this->unreadableFileUids, true),
+        );
         $this->imageProviderService = $this->createMock(ImageProviderService::class);
 
         $this->pageCreatorService = $this->createMock(PageCreatorService::class);
         $this->promptOptimizerService = $this->createMock(PromptOptimizerService::class);
+
+        $this->accessGuard = $this->createMock(BackendAccessGuard::class);
+        $this->accessGuard->method('mayUseWizard')->willReturnCallback(fn(): bool => $this->moduleAccess);
+        $this->accessGuard->method('mayEditTemplates')->willReturnCallback(fn(): bool => $this->templateEditAccess);
+        $this->accessGuard->method('mayReadPage')->willReturnCallback(
+            fn(int $pageId): bool => !in_array($pageId, $this->unreadablePageIds, true),
+        );
+        $this->accessGuard->method('mayCreatePageBelow')->willReturnCallback(
+            fn(int $pageId): bool => !in_array($pageId, $this->unreadablePageIds, true),
+        );
 
         $this->subject = new LandingPageWizardController(
             $moduleTemplateFactory,
@@ -96,6 +122,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
             $this->connectionPool,
             $this->createMock(SiteFinder::class),
             new \Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer(),
+            $this->accessGuard,
             $this->promptOptimizerService,
         );
     }
@@ -1114,5 +1141,166 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         self::assertSame(1700000000, $data['data']['generatedAt']);
         self::assertSame(0, $data['data']['sourcePageUid']);
         self::assertSame(10, $data['data']['parentPageId']);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function wizardActionProvider(): array
+    {
+        return [
+            'templates' => ['templatesAction'],
+            'generate briefing' => ['generateBriefingAction'],
+            'generate page fields' => ['generatePageFieldsAction'],
+            'generate content' => ['generateContentAction'],
+            'regenerate section' => ['regenerateSectionAction'],
+            'generate image' => ['generateImageAction'],
+            'search images' => ['searchImagesAction'],
+            'save' => ['saveAction'],
+            'generation info' => ['generationInfoAction'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('wizardActionProvider')]
+    public function wizardEndpointsRequireAccessToTheLandingPageModule(string $action): void
+    {
+        $this->moduleAccess = false;
+        $this->connectionPool->expects(self::never())->method('getQueryBuilderForTable');
+        $this->completionService->expects(self::never())->method(self::anything());
+
+        $response = $this->subject->{$action}($this->createJsonRequest(['templateUid' => 1, 'pageUid' => 42, 'parentPageId' => 10, 'title' => 'T', 'query' => 'x']));
+
+        self::assertSame(403, $response->getStatusCode());
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function templateToolActionProvider(): array
+    {
+        return [
+            'optimize prompt' => ['optimizePromptAction'],
+            'test generate' => ['testGenerateAction'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('templateToolActionProvider')]
+    public function templateToolsRequireTheRightToEditTemplates(string $action): void
+    {
+        $this->templateEditAccess = false;
+        $this->connectionPool->expects(self::never())->method('getQueryBuilderForTable');
+        $this->promptOptimizerService->expects(self::never())->method(self::anything());
+
+        $response = $this->subject->{$action}($this->createJsonRequest(['templateUid' => 1, 'sampleTitle' => 'Topic']));
+
+        self::assertSame(403, $response->getStatusCode());
+    }
+
+    #[Test]
+    public function templateToolsStayAvailableWithoutModuleAccess(): void
+    {
+        $this->moduleAccess = false;
+
+        $response = $this->subject->testGenerateAction($this->createJsonRequest(['templateUid' => 0]));
+
+        self::assertSame(400, $response->getStatusCode());
+    }
+
+    #[Test]
+    public function generationInfoRequiresReadAccessToThePage(): void
+    {
+        $this->unreadablePageIds = [42];
+        $this->connectionPool->expects(self::never())->method('getQueryBuilderForTable');
+
+        $response = $this->subject->generationInfoAction($this->createJsonRequest(['pageUid' => 42]));
+
+        self::assertSame(403, $response->getStatusCode());
+    }
+
+    #[Test]
+    public function generationInfoDoesNotFollowTheSourceChainIntoUnreadablePages(): void
+    {
+        $this->unreadablePageIds = [7];
+
+        $page = $this->createMock(\Doctrine\DBAL\Result::class);
+        $page->method('fetchAssociative')->willReturn([
+            'tx_nrlandingpage_template_uid' => 5,
+            'tx_nrlandingpage_briefing_data' => '',
+            'tx_nrlandingpage_config_hash' => '',
+            'tx_nrlandingpage_generated_at' => 0,
+            'tx_nrlandingpage_source_page_uid' => 7,
+            'pid' => 10,
+        ]);
+
+        $expressionBuilder = $this->createMock(ExpressionBuilder::class);
+        $expressionBuilder->method('eq')->willReturn('');
+        $queryBuilder = $this->createMock(QueryBuilder::class);
+        $queryBuilder->method('select')->willReturnSelf();
+        $queryBuilder->method('from')->willReturnSelf();
+        $queryBuilder->method('where')->willReturnSelf();
+        $queryBuilder->method('expr')->willReturn($expressionBuilder);
+        $queryBuilder->method('createNamedParameter')->willReturn('');
+        $queryBuilder->expects(self::once())->method('executeQuery')->willReturn($page);
+        $this->connectionPool->method('getQueryBuilderForTable')->willReturn($queryBuilder);
+
+        $response = $this->subject->generationInfoAction($this->createJsonRequest(['pageUid' => 42]));
+
+        self::assertSame(200, $response->getStatusCode());
+        $data = json_decode((string) $response->getBody(), true);
+        self::assertSame([], $data['data']['briefingAnswers']);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function parentPageActionProvider(): array
+    {
+        return [
+            'generate page fields' => ['generatePageFieldsAction'],
+            'generate content' => ['generateContentAction'],
+            'regenerate section' => ['regenerateSectionAction'],
+            'optimize prompt' => ['optimizePromptAction'],
+            'save' => ['saveAction'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('parentPageActionProvider')]
+    public function endpointsWorkingBelowAPageRequireAccessToThatPage(string $action): void
+    {
+        $this->unreadablePageIds = [10];
+        $this->mockLoadByUid($this->templateRow());
+        $this->completionService->expects(self::never())->method(self::anything());
+        $this->pageCreatorService->expects(self::never())->method('createLandingPage');
+
+        $response = $this->subject->{$action}($this->createJsonRequest([
+            'templateUid' => 1,
+            'parentPageId' => 10,
+            'sectionIndex' => 0,
+            'title' => 'Landing page',
+        ]));
+
+        self::assertSame(403, $response->getStatusCode());
+    }
+
+    #[Test]
+    public function saveRejectsImagesTheUserMayNotRead(): void
+    {
+        $this->unreadableFileUids = [99];
+        $this->mockLoadByUid($this->templateRow());
+        $this->pageCreatorService->expects(self::never())->method('createLandingPage');
+
+        $response = $this->subject->saveAction($this->createJsonRequest([
+            'templateUid' => 1,
+            'parentPageId' => 10,
+            'title' => 'Landing page',
+            'contentSections' => [
+                ['section' => 'Hero', 'ctype' => 'textpic', 'header' => 'H', 'bodytext' => '<p>x</p>', 'imageUid' => 99],
+            ],
+        ]));
+
+        self::assertSame(403, $response->getStatusCode());
     }
 }

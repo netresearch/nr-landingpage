@@ -34,17 +34,48 @@ class TestGenerate {
   }
 
   /**
-   * Create a DOM element from an HTML string.
+   * Create an element with optional class, text content and attributes.
    *
-   * TYPO3 Modal.advanced() with type "default" and a string content wraps it
-   * in a Lit template literal (<p>${content}</p>) which auto-escapes HTML.
-   * Passing a DOM object instead triggers the "template" type path which
-   * renders the content as-is.
+   * All markup in this control is built with DOM methods: values from the
+   * server are only ever set as text or attribute values, never parsed as HTML.
    */
-  htmlToElement(html) {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = html;
-    return wrapper;
+  el(tagName, options = {}, children = []) {
+    const element = document.createElement(tagName);
+    if (options.className) {
+      element.className = options.className;
+    }
+    if (options.text !== undefined) {
+      element.textContent = String(options.text);
+    }
+    Object.entries(options.attrs || {}).forEach(([name, value]) => element.setAttribute(name, String(value)));
+    children.forEach((child) => element.appendChild(child));
+    return element;
+  }
+
+  /**
+   * Render generated bodytext in a sandboxed frame without script execution.
+   */
+  bodytextFrame(bodytext, title) {
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('sandbox', 'allow-same-origin');
+    iframe.title = title;
+    iframe.className = 'border rounded w-100 mb-2';
+    iframe.style.minHeight = '120px';
+    iframe.srcdoc = bodytext;
+    iframe.addEventListener('load', () => {
+      const height = iframe.contentDocument?.documentElement?.scrollHeight;
+      if (height) {
+        iframe.style.height = height + 'px';
+      }
+    });
+    return iframe;
+  }
+
+  /**
+   * Replace the content of a container with the given nodes.
+   */
+  setContent(container, ...nodes) {
+    container.replaceChildren(...nodes);
   }
 
   showInputDialog() {
@@ -56,13 +87,14 @@ class TestGenerate {
 
     const modal = Modal.advanced({
       title: this.lang('fieldControl.testGenerate.modal.title', 'Preview — Full Page Generation'),
-      content: this.htmlToElement(
-        '<div class="form-group mb-3">'
-        + '<label for="testGenerateTitle" class="form-label">' + this.escapeHtml(this.lang('fieldControl.testGenerate.form.label', 'Sample Title / Topic')) + '</label>'
-        + '<input type="text" class="form-control" id="testGenerateTitle" placeholder="' + this.escapeHtml(this.lang('fieldControl.testGenerate.form.placeholder', 'e.g. Summer Sale 2026')) + '">'
-        + '<small class="form-text text-variant">' + this.escapeHtml(this.lang('fieldControl.testGenerate.form.helpText', 'Enter a sample topic. The AI will generate a complete page preview with content sections and images based on your template settings.')) + '</small>'
-        + '</div>'
-      ),
+      // A DOM node (not a string) makes Modal.advanced() render it as-is.
+      content: this.el('div', {}, [
+        this.el('div', { className: 'form-group mb-3' }, [
+          this.el('label', { className: 'form-label', text: this.lang('fieldControl.testGenerate.form.label', 'Sample Title / Topic'), attrs: { for: 'testGenerateTitle' } }),
+          this.el('input', { className: 'form-control', attrs: { type: 'text', id: 'testGenerateTitle', placeholder: this.lang('fieldControl.testGenerate.form.placeholder', 'e.g. Summer Sale 2026') } }),
+          this.el('small', { className: 'form-text text-variant', text: this.lang('fieldControl.testGenerate.form.helpText', 'Enter a sample topic. The AI will generate a complete page preview with content sections and images based on your template settings.') }),
+        ]),
+      ]),
       size: Modal.sizes.large,
       buttons: [
         {
@@ -98,10 +130,10 @@ class TestGenerate {
     const contentArea = modal.querySelector('.modal-body');
     if (!contentArea) return;
 
-    contentArea.innerHTML = '<div class="text-center py-5" role="status" aria-live="polite">'
-      + '<typo3-backend-spinner size="large" aria-hidden="true"></typo3-backend-spinner>'
-      + '<p class="mt-3 text-variant">' + this.escapeHtml(this.lang('fieldControl.testGenerate.loading', 'Generating content preview…')) + '</p>'
-      + '</div>';
+    this.setContent(contentArea, this.el('div', { className: 'text-center py-5', attrs: { role: 'status', 'aria-live': 'polite' } }, [
+      this.el('typo3-backend-spinner', { attrs: { size: 'large', 'aria-hidden': 'true' } }),
+      this.el('p', { className: 'mt-3 text-variant', text: this.lang('fieldControl.testGenerate.loading', 'Generating content preview…') }),
+    ]));
 
     // Disable buttons during generation
     modal.querySelectorAll('.modal-footer button').forEach(btn => btn.disabled = true);
@@ -114,14 +146,16 @@ class TestGenerate {
       if (data.success && data.data) {
         this.renderPreview(contentArea, data.data, sampleTitle);
       } else {
-        contentArea.innerHTML = '<div class="alert alert-danger">'
-          + '<strong>' + this.escapeHtml(this.lang('fieldControl.testGenerate.error.failed', 'Generation failed:')) + '</strong> ' + this.escapeHtml(data.error || this.lang('fieldControl.testGenerate.error.unknown', 'Unknown error'))
-          + '</div>';
+        this.setContent(contentArea, this.el('div', { className: 'alert alert-danger' }, [
+          this.el('strong', { text: this.lang('fieldControl.testGenerate.error.failed', 'Generation failed:') }),
+          document.createTextNode(' ' + (data.error || this.lang('fieldControl.testGenerate.error.unknown', 'Unknown error'))),
+        ]));
       }
     } catch {
-      contentArea.innerHTML = '<div class="alert alert-danger">'
-        + this.escapeHtml(this.lang('fieldControl.testGenerate.error.server', 'Could not reach the server. Please check your LLM configuration.'))
-        + '</div>';
+      this.setContent(contentArea, this.el('div', {
+        className: 'alert alert-danger',
+        text: this.lang('fieldControl.testGenerate.error.server', 'Could not reach the server. Please check your LLM configuration.'),
+      }));
     } finally {
       modal.querySelectorAll('.modal-footer button').forEach(btn => btn.disabled = false);
     }
@@ -131,104 +165,116 @@ class TestGenerate {
     const sections = data.sections || [];
     const images = data.images || [];
     const aiAvailable = data.aiGenerationAvailable || false;
+    const nodes = [];
 
-    let html = '<div class="mb-3">'
-      + '<span class="badge badge-success me-2">' + sections.length + this.escapeHtml(this.lang('fieldControl.testGenerate.badge.sectionsGenerated', ' sections generated')) + '</span>'
-      + (aiAvailable ? '<span class="badge badge-info">' + this.escapeHtml(this.lang('fieldControl.testGenerate.badge.aiImages', 'AI image generation available')) + '</span>' : '')
-      + '</div>';
+    const badges = this.el('div', { className: 'mb-3' }, [
+      this.el('span', { className: 'badge badge-success me-2', text: sections.length + this.lang('fieldControl.testGenerate.badge.sectionsGenerated', ' sections generated') }),
+    ]);
+    if (aiAvailable) {
+      badges.appendChild(this.el('span', { className: 'badge badge-info', text: this.lang('fieldControl.testGenerate.badge.aiImages', 'AI image generation available') }));
+    }
+    nodes.push(badges);
 
-    html += '<p class="text-variant small">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.sampleTopic', 'Sample topic: ')) + '<strong>' + this.escapeHtml(sampleTitle) + '</strong></p>';
+    nodes.push(this.el('p', { className: 'text-variant small', text: this.lang('fieldControl.testGenerate.preview.sampleTopic', 'Sample topic: ') }, [
+      this.el('strong', { text: sampleTitle }),
+    ]));
 
     // Page fields (SEO, OG, etc.)
     const pageFields = data.pageFields || {};
     const pageFieldKeys = Object.keys(pageFields);
     if (pageFieldKeys.length > 0) {
-      html += '<div class="card mb-3 border-info">';
-      html += '<div class="card-header bg-info bg-opacity-10"><strong>' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.pageFields', 'Page Fields')) + '</strong></div>';
-      html += '<div class="card-body"><table class="table mb-0">';
-      pageFieldKeys.forEach(key => {
-        html += '<tr><td class="text-variant fw-bold" style="width:140px;">' + this.escapeHtml(key) + '</td>'
-          + '<td>' + this.escapeHtml(pageFields[key]) + '</td></tr>';
-      });
-      html += '</table></div></div>';
+      const rows = pageFieldKeys.map((key) => this.el('tr', {}, [
+        this.el('td', { className: 'text-variant fw-bold', text: key, attrs: { style: 'width:140px;' } }),
+        this.el('td', { text: pageFields[key] }),
+      ]));
+      nodes.push(this.el('div', { className: 'card mb-3 border-info' }, [
+        this.el('div', { className: 'card-header bg-info bg-opacity-10' }, [
+          this.el('strong', { text: this.lang('fieldControl.testGenerate.preview.pageFields', 'Page Fields') }),
+        ]),
+        this.el('div', { className: 'card-body' }, [this.el('table', { className: 'table mb-0' }, [this.el('tbody', {}, rows)])]),
+      ]));
     }
 
     sections.forEach((section, index) => {
       const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
+      const sectionLabel = section.section || this.lang('fieldControl.testGenerate.preview.section', 'Section');
 
-      html += '<div class="card mb-3">';
-      html += '<div class="card-header d-flex justify-content-between align-items-center">';
-      html += '<strong>' + this.escapeHtml(section.section || this.lang('fieldControl.testGenerate.preview.section', 'Section')) + '</strong>';
-      html += '<div>';
+      const headerBadges = this.el('div');
       if (section.colPos !== undefined) {
-        html += '<span class="badge badge-info me-1">colPos ' + this.escapeHtml(String(section.colPos)) + '</span>';
+        headerBadges.appendChild(this.el('span', { className: 'badge badge-info me-1', text: 'colPos ' + String(section.colPos) }));
       }
-      html += '<span class="badge badge-default">' + this.escapeHtml(section.ctype || this.lang('fieldControl.testGenerate.preview.text', 'text')) + '</span>';
-      html += '</div>';
-      html += '</div>';
-      html += '<div class="card-body">';
+      headerBadges.appendChild(this.el('span', { className: 'badge badge-default', text: section.ctype || this.lang('fieldControl.testGenerate.preview.text', 'text') }));
 
+      const body = this.el('div', { className: 'card-body' });
       if (section.header) {
-        html += '<h2 class="h5">' + this.escapeHtml(section.header) + '</h2>';
+        body.appendChild(this.el('h2', { className: 'h5', text: section.header }));
       }
       if (section.subheader) {
-        html += '<h3 class="h6 text-variant">' + this.escapeHtml(section.subheader) + '</h3>';
+        body.appendChild(this.el('h3', { className: 'h6 text-variant', text: section.subheader }));
       }
       if (section.bodytext) {
-        // bodytext is already sanitized server-side (HtmlSanitizer allows only safe tags)
-        html += '<div class="border rounded p-2 small mb-2" style="background:var(--typo3-surface-container-high);">' + section.bodytext + '</div>';
+        body.appendChild(this.bodytextFrame(section.bodytext, sectionLabel));
       }
 
       // Image keywords
       if (section.imageKeywords && section.imageKeywords.length > 0) {
-        html += '<div class="mb-2"><small class="text-variant">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.imageKeywords', 'Image keywords: ')) + '</small>';
-        section.imageKeywords.forEach(kw => {
-          html += '<span class="badge badge-default me-1">' + this.escapeHtml(kw) + '</span>';
-        });
-        html += '</div>';
+        body.appendChild(this.el('div', { className: 'mb-2' }, [
+          this.el('small', { className: 'text-variant', text: this.lang('fieldControl.testGenerate.preview.imageKeywords', 'Image keywords: ') }),
+          ...section.imageKeywords.map((kw) => this.el('span', { className: 'badge badge-default me-1', text: kw })),
+        ]));
       }
 
       // Image prompt
       if (section.imagePrompt) {
-        html += '<div class="mb-2"><small class="text-variant">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.imagePrompt', 'Image prompt: ')) + '</small>'
-          + '<em class="small">' + this.escapeHtml(section.imagePrompt) + '</em></div>';
+        body.appendChild(this.el('div', { className: 'mb-2' }, [
+          this.el('small', { className: 'text-variant', text: this.lang('fieldControl.testGenerate.preview.imagePrompt', 'Image prompt: ') }),
+          this.el('em', { className: 'small', text: section.imagePrompt }),
+        ]));
       }
 
       // FAL images found
       if (sectionImages.length > 0) {
-        html += '<div class="mt-2"><small class="text-variant d-block mb-1">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.imagesFound', 'Images found:')) + '</small>';
-        html += '<div class="d-flex gap-2 flex-wrap">';
-        sectionImages.forEach(img => {
-          html += '<div class="text-center" style="width:100px;">';
+        const tiles = sectionImages.map((img) => {
+          const tile = this.el('div', { className: 'text-center', attrs: { style: 'width:100px;' } });
           if (img.publicUrl) {
-            html += '<img src="' + this.escapeHtml(img.publicUrl) + '" alt="' + this.escapeHtml(img.title || img.name || '') + '" '
-              + 'class="img-thumbnail" style="height:60px;width:100px;object-fit:cover;">';
+            tile.appendChild(this.el('img', {
+              className: 'img-thumbnail',
+              attrs: { src: img.publicUrl, alt: img.title || img.name || '', style: 'height:60px;width:100px;object-fit:cover;' },
+            }));
           }
-          html += '<small class="d-block text-truncate">' + this.escapeHtml(img.title || img.name || '') + '</small>';
+          tile.appendChild(this.el('small', { className: 'd-block text-truncate', text: img.title || img.name || '' }));
           if (img.generated) {
-            html += '<span class="badge badge-warning" style="font-size:0.65em;">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.aiGenerated', 'AI generated')) + '</span>';
+            tile.appendChild(this.el('span', { className: 'badge badge-warning', text: this.lang('fieldControl.testGenerate.preview.aiGenerated', 'AI generated'), attrs: { style: 'font-size:0.65em;' } }));
           }
-          html += '</div>';
+          return tile;
         });
-        html += '</div></div>';
+        body.appendChild(this.el('div', { className: 'mt-2' }, [
+          this.el('small', { className: 'text-variant d-block mb-1', text: this.lang('fieldControl.testGenerate.preview.imagesFound', 'Images found:') }),
+          this.el('div', { className: 'd-flex gap-2 flex-wrap' }, tiles),
+        ]));
       } else {
-        html += '<div class="mt-2"><small class="text-variant">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.noImages', 'No FAL images found for this section.')) + '</small></div>';
+        body.appendChild(this.el('div', { className: 'mt-2' }, [
+          this.el('small', { className: 'text-variant', text: this.lang('fieldControl.testGenerate.preview.noImages', 'No FAL images found for this section.') }),
+        ]));
       }
 
-      html += '</div></div>';
+      nodes.push(this.el('div', { className: 'card mb-3' }, [
+        this.el('div', { className: 'card-header d-flex justify-content-between align-items-center' }, [
+          this.el('strong', { text: sectionLabel }),
+          headerBadges,
+        ]),
+        body,
+      ]));
     });
 
     if (sections.length === 0) {
-      html += '<div class="alert alert-warning">' + this.escapeHtml(this.lang('fieldControl.testGenerate.preview.noSections', 'No sections were generated. Check your AI instructions and content type settings.')) + '</div>';
+      nodes.push(this.el('div', {
+        className: 'alert alert-warning',
+        text: this.lang('fieldControl.testGenerate.preview.noSections', 'No sections were generated. Check your AI instructions and content type settings.'),
+      }));
     }
 
-    container.innerHTML = html;
-  }
-
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    this.setContent(container, ...nodes);
   }
 }
 

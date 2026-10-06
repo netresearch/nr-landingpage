@@ -83,9 +83,10 @@ class PromptOptimizerService implements LoggerAwareInterface
         - Creative mode: add CSS technique guidance (Grid, Flexbox, Gradients, SVG, clip-path),
           require :root CSS Custom Properties, emphasize visual variety, note that each section
           is a standalone HTML/CSS/SVG block.
-          If animation is enabled: the AI MUST write GSAP ScrollTrigger animations in
-          <script data-creative> blocks. GSAP, ScrollTrigger, and TextPlugin are globally available.
-          Every section should have at least one animation (fade-in, slide, parallax, stagger, etc.).
+          Creative sections contain no JavaScript: scripts and event handlers are removed.
+          If animation is enabled: state that animations are injected AUTOMATICALLY by the
+          system — the AI provides only animation metadata (type, duration, delay) per section
+          in the JSON response.
         - Structured mode: add content type selection guidance — explain when to use which CType.
           Include HTML formatting guidance for the bodytext field: the bodytext is rendered through
           TYPO3's Rich Text Editor, so encourage semantic HTML (paragraphs, subheadings h3/h4,

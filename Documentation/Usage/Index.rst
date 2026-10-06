@@ -130,12 +130,12 @@ The AI generates self-contained HTML fragments with embedded
 ``<style>`` blocks and inline SVG graphics. Real photographs from the
 media library can be mixed in where the AI places an image placeholder.
 
-When the template has animations enabled, the AI may include
-``<script data-creative>`` blocks that use GSAP for scroll-triggered
-reveals, entrance animations, and typewriter effects. When the content
-is generated and again when the page is saved, a script block that
-names one of the JavaScript APIs listed in ``CreativeHtmlSanitizer``
-(for example ``fetch``, ``eval`` or ``document.cookie``) is removed.
+The generated HTML contains no JavaScript. When the content is
+generated and again when the page is saved, scripts and event handler
+attributes are removed, also when the editor added them in the source
+editor. When the template has animations enabled, the AI chooses an
+animation per section (for example a scroll-triggered reveal), and the
+extension generates the animation script for that section.
 
 Step 5: Placement & Save
 -------------------------

@@ -263,6 +263,40 @@ final class ContentGeneratorServiceValidationTest extends UnitTestCase
     }
 
     #[Test]
+    public function creativeSectionsOfAnimatedTemplatesCarryAnimationMetadataInsteadOfScripts(): void
+    {
+        $response = [
+            [
+                'section' => 'Hero',
+                'colPos' => 0,
+                'bodytext' => '<section class="hero"><h1>Title</h1></section>'
+                    . '<script data-creative>gsap.from(".hero", {opacity: 0});</script>',
+                'animation' => ['type' => 'fade-up', 'duration' => 0.8],
+            ],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main'], true);
+
+        self::assertCount(1, $result);
+        self::assertSame('<section class="hero"><h1>Title</h1></section>', $result[0]['bodytext']);
+        self::assertSame(['type' => 'fade-up', 'duration' => 0.8], $result[0]['animation']);
+    }
+
+    #[Test]
+    public function creativeSectionsOfStaticTemplatesCarryNoAnimationMetadata(): void
+    {
+        $response = [
+            ['section' => 'Hero', 'colPos' => 0, 'bodytext' => '<p>x</p>', 'animation' => ['type' => 'fade-up']],
+        ];
+
+        $method = new ReflectionMethod($this->subject, 'validateCreativeSections');
+        $result = $method->invoke($this->subject, $response, [0 => 'Main'], false);
+
+        self::assertSame([], $result[0]['animation']);
+    }
+
+    #[Test]
     public function validateCreativeSectionsCoercesInvalidColPos(): void
     {
         $response = [

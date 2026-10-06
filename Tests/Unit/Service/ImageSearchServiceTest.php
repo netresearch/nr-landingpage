@@ -183,13 +183,60 @@ final class ImageSearchServiceTest extends UnitTestCase
         $connectionPool = $this->createConnectionPoolWithQueryBuilder([]);
         $queryBuilder = $this->getQueryBuilderMock($connectionPool);
 
+        // Five candidates per requested result: unreadable files are dropped afterwards.
         $queryBuilder->expects(self::atLeastOnce())
             ->method('setMaxResults')
-            ->with(10)
+            ->with(50)
             ->willReturnSelf();
 
         $service = new ImageSearchService($connectionPool, $this->createResourceFactoryMock());
         $service->searchByKeywords(['keyword'], 10);
+    }
+
+    #[Test]
+    public function searchByKeywordsReturnsOnlyFilesTheUserMayRead(): void
+    {
+        $rows = [
+            ['uid' => 1, 'name' => 'outside-mount.jpg', 'title' => 'Outside', 'alternative' => ''],
+            ['uid' => 2, 'name' => 'inside-mount.jpg', 'title' => 'Inside', 'alternative' => ''],
+            ['uid' => 3, 'name' => 'inside-too.jpg', 'title' => 'Inside too', 'alternative' => ''],
+            ['uid' => 4, 'name' => 'inside-three.jpg', 'title' => 'Inside three', 'alternative' => ''],
+        ];
+
+        $service = new ImageSearchService(
+            $this->createConnectionPoolWithQueryBuilder($rows),
+            $this->createResourceFactoryMock([2, 3, 4]),
+        );
+
+        $result = $service->searchByKeywords(['inside'], 2);
+
+        self::assertSame([2, 3], array_column($result, 'uid'));
+    }
+
+    #[Test]
+    public function getRecentImagesReturnsOnlyFilesTheUserMayRead(): void
+    {
+        $rows = [
+            ['uid' => 10, 'name' => 'newest.jpg', 'title' => 'Newest', 'alternative' => ''],
+            ['uid' => 9, 'name' => 'older.jpg', 'title' => 'Older', 'alternative' => ''],
+        ];
+
+        $service = new ImageSearchService(
+            $this->createConnectionPoolWithQueryBuilder($rows),
+            $this->createResourceFactoryMock([9]),
+        );
+
+        self::assertSame([9], array_column($service->getRecentImages(6), 'uid'));
+    }
+
+    #[Test]
+    public function isReadableFollowsTheFilePermission(): void
+    {
+        $service = new ImageSearchService($this->createMock(ConnectionPool::class), $this->createResourceFactoryMock([7]));
+
+        self::assertTrue($service->isReadable(7));
+        self::assertFalse($service->isReadable(8));
+        self::assertFalse($service->isReadable(0));
     }
 
     #[Test]
@@ -274,15 +321,25 @@ final class ImageSearchServiceTest extends UnitTestCase
     }
 
     /**
-     * Creates a ResourceFactory mock that returns a File stub with a public URL.
+     * Creates a ResourceFactory mock that returns File stubs with a public URL.
+     *
+     * @param list<int>|null $readableUids Files the user may read; null: all
      */
-    private function createResourceFactoryMock(): ResourceFactory
+    private function createResourceFactoryMock(?array $readableUids = null): ResourceFactory
     {
-        $file = $this->createMock(File::class);
-        $file->method('getPublicUrl')->willReturn('/fileadmin/test.jpg');
-
         $resourceFactory = $this->createMock(ResourceFactory::class);
-        $resourceFactory->method('getFileObject')->willReturn($file);
+        $resourceFactory->method('getFileObject')->willReturnCallback(
+            function (int|string $uid) use ($readableUids): File {
+                $file = $this->createMock(File::class);
+                $file->method('getPublicUrl')->willReturn('/fileadmin/test.jpg');
+                $file->method('checkActionPermission')->willReturnCallback(
+                    static fn(string $action): bool => $action === 'read'
+                        && ($readableUids === null || in_array((int) $uid, $readableUids, true)),
+                );
+
+                return $file;
+            },
+        );
 
         return $resourceFactory;
     }

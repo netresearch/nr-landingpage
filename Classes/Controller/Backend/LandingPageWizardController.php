@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Controller\Backend;
 
 use Netresearch\NrLandingpage\Domain\Model\GenerationContext;
+use Netresearch\NrLandingpage\Service\BackendAccessGuard;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
 use Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer;
@@ -50,6 +51,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
         private readonly ConnectionPool $connectionPool,
         private readonly SiteFinder $siteFinder,
         private readonly CreativeHtmlSanitizer $creativeHtmlSanitizer,
+        private readonly BackendAccessGuard $accessGuard,
         private readonly ?PromptOptimizerService $promptOptimizerService = null,
     ) {}
 
@@ -99,6 +101,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
     public function templatesAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->accessGuard->mayUseWizard()) {
+            return $this->forbiddenResponse();
+        }
+
         try {
             $templates = $this->templateService->loadForUser();
 
@@ -121,6 +127,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
     public function generateBriefingAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->accessGuard->mayUseWizard()) {
+            return $this->forbiddenResponse();
+        }
+
         try {
             $body = $this->parseRequestBody($request);
             $templateUid = $this->extractIntFromBody($body, 'templateUid');
@@ -144,6 +154,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
     public function generatePageFieldsAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->accessGuard->mayUseWizard()) {
+            return $this->forbiddenResponse();
+        }
+
         try {
             $body = $this->parseRequestBody($request);
             $templateUid = $this->extractIntFromBody($body, 'templateUid');
@@ -162,6 +176,9 @@ final class LandingPageWizardController implements LoggerAwareInterface
             $stringAnswers = array_map(strval(...), array_filter($briefingAnswers, is_string(...)));
 
             $parentPageId = $this->extractIntFromBody($body, 'parentPageId');
+            if ($parentPageId > 0 && !$this->accessGuard->mayReadPage($parentPageId)) {
+                return $this->forbiddenResponse();
+            }
             $outputLanguage = $this->resolveOutputLanguage($parentPageId);
 
             $pageFields = $this->contentGeneratorService->generatePageFields($template, $stringAnswers, $outputLanguage);
@@ -174,6 +191,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
     public function generateContentAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->accessGuard->mayUseWizard()) {
+            return $this->forbiddenResponse();
+        }
+
         try {
             $body = $this->parseRequestBody($request);
             $templateUid = $this->extractIntFromBody($body, 'templateUid');
@@ -192,6 +213,9 @@ final class LandingPageWizardController implements LoggerAwareInterface
             $stringAnswers = array_map(strval(...), array_filter($briefingAnswers, is_string(...)));
 
             $parentPageId = $this->extractIntFromBody($body, 'parentPageId');
+            if ($parentPageId > 0 && !$this->accessGuard->mayReadPage($parentPageId)) {
+                return $this->forbiddenResponse();
+            }
             $outputLanguage = $this->resolveOutputLanguage($parentPageId);
             $template = $template->withResolvedColors($this->resolveColorDefaults($parentPageId));
 
@@ -215,6 +239,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
     public function regenerateSectionAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->accessGuard->mayUseWizard()) {
+            return $this->forbiddenResponse();
+        }
+
         try {
             $body = $this->parseRequestBody($request);
             $templateUid = $this->extractIntFromBody($body, 'templateUid');
@@ -238,6 +266,9 @@ final class LandingPageWizardController implements LoggerAwareInterface
             $stringAnswers = array_map(strval(...), array_filter($briefingAnswers, is_string(...)));
 
             $parentPageId = $this->extractIntFromBody($body, 'parentPageId');
+            if ($parentPageId > 0 && !$this->accessGuard->mayReadPage($parentPageId)) {
+                return $this->forbiddenResponse();
+            }
             $outputLanguage = $this->resolveOutputLanguage($parentPageId);
             $template = $template->withResolvedColors($this->resolveColorDefaults($parentPageId));
 
@@ -257,6 +288,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
     public function generateImageAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->accessGuard->mayUseWizard()) {
+            return $this->forbiddenResponse();
+        }
+
         try {
             $body = $this->parseRequestBody($request);
             $templateUid = $this->extractIntFromBody($body, 'templateUid');
@@ -289,6 +324,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
     public function searchImagesAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->accessGuard->mayUseWizard()) {
+            return $this->forbiddenResponse();
+        }
+
         try {
             $body = $this->parseRequestBody($request);
             $query = $this->extractStringFromBody($body, 'query');
@@ -312,6 +351,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
     public function saveAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->accessGuard->mayUseWizard()) {
+            return $this->forbiddenResponse();
+        }
+
         try {
             $body = $this->parseRequestBody($request);
             $templateUid = $this->extractIntFromBody($body, 'templateUid');
@@ -331,6 +374,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
             if ($title === '') {
                 return new JsonResponse(['success' => false, 'error' => 'Missing title'], 400);
+            }
+
+            if (!$this->accessGuard->mayCreatePageBelow($parentPageId)) {
+                return $this->forbiddenResponse();
             }
 
             $template = $this->templateService->loadByUid($templateUid);
@@ -356,6 +403,9 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 }
                 $rawImageUid = $section['imageUid'] ?? 0;
                 $imageUid = is_numeric($rawImageUid) ? (int) $rawImageUid : 0;
+                if ($imageUid > 0 && !$this->imageSearchService->isReadable($imageUid)) {
+                    return $this->forbiddenResponse();
+                }
 
                 $rawColPos = $section['colPos'] ?? 0;
                 $colPos = is_numeric($rawColPos) ? (int) $rawColPos : 0;
@@ -363,10 +413,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 $bodytext = is_string($section['bodytext'] ?? null) ? $section['bodytext'] : '';
                 // Re-sanitize creative mode content at save time (editors can edit source in wizard)
                 if ($template->isCreativeMode()) {
-                    $bodytext = $this->creativeHtmlSanitizer->sanitize(
-                        $bodytext,
-                        $template->isAnimationEnabled(),
-                    );
+                    $bodytext = $this->creativeHtmlSanitizer->sanitize($bodytext);
                 }
 
                 $rawImageorient = $section['imageorient'] ?? 0;
@@ -420,6 +467,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
     public function optimizePromptAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->accessGuard->mayEditTemplates()) {
+            return $this->forbiddenResponse();
+        }
+
         try {
             $body = $this->parseRequestBody($request);
             $templateUid = $this->extractIntFromBody($body, 'templateUid');
@@ -438,6 +489,9 @@ final class LandingPageWizardController implements LoggerAwareInterface
             }
 
             $parentPageId = $this->extractIntFromBody($body, 'parentPageId');
+            if ($parentPageId > 0 && !$this->accessGuard->mayReadPage($parentPageId)) {
+                return $this->forbiddenResponse();
+            }
             $outputLanguage = $parentPageId > 0 ? $this->resolveOutputLanguage($parentPageId) : '';
 
             $optimizedPrompt = $this->promptOptimizerService->generateOptimizedPrompt(
@@ -458,6 +512,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
      */
     public function testGenerateAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->accessGuard->mayEditTemplates()) {
+            return $this->forbiddenResponse();
+        }
+
         try {
             $body = $this->parseRequestBody($request);
             $templateUid = $this->extractIntFromBody($body, 'templateUid');
@@ -502,12 +560,20 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
     public function generationInfoAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!$this->accessGuard->mayUseWizard()) {
+            return $this->forbiddenResponse();
+        }
+
         try {
             $body = $this->parseRequestBody($request);
             $pageUid = $this->extractIntFromBody($body, 'pageUid');
 
             if ($pageUid === 0) {
                 return new JsonResponse(['success' => false, 'error' => 'Missing pageUid'], 400);
+            }
+
+            if (!$this->accessGuard->mayReadPage($pageUid)) {
+                return $this->forbiddenResponse();
             }
 
             $queryBuilder = $this->connectionPool->getQueryBuilderForTable('pages');
@@ -553,6 +619,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 $maxDepth = 10;
                 while ($ancestorUid > 0 && !in_array($ancestorUid, $visited, true) && $maxDepth-- > 0) {
                     $visited[] = $ancestorUid;
+                    if (!$this->accessGuard->mayReadPage($ancestorUid)) {
+                        // Briefing data of a page the user may not see is not handed out.
+                        break;
+                    }
                     $ancestorQb = $this->connectionPool->getQueryBuilderForTable('pages');
                     $ancestorQb->getRestrictions()->removeByType(
                         \TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction::class,
@@ -755,6 +825,11 @@ final class LandingPageWizardController implements LoggerAwareInterface
         } catch (Throwable) {
             return [];
         }
+    }
+
+    private function forbiddenResponse(): ResponseInterface
+    {
+        return new JsonResponse(['success' => false, 'error' => 'Access denied'], 403);
     }
 
     private function errorResponse(Throwable $e): ResponseInterface

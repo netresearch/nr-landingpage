@@ -177,7 +177,7 @@ final class BackendThemeComplianceTest extends UnitTestCase
         $source = file_get_contents(self::EXTENSION_ROOT . '/Resources/Public/JavaScript/form-engine/field-control/test-generate.js');
         self::assertIsString($source);
         self::assertMatchesRegularExpression(
-            '/<div class="[^"]*" role="status" aria-live="polite">\'\s*\+ \'<typo3-backend-spinner size="large" aria-hidden="true">/',
+            "/this\\.el\\('div', \\{ className: '[^']*', attrs: \\{ role: 'status', 'aria-live': 'polite' \\} \\}, \\[\\s*this\\.el\\('typo3-backend-spinner', \\{ attrs: \\{ size: 'large', 'aria-hidden': 'true' \\} \\}\\)/",
             $source,
         );
     }

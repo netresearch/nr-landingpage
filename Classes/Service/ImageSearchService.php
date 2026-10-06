@@ -21,6 +21,12 @@ readonly class ImageSearchService
         'the', 'a', 'an', 'and', 'or', 'with', 'for', 'to', 'in', 'on', 'at', 'is', 'are',
     ];
 
+    /**
+     * Rows fetched per requested result. Files the backend user may not read
+     * are dropped after the query, so the query looks further ahead.
+     */
+    private const CANDIDATE_FACTOR = 5;
+
     public function __construct(
         private ConnectionPool $connectionPool,
         private ResourceFactory $resourceFactory,
@@ -30,6 +36,9 @@ readonly class ImageSearchService
      * Search for images in FAL by keywords.
      * Searches sys_file_metadata: title, description, alternative
      * and sys_file: name (filename).
+     *
+     * Only files the current backend user may read are returned: the
+     * storage's file mounts and the user's file permissions apply.
      *
      * @param list<string> $keywords
      * @return list<array{uid: int, name: string, title: string, alternative: string, publicUrl: string}>
@@ -84,36 +93,9 @@ readonly class ImageSearchService
         }
 
         $queryBuilder->andWhere($queryBuilder->expr()->or(...$orConditions));
-        $queryBuilder->setMaxResults($maxResults);
+        $queryBuilder->setMaxResults($maxResults * self::CANDIDATE_FACTOR);
 
-        $rows = $queryBuilder->executeQuery()->fetchAllAssociative();
-
-        $result = [];
-        foreach ($rows as $row) {
-            $rawUid = $row['uid'] ?? 0;
-            $uid = is_int($rawUid) ? $rawUid : (is_string($rawUid) ? (int) $rawUid : 0);
-            if ($uid <= 0) {
-                continue;
-            }
-
-            $publicUrl = '';
-            try {
-                $file = $this->resourceFactory->getFileObject($uid);
-                $publicUrl = $file->getPublicUrl() ?? '';
-            } catch (Throwable) {
-                // skip files that cannot be resolved
-            }
-
-            $result[] = [
-                'uid' => $uid,
-                'name' => is_string($row['name'] ?? null) ? $row['name'] : '',
-                'title' => is_string($row['title'] ?? null) ? $row['title'] : '',
-                'alternative' => is_string($row['alternative'] ?? null) ? $row['alternative'] : '',
-                'publicUrl' => $publicUrl,
-            ];
-        }
-
-        return $result;
+        return $this->toReadableImages($queryBuilder->executeQuery()->fetchAllAssociative(), $maxResults);
     }
 
     /**
@@ -137,23 +119,53 @@ readonly class ImageSearchService
                 $queryBuilder->expr()->eq('f.type', $queryBuilder->createNamedParameter(2, Connection::PARAM_INT)),
             )
             ->orderBy('f.uid', 'DESC')
-            ->setMaxResults($maxResults);
+            ->setMaxResults($maxResults * self::CANDIDATE_FACTOR);
 
-        $rows = $queryBuilder->executeQuery()->fetchAllAssociative();
+        return $this->toReadableImages($queryBuilder->executeQuery()->fetchAllAssociative(), $maxResults);
+    }
 
+    /**
+     * Whether the current backend user may read the file with the given uid.
+     */
+    public function isReadable(int $fileUid): bool
+    {
+        if ($fileUid <= 0) {
+            return false;
+        }
+
+        try {
+            return $this->resourceFactory->getFileObject($fileUid)->checkActionPermission('read');
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Resolve rows to image entries, dropping files the user may not read.
+     *
+     * @param list<array<string, mixed>> $rows
+     * @return list<array{uid: int, name: string, title: string, alternative: string, publicUrl: string}>
+     */
+    private function toReadableImages(array $rows, int $maxResults): array
+    {
         $result = [];
         foreach ($rows as $row) {
+            if (count($result) >= $maxResults) {
+                break;
+            }
+
             $rawUid = $row['uid'] ?? 0;
             $uid = is_int($rawUid) ? $rawUid : (is_string($rawUid) ? (int) $rawUid : 0);
             if ($uid <= 0) {
                 continue;
             }
 
-            $publicUrl = '';
             try {
                 $file = $this->resourceFactory->getFileObject($uid);
-                $publicUrl = $file->getPublicUrl() ?? '';
             } catch (Throwable) {
+                continue;
+            }
+            if (!$file->checkActionPermission('read')) {
                 continue;
             }
 
@@ -162,7 +174,7 @@ readonly class ImageSearchService
                 'name' => is_string($row['name'] ?? null) ? $row['name'] : '',
                 'title' => is_string($row['title'] ?? null) ? $row['title'] : '',
                 'alternative' => is_string($row['alternative'] ?? null) ? $row['alternative'] : '',
-                'publicUrl' => $publicUrl,
+                'publicUrl' => $file->getPublicUrl() ?? '',
             ];
         }
 

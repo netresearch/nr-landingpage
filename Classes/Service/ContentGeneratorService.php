@@ -36,9 +36,9 @@ final class ContentGeneratorService implements LoggerAwareInterface
         return $this->getSanitizer()->sanitize($html);
     }
 
-    private function sanitizeCreativeHtml(string $html, bool $allowScripts = false): string
+    private function sanitizeCreativeHtml(string $html): string
     {
-        return $this->creativeHtmlSanitizer->sanitize($html, $allowScripts);
+        return $this->creativeHtmlSanitizer->sanitize($html);
     }
 
     /**
@@ -176,7 +176,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
      * Generate creative HTML content for each layout column.
      *
      * @param array<string, string> $briefingAnswers
-     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string}>
+     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string, animation: array{type?: string, duration?: float, delay?: float, stagger?: float}}>
      */
     private function generateCreativeContent(Template $template, array $briefingAnswers, string $outputLanguage, int $parentPageId): array
     {
@@ -189,9 +189,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $prompt = $this->buildCreativePrompt($template, $briefingAnswers, $outputLanguage, $columnMap);
         $response = $this->completeJsonWithTemplate($template, $prompt, 'generateCreativeContent');
 
-        $allowScripts = $template->isAnimationEnabled();
-
-        return $this->validateCreativeSections($response, $columnMap, $allowScripts);
+        return $this->validateCreativeSections($response, $columnMap, $template->isAnimationEnabled());
     }
 
     /**
@@ -267,18 +265,6 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Nutze in allen Sections var(--primary), var(--secondary), var(--bg), var(--text).
             Erlaubt sind Abstufungen per opacity/lighten/darken (z.B. rgba, color-mix).
             COLORS;
-    }
-
-    /**
-     * Build the script example fragment for the creative mode JSON bodytext example.
-     */
-    private function buildCreativeBodytextExample(Template $template): string
-    {
-        if (!$template->isAnimationEnabled()) {
-            return '';
-        }
-
-        return "<script data-creative>document.addEventListener('DOMContentLoaded', function() { gsap.from('.hero-title', {scrollTrigger: '.hero', opacity: 0, y: 30, duration: 0.8}); });</script>";
     }
 
     private function buildAnimationBlock(Template $template): string
@@ -667,26 +653,13 @@ final class ContentGeneratorService implements LoggerAwareInterface
         }
         $columnsBlock = implode("\n", $columnDescriptions);
 
-        if ($template->isAnimationEnabled()) {
-            $scriptRule = <<<RULE
-                JAVASCRIPT-ANIMATIONEN (PFLICHT):
-                GSAP (gsap), ScrollTrigger und TextPlugin sind global verfuegbar.
-                JEDE Section MUSS mindestens eine GSAP-Animation enthalten — Scroll-Reveals,
-                Fade-Ins, Slide-Ins, Typewriter-Effekte, Parallax oder Stagger-Animationen.
-                Eine Seite ohne Animationen ist unvollstaendig.
-                - Jeder <script>-Block MUSS das Attribut data-creative tragen.
-                - Wrapping: Alle gsap-Aufrufe in document.addEventListener('DOMContentLoaded', function() { ... });
-                - Erlaubte APIs: gsap.*, ScrollTrigger.*, TextPlugin.*,
-                  document.querySelector/All, Standard-JS (const, let, =>, forEach).
-                - VERBOTEN: fetch, XMLHttpRequest, eval, document.cookie,
-                  localStorage, window.location, innerHTML und alle Netzwerk-APIs.
-                - Verwende die CSS-Klassen-Praefixe der Section als Selektoren.
-                - prefers-reduced-motion wird automatisch vom Loader behandelt,
-                  du brauchst KEINE eigene Pruefung einzubauen.
-                RULE;
-        } else {
-            $scriptRule = '3. KEIN JavaScript, KEINE <script>-Tags, KEINE Event-Handler.';
-        }
+        // Scripts and event handlers are removed by the sanitizer in any case;
+        // animation is requested per section through the "animation" object.
+        $scriptRule = '3. KEIN JavaScript, KEINE <script>-Tags, KEINE Event-Handler.';
+        $animationBlock = $this->buildAnimationBlock($template);
+        $animationField = $template->isAnimationEnabled()
+            ? ",\n   \"animation\": {\"type\": \"fade-up\", \"duration\": 0.8}"
+            : '';
 
         return <<<PROMPT
             {$template->systemPrompt}
@@ -731,6 +704,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
             - Asymmetrische Layouts wo es zum Inhalt passt
 
             {$scriptRule}
+            {$animationBlock}
 
             FOTO-PLATZHALTER (WICHTIG):
             Wenn eine Section von einem Foto profitiert (Hero, Teaser, Portrait, Produkt),
@@ -769,9 +743,9 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Antworte ausschliesslich als JSON-Objekt mit dem Schluessel "sections":
             {"sections": [
               {"section": "Hero", "colPos": 0, "header": "Titel",
-               "bodytext": "<style>.hero { ... }</style><section class='hero'><img data-image-slot=\"0\" alt=\"Hero image\"><h1>...</h1></section>{$this->buildCreativeBodytextExample($template)}",
+               "bodytext": "<style>.hero { ... }</style><section class='hero'><img data-image-slot=\"0\" alt=\"Hero image\"><h1>...</h1></section>",
                "imageKeywords": ["keyword1", "keyword2"],
-               "imagePrompt": "Detailed English image description"}
+               "imagePrompt": "Detailed English image description"{$animationField}}
             ]}
 
             Das bodytext-Feld enthaelt das komplette HTML inkl. <style>-Block.
@@ -786,9 +760,9 @@ final class ContentGeneratorService implements LoggerAwareInterface
      * Validate and sanitize creative mode LLM response.
      *
      * @param array<int, string> $columnMap
-     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string}>
+     * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string, animation: array{type?: string, duration?: float, delay?: float, stagger?: float}}>
      */
-    private function validateCreativeSections(mixed $response, array $columnMap, bool $allowScripts = false): array
+    private function validateCreativeSections(mixed $response, array $columnMap, bool $animationEnabled = false): array
     {
         if (!is_array($response)) {
             return [];
@@ -806,7 +780,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
             }
 
             $bodytext = is_string($item['bodytext'] ?? null) ? $item['bodytext'] : '';
-            $bodytext = $this->sanitizeCreativeHtml($bodytext, $allowScripts);
+            $bodytext = $this->sanitizeCreativeHtml($bodytext);
 
             $rawColPos = $item['colPos'] ?? 0;
             $colPos = is_int($rawColPos) ? $rawColPos : (is_numeric($rawColPos) ? (int) $rawColPos : 0);
@@ -832,6 +806,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 'bodytext' => $bodytext,
                 'imageKeywords' => $imageKeywords,
                 'imagePrompt' => is_string($item['imagePrompt'] ?? null) ? $item['imagePrompt'] : '',
+                'animation' => $animationEnabled ? $this->validateAnimation($item['animation'] ?? null) : [],
             ];
         }
 
