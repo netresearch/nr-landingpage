@@ -725,6 +725,28 @@ final class CreativeHtmlSanitizerTest extends UnitTestCase
         self::assertStringNotContainsString('javascript:', $result);
     }
 
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function namespaceDeclarationProvider(): array
+    {
+        return [
+            'declaration on an HTML element' => ['<div xmlns:a="https://example.org/ns">x</div>'],
+            'declaration on an SVG element' => ['<svg><rect xmlns:custom="https://example.org/ns" width="1"/></svg>'],
+            'redeclared xlink prefix' => ['<svg><a xmlns:xlink="https://example.org/ns"><text>t</text></a></svg>'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('namespaceDeclarationProvider')]
+    public function namespaceDeclarationsAreRemoved(string $html): void
+    {
+        $result = $this->subject->sanitize($html);
+
+        self::assertStringNotContainsString('xmlns:', $result);
+        self::assertStringNotContainsString('example.org', $result);
+    }
+
     #[Test]
     public function quotationSourcesAreNotKept(): void
     {

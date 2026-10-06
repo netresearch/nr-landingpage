@@ -12,12 +12,14 @@ namespace Netresearch\NrLandingpage\Service;
 use DOMAttr;
 use DOMElement;
 use DOMNode;
+use DOMXPath;
 use TYPO3\HtmlSanitizer\Context;
 use TYPO3\HtmlSanitizer\Visitor\VisitorInterface;
 
 /**
  * html-sanitizer visitor that removes every namespaced attribute
- * (xlink:href, xml:lang, ...) from creative output.
+ * (xlink:href, xml:lang, ...) and every namespace declaration (xmlns:...)
+ * from creative output.
  *
  * Creative output needs none of them: SVG 2 uses a plain href, which the
  * allowlist checks.
@@ -40,6 +42,18 @@ final class CreativeNamespacedAttributeVisitor implements VisitorInterface
         }
         foreach ($namespaced as $attribute) {
             $domNode->removeAttributeNode($attribute);
+        }
+
+        // Namespace declarations are not attributes in the DOM and do not show up
+        // in the attribute list; they are removed through their namespace nodes.
+        $document = $domNode->ownerDocument;
+        if ($document !== null) {
+            $declarations = (new DOMXPath($document))->query('namespace::*', $domNode);
+            foreach ($declarations === false ? [] : iterator_to_array($declarations) as $declaration) {
+                if ($declaration->localName !== 'xml' && $declaration->parentNode === $domNode && is_string($declaration->nodeValue)) {
+                    $domNode->removeAttributeNS($declaration->nodeValue, (string) $declaration->localName);
+                }
+            }
         }
 
         return $domNode;
