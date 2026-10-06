@@ -310,9 +310,10 @@ class ImageProviderService implements LoggerAwareInterface
             /** @var File $file */
             $file = $storage->addFile($tempFile, $folder, $filename);
 
-            // Clean up temp file in case the storage driver copied instead of moved
+            // Clean up temp file in case the storage driver copied instead of moved.
+            // $tempFile comes from tempnam() above, never from user input.
             if (file_exists($tempFile)) {
-                @unlink($tempFile);
+                @unlink($tempFile); // nosemgrep: php.lang.security.unlink-use.unlink-use
             }
 
             $metaData = $file->getMetaData();
@@ -332,7 +333,7 @@ class ImageProviderService implements LoggerAwareInterface
             ];
         } catch (Throwable $e) {
             if ($tempFile !== null && file_exists($tempFile)) {
-                @unlink($tempFile);
+                @unlink($tempFile); // nosemgrep: php.lang.security.unlink-use.unlink-use
             }
             $this->logger?->error('Failed to store generated image in FAL', [
                 'error' => $e->getMessage(),
