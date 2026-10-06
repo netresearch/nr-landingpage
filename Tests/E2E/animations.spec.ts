@@ -234,4 +234,43 @@ test.describe('GSAP stand-ins for pages generated with GSAP', () => {
         await expect(page.locator('body')).toHaveAttribute('data-then', 'yes');
         await expect(page.locator('body')).toHaveAttribute('data-awaited', 'yes');
     });
+
+    // Script shapes from review probes, each run against an element that the
+    // page hides in CSS and the script shows.
+    const SHAPES: Record<string, string> = {
+        power2Ease: "gsap.to('#x', {opacity: 1, duration: 0.1, ease: Power2.easeOut});",
+        backConfig: "gsap.to('#x', {opacity: 1, duration: 0.1, ease: Back.easeOut.config(1.7)});",
+        tweenMax: "TweenMax.to('#x', 0.1, {opacity: 1});",
+        timelineMax: "var tl = new TimelineMax(); tl.to('#x', 0.1, {opacity: 1});",
+        contextAdd: "var ctx = gsap.context(function(){}); ctx.add(function(){ gsap.to('#x', {opacity: 1, duration: 0.1}); });",
+        cssWrapper: "gsap.to('#x', {css: {opacity: 1}, duration: 0.1});",
+        tlCall: "gsap.timeline().call(function(){ document.getElementById('x').style.opacity = '1'; });",
+        stOnEnterInTween: "gsap.to('#x', {y: 0, duration: 0.1, scrollTrigger: {trigger: '#x', onEnter: function(){ document.getElementById('x').style.opacity = '1'; }}});",
+        newScrollTrigger: "new ScrollTrigger({trigger: '#x', onEnter: function(){ gsap.to('#x', {opacity: 1, duration: 0.1}); }});",
+        newCoreTimeline: "new gsap.core.Timeline().to('#x', {opacity: 1, duration: 0.1});",
+        arraySelectors: "gsap.to(['#x'], {opacity: 1, duration: 0.1});",
+        tweenThen: "gsap.to('#x', {opacity: 1}).then(function () { document.body.dataset.then = 'ran'; });",
+        batchArray: "gsap.set('#x', {opacity: 0}); ScrollTrigger.batch(gsap.utils.toArray('#x'), {onEnter: function (batch) { gsap.to(batch, {opacity: 1, stagger: 0.1}); }});",
+        context: "gsap.context(function () { gsap.to('#x', {opacity: 1}); });",
+        repeatingCallback: "var calls = 0; function again() { calls++; gsap.to('#x', {opacity: 1, onComplete: again}); } again(); document.body.dataset.calls = String(calls);",
+    };
+    for (const [name, script] of Object.entries(SHAPES)) {
+        test(`run the shape ${name} to its end and show the element`, async ({ page }) => {
+            const errors: string[] = [];
+            page.on('pageerror', (error) => errors.push(error.message));
+            await page.setContent('<!doctype html><html><head><style>#x{opacity:0}</style></head><body><div id="x">X</div></body></html>');
+            for (const path of STAND_INS) {
+                await page.addScriptTag({ path });
+            }
+            await page.addScriptTag({ content: 'gsap.registerPlugin(ScrollTrigger, TextPlugin);' + script + "document.body.dataset.done='yes';" });
+
+            expect(errors).toEqual([]);
+            await expect(page.locator('body')).toHaveAttribute('data-done', 'yes');
+            await expect(page.locator('#x')).toHaveCSS('opacity', '1');
+            if (name === 'repeatingCallback') {
+                // A callback that starts a tween with itself runs once more, not until the stack overflows.
+                await expect(page.locator('body')).toHaveAttribute('data-calls', '2');
+            }
+        });
+    }
 });

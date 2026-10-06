@@ -333,11 +333,13 @@ Earlier versions of the extension loaded the GSAP library, which it no
 longer ships. Pages generated with them keep the animation elements
 "[Animation Library]" and "[Animation Script]", and creative pages also
 keep the scripts the LLM wrote into their sections. The files these
-pages load are now small stand-ins of the extension: they accept every
-GSAP call without animating, apply end values that show content
-(opacity, visibility, text) at once and ignore those that would hide
-it, and run ``gsap.context()``, ``matchMedia()`` and ScrollTrigger
-enter callbacks once. Content that the extension's own animation script hid
+pages load are now a small stand-in of the extension. It defines the
+names GSAP 3 defined (``gsap``, ``ScrollTrigger``, ``TweenMax``, the ease
+objects, ...) as one value that can be read, called and constructed
+without an error, so a stored script runs to its end. It does not
+animate: it applies end values that show content (opacity, visibility,
+text) at once, ignores those that would hide it, and runs callbacks
+passed to these calls once. Content that the extension's own animation script hid
 or emptied stays visible.
 
 A script written by the LLM can still depend on GSAP in ways the
