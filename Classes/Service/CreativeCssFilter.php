@@ -34,8 +34,12 @@ final class CreativeCssFilter
     {
         $css = $this->normalize($css);
 
-        // @import loads a stylesheet, with or without url().
-        $css = preg_replace('#@import\b[^;{}]*;?#i', '', $css) ?? '';
+        // @import loads a stylesheet, with or without url(). Removing one rule can
+        // join the text around it into a new one, so repeat until nothing changes.
+        do {
+            $before = $css;
+            $css = preg_replace('#@import\b[^;{}]*;?#i', '', $css) ?? '';
+        } while ($css !== $before);
 
         $css = $this->replaceResourceFunctions($css);
 

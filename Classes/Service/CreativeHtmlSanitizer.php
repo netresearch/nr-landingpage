@@ -32,6 +32,8 @@ use TYPO3\HtmlSanitizer\Visitor\CommonVisitor;
  * - Elements and attributes that are not listed are removed. Scripts, event
  *   handler attributes, embedded documents and form controls are therefore
  *   never part of the output, independent of how they are written.
+ *   Namespaced attributes (xlink:href and the like) are removed by
+ *   CreativeNamespacedAttributeVisitor.
  * - Links accept http(s), mailto, tel and local targets only.
  * - <img> is kept only as an image slot placeholder (data-image-slot, no src);
  *   the page creator fills in the FAL image URL.
@@ -100,8 +102,6 @@ final class CreativeHtmlSanitizer
         'ol' => ['start', 'reversed', 'type'],
         'time' => ['datetime'],
         'abbr' => [],
-        'blockquote' => ['cite'],
-        'q' => ['cite'],
         'details' => ['open'],
     ];
 
@@ -160,10 +160,7 @@ final class CreativeHtmlSanitizer
             $tag = (new Tag($name, Tag::ALLOW_CHILDREN))->addAttrs(...$svgAttrs, ...$this->globalAttrs());
             if ($name === 'use') {
                 // <use> may only reference an element of the same document.
-                $tag = $tag->addAttrs(
-                    (new Attr('href'))->addValues($localReference),
-                    (new Attr('xlink:href'))->addValues($localReference),
-                );
+                $tag = $tag->addAttrs((new Attr('href'))->addValues($localReference));
             }
             $tags[] = $tag;
         }
@@ -193,6 +190,7 @@ final class CreativeHtmlSanitizer
 
         $this->sanitizer = new Sanitizer(
             $behavior,
+            new CreativeNamespacedAttributeVisitor(),
             new CommonVisitor($behavior),
             new CreativeStyleVisitor($this->cssFilter),
         );

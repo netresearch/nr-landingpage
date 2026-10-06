@@ -701,6 +701,48 @@ final class CreativeHtmlSanitizerTest extends UnitTestCase
         self::assertStringNotContainsString('foreignObject', $result);
     }
 
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function namespacedAttributeProvider(): array
+    {
+        return [
+            'xlink:href with a script url on a link' => ['<svg><a xlink:href="javascript:alert(1)"><text>x</text></a></svg>'],
+            'xlink:href to another document on use' => ['<svg><use xlink:href="https://example.org/sprite.svg#icon"/></svg>'],
+            'xlink:href on a gradient' => ['<svg><linearGradient xlink:href="https://example.org/g.svg#g"/></svg>'],
+            'xlink:href on an HTML element' => ['<div xlink:href="https://example.org/">d</div>'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('namespacedAttributeProvider')]
+    public function namespacedAttributesAreRemoved(string $html): void
+    {
+        $result = $this->subject->sanitize($html);
+
+        self::assertStringNotContainsString('xlink:', $result);
+        self::assertStringNotContainsString('example.org', $result);
+        self::assertStringNotContainsString('javascript:', $result);
+    }
+
+    #[Test]
+    public function quotationSourcesAreNotKept(): void
+    {
+        $result = $this->subject->sanitize('<blockquote cite="https://example.org/">a</blockquote><q cite="https://example.org/">b</q>');
+
+        self::assertSame('<blockquote>a</blockquote><q>b</q>', $result);
+    }
+
+    #[Test]
+    public function importRulesJoinedByRemovingAnotherImportAreRemoved(): void
+    {
+        $result = $this->subject->sanitize('<style>@imp@import;ort "https://example.org/a.css"; .a { color: red; }</style>');
+
+        self::assertStringNotContainsString('@import', $result);
+        self::assertStringNotContainsString('example.org', $result);
+        self::assertStringContainsString('color: red', $result);
+    }
+
     #[Test]
     public function styleElementsInsideSvgAreRemoved(): void
     {
