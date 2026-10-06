@@ -312,11 +312,16 @@ Content & Layout Tab
       wizard. On save, the placeholder is replaced with the real image
       URL — or removed if no image was selected.
 
-      **Security:** All generated HTML is sanitized. ``<script>`` tags,
-      event handlers, ``javascript:`` protocols, ``data:`` URIs,
-      ``<img src="...">`` tags, and CSS ``url()`` are removed
-      automatically. Only ``<img data-image-slot="0">`` placeholders
-      (without ``src``) are preserved for FAL image resolution.
+      **Security:** Generated HTML is filtered with an allowlist
+      (``typo3/html-sanitizer``) when the AI answers and again when the
+      page is saved. Only listed HTML and inline SVG elements and
+      attributes are kept, so scripts, event handler attributes,
+      embedded documents and form controls are removed. Links accept
+      ``http``, ``https``, ``mailto``, ``tel`` and local targets. CSS
+      functions that load a resource (``url()``, ``image-set()`` and
+      similar) and ``@import`` are removed. ``<img>`` is kept only as a
+      ``<img data-image-slot="0">`` placeholder without ``src``, which
+      is replaced by the selected FAL image on save.
 
    When creative mode is selected, the :confval:`Allowed Content Types`
    field is hidden since it only applies to structured mode.
@@ -577,14 +582,11 @@ a Content Security Policy on the frontend, add these directives:
 For nonce-based CSP, configure TYPO3's CSP API to add nonces to
 inline scripts.
 
-Script Allowlist (Creative Mode)
---------------------------------
+Animation in Creative Mode
+--------------------------
 
-In creative mode, the AI may write ``<script data-creative>`` blocks
-using GSAP. These scripts are checked against an allowlist. Blocked
-APIs (``fetch``, ``eval``, ``document.cookie``, etc.) cause the
-entire script block to be removed.
-
-This is a defense-in-depth measure. The primary trust boundary is the
-AI prompt. For maximum security, configure a frontend CSP alongside
-the allowlist.
+Creative content never contains scripts: the sanitizer removes every
+``<script>`` element and event handler attribute. When animation is
+enabled, the AI returns animation metadata per section (type, duration,
+delay), and the extension generates the animation script for the
+section's content element, as in structured mode.

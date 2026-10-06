@@ -154,10 +154,12 @@ textmedia, etc.). Each section becomes a separate `tt_content` record.
 
 **Creative HTML**: AI generates self-contained HTML+CSS+SVG per layout column.
 Content is stored as `html` CType elements. Key constraints:
-- CSS-only (no JavaScript, no `<script>` tags)
-- Inline SVG only (no external images)
-- CSS `url()` blocked (no external resources)
-- `CreativeHtmlSanitizer` enforces all security rules
+- No JavaScript: scripts and event handler attributes are removed; animation
+  comes from per-section metadata, as in structured mode
+- Inline SVG only (no external images); `<img>` only as `data-image-slot` placeholder
+- CSS resource functions (`url()`, `image-set()`, ...) and `@import` removed
+- `CreativeHtmlSanitizer` (allowlist on `typo3/html-sanitizer`) and
+  `CreativeCssFilter` implement these rules
 
 When creative mode is selected, `allowed_ctypes` and `image_task` TCA fields
 are hidden via `displayCond`.
@@ -166,9 +168,12 @@ are hidden via `displayCond`.
 
 - LLM responses are treated as untrusted — HTML is sanitized server-side
 - **Structured mode**: `TYPO3\HtmlSanitizer` with whitelist (p, ul, ol, li, strong, em, a, h2-h4)
-- **Creative mode**: `CreativeHtmlSanitizer` strips `<script>`, event handlers,
-  `javascript:` protocols, `data:` URIs, CSS `url()`, and dangerous tags
-  (`<iframe>`, `<object>`, `<embed>`, `<form>`)
+- **Creative mode**: `CreativeHtmlSanitizer` keeps only allowlisted HTML/SVG
+  elements and attributes (no scripts, no event handlers, links limited to
+  http(s)/mailto/tel/local), `CreativeCssFilter` removes CSS that loads resources
+- **Endpoint access**: AJAX routes are reachable by every backend user, so each
+  action checks `BackendAccessGuard` (module access, template edit rights,
+  page permissions); FAL search returns only files the user may read
 - Image generation errors return generic messages, details are logged only
 - MIME type validation on AI-generated images before FAL storage
 - TCA fieldInformation uses only TYPO3-allowed HTML tags (architecture test enforced)
