@@ -94,7 +94,7 @@ class PromptOptimizerService implements LoggerAwareInterface
           Forbid inline styles, CSS classes, div, span, img — only semantic markup.
           Tailor formatting advice to the template purpose (blogs: more blockquotes/subheadings,
           landing pages: more lists and short paragraphs).
-          If animation is enabled: state that GSAP ScrollTrigger animations are injected
+          If animation is enabled: state that scroll animations are injected
           AUTOMATICALLY by the system — the AI must NOT write animation code, only provide
           animation metadata (type, duration, delay) in the JSON response.
 
@@ -191,7 +191,7 @@ class PromptOptimizerService implements LoggerAwareInterface
         }
 
         $lines[] = 'Briefing Mode: ' . $template->briefingMode;
-        $lines[] = 'Animation: ' . ($template->isAnimationEnabled() ? 'enabled (GSAP ScrollTrigger)' : 'disabled');
+        $lines[] = 'Animation: ' . ($template->isAnimationEnabled() ? 'enabled (scroll animations)' : 'disabled');
         $lines[] = 'Color Scheme: Primary=' . $template->colorPrimary
             . ', Secondary=' . $template->colorSecondary
             . ', Background=' . $template->colorBackground

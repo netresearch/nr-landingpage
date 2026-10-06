@@ -53,7 +53,7 @@ class PageCreatorService implements LoggerAwareInterface
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly ResourceFactory $resourceFactory,
-        private readonly GsapService $gsapService,
+        private readonly AnimationLoaderService $animationLoaderService,
         private readonly AnimationScriptBuilder $animationScriptBuilder,
     ) {}
 
@@ -164,7 +164,7 @@ class PageCreatorService implements LoggerAwareInterface
         // Pass 2: Create sys_file_reference records with real UIDs
         $this->createImageReferences($pageUid, $contentUids, $contentSections);
 
-        // Pass 3: Add GSAP loader + animation script if animation is enabled
+        // Pass 3: Add the animation runtime and the animation map if animation is enabled
         if ($template->isAnimationEnabled()) {
             /** @var array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animationMap */
             $animationMap = [];
@@ -174,7 +174,7 @@ class PageCreatorService implements LoggerAwareInterface
                     $animationMap[$uid] = $anim;
                 }
             }
-            $this->createGsapElements($pageUid, $animationMap);
+            $this->createAnimationElements($pageUid, $animationMap);
         }
 
         $this->eventDispatcher->dispatch(
@@ -467,36 +467,36 @@ class PageCreatorService implements LoggerAwareInterface
     }
 
     /**
-     * Create GSAP loader and animation script content elements.
+     * Create the animation runtime loader and animation map content elements.
      * Separate DataHandler pass because we need real page/content UIDs.
      *
      * Non-fatal: if this fails, the page is saved without animations.
      *
      * @param array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animationMap
      */
-    private function createGsapElements(int $pageUid, array $animationMap): void
+    private function createAnimationElements(int $pageUid, array $animationMap): void
     {
         try {
             $dataMap = [
                 'tt_content' => [
-                    'NEW_gsap_loader' => [
+                    'NEW_animation_loader' => [
                         'pid' => $pageUid,
                         'CType' => 'html',
-                        'header' => '[Animation Library]',
+                        'header' => '[Animation Runtime]',
                         'header_layout' => 100,
                         'sorting' => 1,
                         'colPos' => 0,
-                        'bodytext' => $this->gsapService->buildLoaderHtml(),
+                        'bodytext' => $this->animationLoaderService->buildLoaderHtml(),
                     ],
                 ],
             ];
 
             $animationScript = $this->animationScriptBuilder->build($animationMap);
             if ($animationScript !== '') {
-                $dataMap['tt_content']['NEW_gsap_animation'] = [
+                $dataMap['tt_content']['NEW_animation_map'] = [
                     'pid' => $pageUid,
                     'CType' => 'html',
-                    'header' => '[Animation Script]',
+                    'header' => '[Animation Map]',
                     'header_layout' => 100,
                     'sorting' => 99999,
                     'colPos' => 0,
@@ -509,12 +509,12 @@ class PageCreatorService implements LoggerAwareInterface
             $dataHandler->process_datamap();
 
             if ($dataHandler->errorLog !== []) {
-                $this->logger?->warning('GSAP elements creation failed', [
+                $this->logger?->warning('Animation elements creation failed', [
                     'errors' => implode(', ', array_map(static fn(mixed $v): string => is_string($v) ? $v : var_export($v, true), $dataHandler->errorLog)),
                 ]);
             }
         } catch (Throwable $e) {
-            $this->logger?->warning('GSAP elements creation failed', [
+            $this->logger?->warning('Animation elements creation failed', [
                 'exception' => $e->getMessage(),
             ]);
         }

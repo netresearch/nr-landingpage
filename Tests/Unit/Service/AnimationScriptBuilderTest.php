@@ -11,332 +11,131 @@ namespace Netresearch\NrLandingpage\Tests\Unit\Service;
 
 use Netresearch\NrLandingpage\Service\AnimationScriptBuilder;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 
 #[CoversClass(AnimationScriptBuilder::class)]
 final class AnimationScriptBuilderTest extends UnitTestCase
 {
-    #[Test]
-    public function buildReturnsEmptyStringForEmptyAnimations(): void
+    private const PREFIX = '<script type="application/json" data-nr-landingpage-animations>';
+    private const SUFFIX = '</script>';
+
+    /**
+     * @param array<int, array<string, mixed>> $animations
+     * @return array<string, array<string, mixed>>
+     */
+    private function buildMap(array $animations): array
     {
-        $builder = new AnimationScriptBuilder();
-        self::assertSame('', $builder->build([]));
+        $html = (new AnimationScriptBuilder())->build($animations);
+        self::assertStringStartsWith(self::PREFIX, $html);
+        self::assertStringEndsWith(self::SUFFIX, $html);
+
+        $json = substr($html, strlen(self::PREFIX), -strlen(self::SUFFIX));
+        $map = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($map);
+
+        /** @var array<string, array<string, mixed>> $map */
+        return $map;
     }
 
     #[Test]
-    public function buildGeneratesGsapCallForFadeUp(): void
+    public function buildReturnsEmptyStringForEmptyAnimations(): void
     {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            123 => ['type' => 'fade-up', 'duration' => 0.8],
-        ]);
-        self::assertStringContainsString('#c123', $result);
-        self::assertStringContainsString('gsap.from', $result);
-        self::assertStringContainsString('data-creative', $result);
+        self::assertSame('', (new AnimationScriptBuilder())->build([]));
+    }
+
+    #[Test]
+    public function buildReturnsADataBlockThatBrowsersDoNotExecute(): void
+    {
+        $html = (new AnimationScriptBuilder())->build([123 => ['type' => 'fade-up']]);
+
+        self::assertStringStartsWith('<script type="application/json"', $html);
+        self::assertStringNotContainsString('gsap', $html);
+        self::assertStringNotContainsString('function', $html);
+    }
+
+    #[Test]
+    public function buildMapsTheContentElementUidToItsAnimation(): void
+    {
+        self::assertSame(
+            ['123' => ['type' => 'fade-up', 'duration' => 0.8, 'delay' => 0.0]],
+            $this->buildMap([123 => ['type' => 'fade-up', 'duration' => 0.8]]),
+        );
     }
 
     #[Test]
     public function buildSkipsUnknownAnimationType(): void
     {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            123 => ['type' => 'nonexistent-animation'],
-        ]);
-        self::assertSame('', $result);
-    }
-
-    #[Test]
-    public function buildClampsDurationToValidRange(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            123 => ['type' => 'fade-up', 'duration' => 999.0],
-        ]);
-        self::assertStringContainsString('duration: 3', $result);
-        self::assertStringNotContainsString('999', $result);
+        self::assertSame('', (new AnimationScriptBuilder())->build([123 => ['type' => 'nonexistent-animation']]));
     }
 
     #[Test]
     public function buildSkipsSectionsWithoutAnimation(): void
     {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
+        $map = $this->buildMap([
             123 => ['type' => 'fade-up'],
             456 => [],
             789 => ['type' => 'slide-left'],
         ]);
-        self::assertStringContainsString('#c123', $result);
-        self::assertStringNotContainsString('#c456', $result);
-        self::assertStringContainsString('#c789', $result);
+
+        self::assertSame(['123', '789'], array_map(strval(...), array_keys($map)));
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function animationTypeProvider(): array
+    {
+        return array_combine(
+            AnimationScriptBuilder::TYPES,
+            array_map(static fn(string $type): array => [$type], AnimationScriptBuilder::TYPES),
+        );
     }
 
     #[Test]
-    public function buildDoesNotIncludeReducedMotionCheck(): void
+    #[DataProvider('animationTypeProvider')]
+    public function buildKeepsEveryTypeTheRuntimeImplements(string $type): void
     {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            123 => ['type' => 'fade-up'],
-        ]);
-        self::assertStringNotContainsString('prefers-reduced-motion', $result);
-    }
-
-    // -------------------------------------------------------------------------
-    // Animation type tests
-    // -------------------------------------------------------------------------
-
-    #[Test]
-    public function buildGeneratesSlideLeftAnimation(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            10 => ['type' => 'slide-left', 'duration' => 0.8],
-        ]);
-        self::assertStringContainsString('gsap.from', $result);
-        self::assertStringContainsString('x: -60', $result);
-        self::assertStringContainsString('#c10', $result);
+        self::assertSame($type, $this->buildMap([10 => ['type' => $type]])['10']['type']);
     }
 
     #[Test]
-    public function buildGeneratesSlideRightAnimation(): void
+    public function everyTypeIsImplementedByTheRuntime(): void
     {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            11 => ['type' => 'slide-right', 'duration' => 0.8],
-        ]);
-        self::assertStringContainsString('gsap.from', $result);
-        self::assertStringContainsString('x: 60', $result);
-        self::assertStringContainsString('#c11', $result);
+        $runtime = file_get_contents(dirname(__DIR__, 3) . '/Resources/Public/JavaScript/frontend/animations.js');
+        self::assertIsString($runtime);
+
+        foreach (AnimationScriptBuilder::TYPES as $type) {
+            self::assertStringContainsString("'" . $type . "'", $runtime, $type);
+        }
     }
 
     #[Test]
-    public function buildGeneratesZoomInAnimation(): void
+    public function buildClampsDurationDelayAndStagger(): void
     {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            12 => ['type' => 'zoom-in', 'duration' => 0.8],
+        $map = $this->buildMap([
+            1 => ['type' => 'fade-up', 'duration' => 999.0, 'delay' => -5.0],
+            2 => ['type' => 'stagger-children', 'duration' => 0.0, 'delay' => 999.0, 'stagger' => 9.0],
         ]);
-        self::assertStringContainsString('gsap.from', $result);
-        self::assertStringContainsString('scale: 0.8', $result);
-        self::assertStringContainsString('#c12', $result);
-    }
 
-    #[Test]
-    public function buildGeneratesScaleUpAnimation(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            13 => ['type' => 'scale-up', 'duration' => 0.8],
-        ]);
-        self::assertStringContainsString('gsap.from', $result);
-        self::assertStringContainsString('scale: 0.5', $result);
-        self::assertStringContainsString('#c13', $result);
-    }
-
-    #[Test]
-    public function buildGeneratesFadeDownAnimation(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            14 => ['type' => 'fade-down', 'duration' => 0.8],
-        ]);
-        self::assertStringContainsString('gsap.from', $result);
-        self::assertStringContainsString('y: -40', $result);
-        self::assertStringContainsString('#c14', $result);
-    }
-
-    #[Test]
-    public function buildGeneratesStaggerChildrenAnimation(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            15 => ['type' => 'stagger-children', 'duration' => 0.8, 'stagger' => 0.15],
-        ]);
-        self::assertStringContainsString("'#c15 > *'", $result);
-        self::assertStringContainsString('stagger:', $result);
-        self::assertStringContainsString('gsap.from', $result);
-    }
-
-    #[Test]
-    public function buildGeneratesTypewriterAnimation(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            16 => ['type' => 'typewriter', 'duration' => 0.8],
-        ]);
-        self::assertStringContainsString('querySelectorAll', $result);
-        self::assertStringContainsString('text:', $result);
-        self::assertStringContainsString("'#c16 h1, #c16 h2, #c16 p'", $result);
-    }
-
-    #[Test]
-    public function buildGeneratesParallaxAnimation(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            17 => ['type' => 'parallax'],
-        ]);
-        self::assertStringContainsString('scrub: true', $result);
-        self::assertStringContainsString('y: -30', $result);
-        self::assertStringContainsString('#c17', $result);
+        self::assertSame(['type' => 'fade-up', 'duration' => 3.0, 'delay' => 0.0], $map['1']);
+        self::assertSame(['type' => 'stagger-children', 'duration' => 0.1, 'delay' => 2.0, 'stagger' => 0.5], $map['2']);
     }
 
     #[Test]
     public function buildParallaxIgnoresDurationAndDelay(): void
     {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            18 => ['type' => 'parallax', 'duration' => 2.5, 'delay' => 1.0],
-        ]);
-        self::assertStringNotContainsString('duration:', $result);
-        self::assertStringNotContainsString('delay:', $result);
-        self::assertStringContainsString('y: -30', $result);
-    }
-
-    // -------------------------------------------------------------------------
-    // Clamping edge cases
-    // -------------------------------------------------------------------------
-
-    #[Test]
-    public function buildClampsDelayToMaximum(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            20 => ['type' => 'fade-up', 'delay' => 999],
-        ]);
-        self::assertStringContainsString('delay: 2', $result);
-        self::assertStringNotContainsString('delay: 999', $result);
+        self::assertSame(['type' => 'parallax'], $this->buildMap([17 => ['type' => 'parallax', 'duration' => 2.0, 'delay' => 1.0]])['17']);
     }
 
     #[Test]
-    public function buildClampsDelayToMinimum(): void
+    public function buildKeepsMarkupOutOfTheDataBlock(): void
     {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            21 => ['type' => 'fade-up', 'delay' => -1],
-        ]);
-        self::assertStringContainsString('delay: 0', $result);
-    }
+        $html = (new AnimationScriptBuilder())->build([5 => ['type' => 'fade-up', 'delay' => 1.0]]);
 
-    #[Test]
-    public function buildClampsStaggerToMaximum(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            22 => ['type' => 'stagger-children', 'stagger' => 999],
-        ]);
-        self::assertStringContainsString('stagger: 0.5', $result);
-        self::assertStringNotContainsString('stagger: 999', $result);
-    }
-
-    #[Test]
-    public function buildClampsStaggerToMinimum(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            23 => ['type' => 'stagger-children', 'stagger' => 0.01],
-        ]);
-        self::assertStringContainsString('stagger: 0.05', $result);
-        self::assertStringNotContainsString('stagger: 0.01', $result);
-    }
-
-    #[Test]
-    public function buildClampsDurationToMinimum(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            24 => ['type' => 'fade-up', 'duration' => 0],
-        ]);
-        self::assertStringContainsString('duration: 0.1', $result);
-        self::assertStringNotContainsString('duration: 0,', $result);
-    }
-
-    // -------------------------------------------------------------------------
-    // Edge cases
-    // -------------------------------------------------------------------------
-
-    #[Test]
-    public function buildHandlesLargeUid(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            999999 => ['type' => 'fade-up'],
-        ]);
-        self::assertStringContainsString('#c999999', $result);
-    }
-
-    #[Test]
-    public function buildUsesDefaultDurationWhenNotProvided(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            30 => ['type' => 'fade-up'],
-        ]);
-        self::assertStringContainsString('duration: 0.8', $result);
-    }
-
-    #[Test]
-    public function buildHandlesMultipleMixedAnimationTypes(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            40 => ['type' => 'fade-up', 'duration' => 0.8],
-            41 => ['type' => 'typewriter', 'duration' => 1.0],
-            42 => ['type' => 'parallax'],
-        ]);
-        // fade-up
-        self::assertStringContainsString('#c40', $result);
-        self::assertStringContainsString('y: 40', $result);
-        // typewriter
-        self::assertStringContainsString("'#c41 h1, #c41 h2, #c41 p'", $result);
-        self::assertStringContainsString('text:', $result);
-        // parallax
-        self::assertStringContainsString('#c42', $result);
-        self::assertStringContainsString('scrub: true', $result);
-    }
-
-    // -------------------------------------------------------------------------
-    // Constants
-    // -------------------------------------------------------------------------
-
-    // -------------------------------------------------------------------------
-    // Script wrapping
-    // -------------------------------------------------------------------------
-
-    #[Test]
-    public function buildWrapsCallsInDomContentLoaded(): void
-    {
-        $builder = new AnimationScriptBuilder();
-        $result = $builder->build([
-            50 => ['type' => 'fade-up'],
-        ]);
-        self::assertStringContainsString("document.addEventListener('DOMContentLoaded'", $result);
-        self::assertStringContainsString('});', $result);
-        // Verify animation call is inside the wrapper (DOMContentLoaded before gsap.from)
-        $domReadyPos = strpos($result, 'DOMContentLoaded');
-        $gsapFromPos = strpos($result, 'gsap.from');
-        self::assertNotFalse($domReadyPos);
-        self::assertNotFalse($gsapFromPos);
-        self::assertGreaterThan($domReadyPos, $gsapFromPos);
-    }
-
-    // -------------------------------------------------------------------------
-    // Constants
-    // -------------------------------------------------------------------------
-
-    #[Test]
-    public function clampingConstantsHaveExpectedValues(): void
-    {
-        self::assertSame(0.1, AnimationScriptBuilder::DURATION_MIN);
-        self::assertSame(3.0, AnimationScriptBuilder::DURATION_MAX);
-        self::assertSame(0.8, AnimationScriptBuilder::DURATION_DEFAULT);
-
-        self::assertSame(0.0, AnimationScriptBuilder::DELAY_MIN);
-        self::assertSame(2.0, AnimationScriptBuilder::DELAY_MAX);
-        self::assertSame(0.0, AnimationScriptBuilder::DELAY_DEFAULT);
-
-        self::assertSame(0.05, AnimationScriptBuilder::STAGGER_MIN);
-        self::assertSame(0.5, AnimationScriptBuilder::STAGGER_MAX);
-        self::assertSame(0.15, AnimationScriptBuilder::STAGGER_DEFAULT);
+        // The opening and the closing tag are the only places with "<".
+        self::assertSame(2, substr_count($html, '<'));
+        self::assertSame(1, substr_count($html, '</'));
     }
 }

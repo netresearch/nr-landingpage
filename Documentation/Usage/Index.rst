@@ -95,7 +95,7 @@ Each section is displayed as a card showing:
 -  **Section name** and **content type** (badge)
 -  **Header** and **subheader**
 -  **Body text** — rendered as HTML preview
--  **Animation** — optional GSAP animation effect for the section
+-  **Animation** — optional animation effect for the section
    (e.g. scroll-triggered fade-in, typewriter). Not every section
    needs animation; leave blank for sections where motion would be
    distracting.
@@ -135,7 +135,7 @@ generated and again when the page is saved, scripts and event handler
 attributes are removed, also when the editor added them in the source
 editor. When the template has animations enabled, the AI chooses an
 animation per section (for example a scroll-triggered reveal), and the
-extension generates the animation script for that section.
+extension's animation runtime plays it.
 
 Step 5: Placement & Save
 -------------------------
@@ -324,12 +324,13 @@ Accessibility
 
 Generated animations automatically respect the operating system's
 ``prefers-reduced-motion`` setting. When a user has enabled reduced
-motion, all GSAP animations are skipped.
+motion, all animations are skipped.
 
-GSAP Version Updates
---------------------
+Pages Generated With GSAP
+-------------------------
 
-When updating the extension, check the release notes for GSAP version
-changes. If a GSAP major version was dropped, test existing landing
-pages that were generated with the old version. Re-generate affected
-pages if animations no longer work correctly.
+Earlier versions of the extension loaded the GSAP library, which it no
+longer ships. On pages generated with them, the animation elements
+"[Animation Library]" and "[Animation Script]" no longer animate
+anything; the content stays visible. Re-generate such pages, or delete
+the two elements, to use the current animations.

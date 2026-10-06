@@ -10,9 +10,12 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Service;
 
 /**
- * Builds GSAP animation scripts for structured mode content elements.
+ * Builds the animation map for the content elements of a generated page.
  *
- * Maps animation type names to GSAP calls targeting #c{uid} selectors.
+ * The map is a JSON data block (<script type="application/json">), which
+ * browsers do not execute. Resources/Public/JavaScript/frontend/animations.js
+ * reads it and animates each #c{uid} element. Types come from a fixed list;
+ * duration, delay and stagger are clamped.
  */
 final class AnimationScriptBuilder
 {
@@ -28,69 +31,50 @@ final class AnimationScriptBuilder
     public const STAGGER_MAX = 0.5;
     public const STAGGER_DEFAULT = 0.15;
 
-    private const ANIMATION_MAP = [
-        'fade-up' => ['prop' => 'opacity: 0, y: 40'],
-        'fade-down' => ['prop' => 'opacity: 0, y: -40'],
-        'slide-left' => ['prop' => 'opacity: 0, x: -60'],
-        'slide-right' => ['prop' => 'opacity: 0, x: 60'],
-        'zoom-in' => ['prop' => 'opacity: 0, scale: 0.8'],
-        'scale-up' => ['prop' => 'opacity: 0, scale: 0.5'],
-        'stagger-children' => ['prop' => 'opacity: 0, y: 20', 'children' => true],
-        'typewriter' => ['special' => 'typewriter'],
-        'parallax' => ['special' => 'parallax'],
+    /**
+     * Animation types the frontend runtime implements.
+     */
+    public const TYPES = [
+        'fade-up', 'fade-down', 'slide-left', 'slide-right', 'zoom-in', 'scale-up',
+        'stagger-children', 'typewriter', 'parallax',
     ];
 
     /**
-     * Build animation script HTML from UID-to-animation map.
+     * Build the animation map element from a UID-to-animation map.
      *
      * @param array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animations
-     * @return string Complete <script data-creative> block, or empty string if no valid animations
+     * @return string JSON data block, or empty string if no valid animations
      */
     public function build(array $animations): string
     {
-        $calls = [];
+        $map = [];
         foreach ($animations as $uid => $config) {
             $type = $config['type'] ?? '';
-            if ($type === '' || !isset(self::ANIMATION_MAP[$type])) {
+            if ($uid <= 0 || !in_array($type, self::TYPES, true)) {
                 continue;
             }
 
-            $duration = $this->clamp((float) ($config['duration'] ?? self::DURATION_DEFAULT), self::DURATION_MIN, self::DURATION_MAX);
-            $delay = $this->clamp((float) ($config['delay'] ?? self::DELAY_DEFAULT), self::DELAY_MIN, self::DELAY_MAX);
-            $stagger = $this->clamp((float) ($config['stagger'] ?? self::STAGGER_DEFAULT), self::STAGGER_MIN, self::STAGGER_MAX);
-            $def = self::ANIMATION_MAP[$type];
-
-            $selector = "'#c{$uid}'";
-
-            if (($def['special'] ?? '') === 'typewriter') {
-                $twSelector = "'#c{$uid} h1, #c{$uid} h2, #c{$uid} p'";
-                $calls[] = "document.querySelectorAll({$twSelector}).forEach(function(el) { var t = el.textContent; el.textContent = ''; gsap.to(el, {scrollTrigger: {$selector}, text: t, duration: {$duration}, delay: {$delay}, ease: 'none'}); });";
-                continue;
+            $entry = ['type' => $type];
+            if ($type !== 'parallax') {
+                $entry['duration'] = $this->clamp((float) ($config['duration'] ?? self::DURATION_DEFAULT), self::DURATION_MIN, self::DURATION_MAX);
+                $entry['delay'] = $this->clamp((float) ($config['delay'] ?? self::DELAY_DEFAULT), self::DELAY_MIN, self::DELAY_MAX);
             }
-            if (($def['special'] ?? '') === 'parallax') {
-                $calls[] = "gsap.to({$selector}, {scrollTrigger: {trigger: {$selector}, scrub: true}, y: -30, ease: 'none'});";
-                continue;
+            if ($type === 'stagger-children') {
+                $entry['stagger'] = $this->clamp((float) ($config['stagger'] ?? self::STAGGER_DEFAULT), self::STAGGER_MIN, self::STAGGER_MAX);
             }
-
-            $prop = $def['prop'] ?? '';
-            $target = ($def['children'] ?? false) ? "'#c{$uid} > *'" : $selector;
-            $staggerProp = ($def['children'] ?? false) ? ", stagger: {$stagger}" : '';
-            $calls[] = "gsap.from({$target}, {scrollTrigger: {$selector}, {$prop}, duration: {$duration}, delay: {$delay}{$staggerProp}});";
+            $map[(string) $uid] = $entry;
         }
 
-        if ($calls === []) {
+        if ($map === []) {
             return '';
         }
 
-        $script = implode("\n", $calls);
+        $json = json_encode(
+            $map,
+            JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_PRESERVE_ZERO_FRACTION,
+        );
 
-        return <<<HTML
-            <script data-creative>
-            document.addEventListener('DOMContentLoaded', function() {
-            {$script}
-            });
-            </script>
-            HTML;
+        return '<script type="application/json" data-nr-landingpage-animations>' . $json . '</script>';
     }
 
     private function clamp(float $value, float $min, float $max): float
