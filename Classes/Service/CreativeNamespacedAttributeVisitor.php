@@ -40,10 +40,11 @@ final class CreativeNamespacedAttributeVisitor implements VisitorInterface
         }
         $xpath = new DOMXPath($document);
 
-        // Namespaced attributes of the whole subtree go first: removing a declaration
+        // Namespaced and prefixed attributes of the whole subtree go first (a prefix
+        // bound to an empty namespace leaves the namespace URI empty): removing a declaration
         // below can detach the namespace that a descendant's prefixed attribute uses,
         // which would turn it into a plain attribute of the same local name.
-        $attributes = $xpath->query('descendant-or-self::*/@*[namespace-uri() != ""]', $domNode);
+        $attributes = $xpath->query('descendant-or-self::*/@*[namespace-uri() != "" or contains(name(), ":")]', $domNode);
         foreach ($attributes === false ? [] : iterator_to_array($attributes) as $attribute) {
             if ($attribute instanceof DOMAttr) {
                 $attribute->ownerElement?->removeAttributeNode($attribute);

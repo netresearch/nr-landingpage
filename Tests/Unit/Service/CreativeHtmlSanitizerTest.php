@@ -761,6 +761,14 @@ final class CreativeHtmlSanitizerTest extends UnitTestCase
                 '<svg><a xlink:href="https://example.org/"><use xlink:href="#icon" href="#icon"/></a></svg>',
                 '<svg><a><use href="#icon" /></a></svg>',
             ],
+            'prefixed style bound to an empty namespace' => [
+                '<p style="color:red" xmlns:a="" a:style="background:url(https://example.org/x.png)">x</p>',
+                '<p style="color:red">x</p>',
+            ],
+            'prefixed href bound to an empty namespace' => [
+                '<a xmlns:a="" a:href="https://example.org/">x</a>',
+                '<a>x</a>',
+            ],
             'local href next to a prefixed one below a prefixed group' => [
                 '<svg><g xlink:title="t"><use href="#a" xlink:href="https://example.org/x.svg#a"/></g></svg>',
                 '<svg><g><use href="#a" /></g></svg>',
