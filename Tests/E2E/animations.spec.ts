@@ -16,18 +16,30 @@ const RUNTIME = 'Resources/Public/JavaScript/frontend/animations.js';
 const STAND_INS = ['gsap.min.js', 'ScrollTrigger.min.js', 'TextPlugin.min.js']
     .map((file) => `Resources/Public/JavaScript/vendor/gsap/3/${file}`);
 
-async function pageWithMap(page: Page, body: string, map: Record<string, unknown>): Promise<void> {
+async function pageWithMap(
+    page: Page,
+    body: string,
+    map: Record<string, unknown>,
+    beforeRuntime?: () => void,
+): Promise<void> {
     await page.setViewportSize({ width: 1000, height: 800 });
     await page.setContent(
         `<!doctype html><html><body style="margin:0">${body}`
         + `<script type="application/json" data-nr-landingpage-animations>${JSON.stringify(map)}</script>`
         + '</body></html>',
     );
+    if (beforeRuntime) {
+        await page.evaluate(beforeRuntime);
+    }
     await page.addScriptTag({ path: RUNTIME });
 }
 
 async function opacity(page: Page, selector: string): Promise<string> {
     return page.locator(selector).evaluate((element) => (element as HTMLElement).style.opacity);
+}
+
+async function transform(page: Page, selector: string): Promise<string> {
+    return page.locator(selector).evaluate((element) => (element as HTMLElement).style.transform);
 }
 
 test.describe('animation runtime', () => {
@@ -45,30 +57,76 @@ test.describe('animation runtime', () => {
     });
 
     for (const type of ['fade-up', 'fade-down', 'slide-left', 'slide-right', 'zoom-in', 'scale-up']) {
-        test(`reveals a ${type} element in view`, async ({ page }) => {
-            await pageWithMap(page, '<div id="c5"><p>Visible</p></div>', { 5: { type, duration: 0.1 } });
+        test(`hides a ${type} element until it scrolls into view`, async ({ page }) => {
+            await pageWithMap(
+                page,
+                '<div style="height:1200px"></div><div id="c5"><p>Visible</p></div>',
+                { 5: { type, duration: 0.1 } },
+            );
 
+            expect(await opacity(page, '#c5')).toBe('0');
+            expect(await transform(page, '#c5')).not.toBe('');
+
+            await page.evaluate(() => window.scrollTo(0, 1000));
             await expect.poll(() => opacity(page, '#c5')).toBe('');
+            expect(await transform(page, '#c5')).toBe('');
         });
     }
 
-    test('reveals every child of a stagger-children element', async ({ page }) => {
-        await pageWithMap(page, '<div id="c6"><p>One</p><p>Two</p></div>', { 6: { type: 'stagger-children', duration: 0.1 } });
+    test('reveals a fade-down element at the top of the page', async ({ page }) => {
+        // The start state moves it 40px up, out of the viewport.
+        await pageWithMap(page, '<div id="c12"><p>Top</p></div>', { 12: { type: 'fade-down', duration: 0.1 } });
 
+        await expect.poll(() => opacity(page, '#c12')).toBe('');
+    });
+
+    test('hides every child of a stagger-children element until it scrolls into view', async ({ page }) => {
+        await pageWithMap(
+            page,
+            '<div style="height:1200px"></div><div id="c6"><p>One</p><p>Two</p></div>',
+            { 6: { type: 'stagger-children', duration: 0.1 } },
+        );
+
+        expect(await opacity(page, '#c6 > p:nth-child(1)')).toBe('0');
+        expect(await opacity(page, '#c6 > p:nth-child(2)')).toBe('0');
+
+        await page.evaluate(() => window.scrollTo(0, 1000));
         await expect.poll(() => opacity(page, '#c6 > p:nth-child(1)')).toBe('');
         await expect.poll(() => opacity(page, '#c6 > p:nth-child(2)')).toBe('');
     });
 
-    test('types plain text and leaves a paragraph with markup as it is', async ({ page }) => {
+    test('types plain text in steps and leaves a paragraph with markup as it is', async ({ page }) => {
         await pageWithMap(
             page,
             '<div id="c7"><h2>Heading</h2><p>Text with <a href="#x">a link</a></p></div>',
-            { 7: { type: 'typewriter', duration: 0.1 } },
+            { 7: { type: 'typewriter', duration: 0.5 } },
+            () => {
+                const seen: string[] = [];
+                (window as unknown as { typed: string[] }).typed = seen;
+                const heading = document.querySelector('#c7 h2') as HTMLElement;
+                new MutationObserver(() => seen.push(heading.textContent || ''))
+                    .observe(heading, { subtree: true, childList: true, characterData: true });
+            },
         );
 
-        await expect(page.locator('#c7 h2')).toHaveText('Heading');
+        const typed = (): Promise<string[]> => page.evaluate(() => (window as unknown as { typed: string[] }).typed);
+        await expect.poll(async () => (await typed()).at(-1)).toBe('Heading');
+        expect((await typed()).some((text) => text !== '' && text.length < 'Heading'.length && 'Heading'.startsWith(text))).toBe(true);
         await expect(page.locator('#c7 p')).toHaveText('Text with a link');
         await expect(page.locator('#c7 p a')).toHaveCount(1);
+    });
+
+    test('moves a parallax element while the page scrolls', async ({ page }) => {
+        await pageWithMap(
+            page,
+            '<div style="height:600px"></div><div id="c11" style="height:200px"><p>Parallax</p></div><div style="height:2000px"></div>',
+            { 11: { type: 'parallax' } },
+        );
+        const before = await transform(page, '#c11');
+
+        await page.evaluate(() => window.scrollTo(0, 500));
+        await expect.poll(() => transform(page, '#c11')).not.toBe(before);
+        expect(await transform(page, '#c11')).toMatch(/^translateY\(-\d+(\.\d)?px\)$/);
     });
 });
 
@@ -102,5 +160,46 @@ test.describe('GSAP stand-ins for pages generated with GSAP', () => {
         await expect(page.locator('#c8 p')).toHaveText('Old para');
         await expect(page.locator('#c9 p')).toBeVisible();
         expect(errors).toEqual([]);
+    });
+
+    test('accept other GSAP calls and apply the end state that decides visibility', async ({ page }) => {
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+
+        // Shapes a script written in creative mode may use; the page hides
+        // the content in CSS and relies on GSAP to show it.
+        await page.setContent(
+            '<!doctype html><html><head><style>'
+            + '#a, #d { opacity: 0 } #c { opacity: 0; visibility: hidden }'
+            + '</style></head><body>'
+            + '<div id="a">A</div><div id="b">B</div><div id="c">C</div><div id="d">D</div>'
+            + '<p class="item">One</p><p class="item">Two</p>'
+            + '</body></html>',
+        );
+        for (const path of STAND_INS) {
+            await page.addScriptTag({ path });
+        }
+        await page.addScriptTag({
+            content: "gsap.registerPlugin(ScrollTrigger, TextPlugin);"
+                + "gsap.set('.item', {y: 20});"
+                + "gsap.timeline({scrollTrigger: {trigger: '#a', start: 'top 80%'}})"
+                + ".fromTo('#a', {opacity: 0}, {opacity: 1, duration: 1})"
+                + ".to('#b', {text: {value: 'Typed'}, duration: 1});"
+                + "ScrollTrigger.create({trigger: '#c', onEnter: function () { gsap.to('#c', {autoAlpha: 1}); }});"
+                + "ScrollTrigger.refresh();"
+                + "gsap.utils.toArray('.item').forEach(function (el, i) { gsap.from(el, {y: 20, delay: i * 0.1}); });"
+                + "gsap.matchMedia().add('(min-width: 1px)', function () { gsap.to('#d', {opacity: 1}); });"
+                + "gsap.quickTo('#a', 'x')(10);"
+                + "document.body.dataset.done = 'yes';",
+        });
+
+        expect(errors).toEqual([]);
+        await expect(page.locator('body')).toHaveAttribute('data-done', 'yes');
+        await expect(page.locator('#a')).toHaveCSS('opacity', '1');
+        await expect(page.locator('#b')).toHaveText('Typed');
+        await expect(page.locator('#c')).toHaveCSS('opacity', '1');
+        await expect(page.locator('#c')).toHaveCSS('visibility', 'visible');
+        await expect(page.locator('#d')).toHaveCSS('opacity', '1');
+        await expect(page.locator('.item')).toHaveCount(2);
     });
 });

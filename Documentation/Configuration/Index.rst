@@ -543,12 +543,13 @@ Animation Runtime
 
 Animations are run by a small script that ships with the extension,
 ``Resources/Public/JavaScript/frontend/animations.js``. When a template
-has animation enabled, saving a generated page adds two ``html`` content
+has animation enabled, saving a generated page adds ``html`` content
 elements with hidden headers:
 
 -  **[Animation Runtime]** — loads the script with
    ``<script src="..." defer>``.
--  **[Animation Map]** — a JSON data block that maps each content
+-  **[Animation Map]**, when at least one section has a valid
+   animation — a JSON data block that maps each content
    element to its animation type, duration and delay. Browsers do not
    execute JSON data blocks.
 
