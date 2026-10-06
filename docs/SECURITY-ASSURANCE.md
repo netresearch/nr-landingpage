@@ -111,9 +111,9 @@ public issues.
   `ContentGeneratorService::validateAnimation()`). The code that runs is the extension's own
   `Resources/Public/JavaScript/frontend/animations.js`; the extension ships no third-party JavaScript.
   `Resources/Public/JavaScript/vendor/gsap/3/*.min.js` are the extension's own stand-ins for pages generated
-  with GSAP: every name GSAP 3 defined is one inert value that can be read, called and constructed without
-  an error; calls apply end values that show content (opacity, visibility, text), ignore those that would
-  hide it, and run their callbacks once. The stand-in runs no code other than the stored page's.
+  with GSAP: every name GSAP 3 defined is one inert value, so stored scripts run without an error. It writes
+  text back only into elements that are empty and applies only values that show content, so the extension's
+  own generated script keeps its content; it runs none of the page's callbacks.
 - **Generated images.** The downloaded file must have an `image/*` MIME type detected from its content and
   an extension listed in `$GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext']`
   (`ImageProviderService::storeGeneratedImage()`). A failed generation returns a generic message to the

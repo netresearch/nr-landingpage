@@ -333,17 +333,16 @@ Earlier versions of the extension loaded the GSAP library, which it no
 longer ships. Pages generated with them keep the animation elements
 "[Animation Library]" and "[Animation Script]", and creative pages also
 keep the scripts the LLM wrote into their sections. The files these
-pages load are now a small stand-in of the extension. It defines the
-names GSAP 3 defined (``gsap``, ``ScrollTrigger``, ``TweenMax``, the ease
-objects, ...) as one value that can be read, called and constructed
-without an error, so a stored script runs to its end. It does not
-animate: it applies end values that show content (opacity, visibility,
-text) at once, ignores those that would hide it, and runs callbacks
-passed to these calls once. Content that the extension's own animation script hid
-or emptied stays visible.
+pages load are now a small stand-in of the extension:
 
-A script written by the LLM can still depend on GSAP in ways the
-stand-ins do not reproduce, so check creative pages generated with
-GSAP. Re-generate a page to use the current animations. Deleting the
-two animation elements is enough only for structured pages: creative
-pages keep their scripts in the content elements.
+-  Nothing in such a page stops with an error: every name GSAP 3 defined
+   (``gsap``, ``ScrollTrigger``, ``TweenMax``, the ease objects, ...) is
+   one inert value that does nothing.
+-  The animation script the extension generated keeps its content
+   visible, including the text of typewriter sections.
+-  Scripts the LLM wrote are not emulated. Content such a script hides
+   and expects GSAP to show again can stay hidden.
+
+Re-generate pages generated with GSAP to use the current animations.
+Deleting the two animation elements is enough only for structured
+pages: creative pages keep their scripts in the content elements.

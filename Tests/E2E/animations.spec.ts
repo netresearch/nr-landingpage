@@ -145,7 +145,7 @@ test.describe('animation runtime', () => {
     });
 });
 
-test.describe('GSAP stand-ins for pages generated with GSAP', () => {
+test.describe('GSAP stand-in for pages generated with GSAP', () => {
     test('keep the content of a stored GSAP script visible', async ({ page }) => {
         // The script shape AnimationScriptBuilder generated before the runtime
         // replaced GSAP: typewriter empties the text before calling gsap.to().
@@ -170,133 +170,80 @@ test.describe('GSAP stand-ins for pages generated with GSAP', () => {
         expect(errors).toEqual([]);
     });
 
-    test('accept other GSAP calls and apply the end state that decides visibility', async ({ page }) => {
-        // Shapes a script written in creative mode may use; the page hides
-        // the content in CSS and relies on GSAP to show it.
+    test('never write over visible text and never hide content', async ({ page }) => {
         const errors = await runWithStandIn(
             page,
-            '<!doctype html><html><head><style>'
-            + '#a, #d { opacity: 0 } #c { opacity: 0; visibility: hidden }'
-            + '</style></head><body>'
-            + '<div id="a">A</div><div id="b">B</div><div id="c">C</div><div id="d">D</div>'
-            + '<p class="item">One</p><p class="item">Two</p>'
-            + '</body></html>',
-            "gsap.registerPlugin(ScrollTrigger, TextPlugin);"
-            + "gsap.set('.item', {y: 20});"
-            + "gsap.timeline({scrollTrigger: {trigger: '#a', start: 'top 80%'}})"
-            + ".fromTo('#a', {opacity: 0}, {opacity: 1, duration: 1})"
-            + ".to('#b', {text: {value: 'Typed'}, duration: 1});"
-            + "ScrollTrigger.create({trigger: '#c', onEnter: function () { gsap.to('#c', {autoAlpha: 1}); }});"
-            + "ScrollTrigger.refresh();"
-            + "gsap.utils.toArray('.item').forEach(function (el, i) { gsap.from(el, {y: 20, delay: i * 0.1}); });"
-            + "gsap.matchMedia().add('(min-width: 1px)', function () { gsap.to('#d', {opacity: 1}); });"
-            + "gsap.quickTo('#a', 'x')(10);"
-            + "document.body.dataset.done = 'yes';",
-        );
-
-        expect(errors).toEqual([]);
-        await expect(page.locator('body')).toHaveAttribute('data-done', 'yes');
-        await expect(page.locator('#a')).toHaveCSS('opacity', '1');
-        await expect(page.locator('#b')).toHaveText('Typed');
-        await expect(page.locator('#c')).toHaveCSS('opacity', '1');
-        await expect(page.locator('#c')).toHaveCSS('visibility', 'visible');
-        await expect(page.locator('#d')).toHaveCSS('opacity', '1');
-        await expect(page.locator('.item')).toHaveCount(2);
-    });
-
-    test('never hide visible content and settle tweens used as promises', async ({ page }) => {
-        const errors = await runWithStandIn(
-            page,
-            '<!doctype html><html><head><style>.card, #r { opacity: 0 }</style></head><body>'
-            + '<h1 id="hero">Hero</h1><div class="card">1</div><div class="card">2</div><div id="r">R</div>'
-            + '</body></html>',
+            '<!doctype html><html><body><h1 id="hero">Hero</h1><p id="v">Third</p><p id="w">Fourth</p>'
+            + '<p id="y">Fifth</p><p id="z">Sixth</p></body></html>',
             "gsap.to('#hero', {opacity: 0, y: -50, scrollTrigger: {trigger: '#hero', scrub: true}});"
             + "gsap.to('#hero', {autoAlpha: 0, delay: 2});"
-            + "gsap.matchMedia().add('(max-width: 1px)', function () { gsap.set('#hero', {visibility: 'hidden'}); });"
-            + "ScrollTrigger.batch(gsap.utils.toArray('.card'), {onEnter: function (batch) { gsap.to(batch, {opacity: 1}); }});"
-            + "gsap.context(function () { gsap.to('#r', {opacity: 1}); });"
-            + "gsap.to('#hero', {y: 10}).then(function () { document.body.dataset.then = 'yes'; });"
-            + "(async function () { await gsap.timeline().to('#hero', {y: 0}); document.body.dataset.awaited = 'yes'; })();",
+            + "gsap.set('#hero', {visibility: 'hidden'});"
+            + "gsap.from('#v', {text: 'Loading'});"
+            + "gsap.to('#w', {text: ''});"
+            + "gsap.fromTo('#y', {text: 'Start'}, {text: 'End'});"
+            + "gsap.to('#z', {text: 'Loading', repeat: 1, yoyo: true});",
         );
 
         expect(errors).toEqual([]);
         await expect(page.locator('#hero')).toHaveCSS('opacity', '1');
         await expect(page.locator('#hero')).toHaveCSS('visibility', 'visible');
-        await expect(page.locator('.card').nth(0)).toHaveCSS('opacity', '1');
-        await expect(page.locator('.card').nth(1)).toHaveCSS('opacity', '1');
-        await expect(page.locator('#r')).toHaveCSS('opacity', '1');
-        await expect(page.locator('body')).toHaveAttribute('data-then', 'yes');
-        await expect(page.locator('body')).toHaveAttribute('data-awaited', 'yes');
-    });
-
-    test('leave content that a script only animates from, and run on after await', async ({ page }) => {
-        const errors = await runWithStandIn(
-            page,
-            '<!doctype html><html><body><h1 id="t">Welcome to our page</h1><h2 id="u">Second</h2>'
-            + '<p id="v">Third</p><p id="w">Fourth</p><p id="y">Fifth</p>'
-            + '<span id="count">1200</span></body></html>',
-            "gsap.registerPlugin(ScrollTrigger, Observer);"
-            + "Observer.create({target: window, type: 'wheel,touch', onUp: function () {}, onDown: function () {}});"
-            + "gsap.from('#t', {text: ''});"
-            + "gsap.timeline().from('#u', {text: {value: ''}});"
-            + "gsap.from('#v', {text: 'Loading'});"
-            + "gsap.to('#w', {text: ''});"
-            + "gsap.fromTo('#y', {text: 'Start'}, {text: ''});"
-            + "var counter = {val: 0}; var span = document.getElementById('count');"
-            + "gsap.to(counter, {val: 1200, duration: 2, onUpdate: function () { span.textContent = Math.round(counter.val); }});"
-            + "(async function () {"
-            + " const tween = await gsap.to('#t', {opacity: 1}); tween.kill();"
-            + " async function build() { return gsap.timeline(); } (await build()).play();"
-            + " for await (const el of gsap.utils.toArray('#t')) { el.dataset.seen = 'yes'; }"
-            + " document.body.dataset.done = 'yes';"
-            + "})();",
-        );
-
-        await expect(page.locator('body')).toHaveAttribute('data-done', 'yes');
-        expect(errors).toEqual([]);
-        await expect(page.locator('#t')).toHaveText('Welcome to our page');
-        await expect(page.locator('#u')).toHaveText('Second');
         await expect(page.locator('#v')).toHaveText('Third');
         await expect(page.locator('#w')).toHaveText('Fourth');
         await expect(page.locator('#y')).toHaveText('Fifth');
-        await expect(page.locator('#count')).toHaveText('1200');
-        await expect(page.locator('#t')).toHaveAttribute('data-seen', 'yes');
+        await expect(page.locator('#z')).toHaveText('Sixth');
     });
 
-    // Script shapes from review probes, each run against an element that the
-    // page hides in CSS and the script shows.
+    test('run no callbacks of the stored script', async ({ page }) => {
+        const errors = await runWithStandIn(
+            page,
+            '<!doctype html><html><body><header id="nav">Nav</header></body></html>',
+            "var nav = document.getElementById('nav');"
+            + "ScrollTrigger.create({start: 'top top', end: 'max', onUpdate: function () { nav.dataset.hidden = 'yes'; }});"
+            + "Observer.create({target: window, onDown: function () { nav.dataset.hidden = 'yes'; }});"
+            + "gsap.to('#nav', {y: -60, onComplete: function () { nav.dataset.hidden = 'yes'; }});"
+            + "document.body.dataset.done = 'yes';",
+        );
+
+        expect(errors).toEqual([]);
+        await expect(page.locator('body')).toHaveAttribute('data-done', 'yes');
+        await expect(page.locator('#nav')).not.toHaveAttribute('data-hidden', 'yes');
+    });
+
+    // GSAP-shaped code from scripts written in creative mode, collected in
+    // review. The stand-in does not emulate these scripts; each must run to
+    // its end without an error.
     const SHAPES: Record<string, string> = {
         power2Ease: "gsap.to('#x', {opacity: 1, duration: 0.1, ease: Power2.easeOut});",
-        backConfig: "gsap.to('#x', {opacity: 1, duration: 0.1, ease: Back.easeOut.config(1.7)});",
+        backConfig: "gsap.to('#x', {opacity: 1, ease: Back.easeOut.config(1.7)});",
         tweenMax: "TweenMax.to('#x', 0.1, {opacity: 1});",
-        timelineMax: "var tl = new TimelineMax(); tl.to('#x', 0.1, {opacity: 1});",
-        contextAdd: "var ctx = gsap.context(function(){}); ctx.add(function(){ gsap.to('#x', {opacity: 1, duration: 0.1}); });",
-        cssWrapper: "gsap.to('#x', {css: {opacity: 1}, duration: 0.1});",
-        tlCall: "gsap.timeline().call(function(){ document.getElementById('x').style.opacity = '1'; });",
-        stOnEnterInTween: "gsap.to('#x', {y: 0, duration: 0.1, scrollTrigger: {trigger: '#x', onEnter: function(){ document.getElementById('x').style.opacity = '1'; }}});",
-        newScrollTrigger: "new ScrollTrigger({trigger: '#x', onEnter: function(){ gsap.to('#x', {opacity: 1, duration: 0.1}); }});",
-        newCoreTimeline: "new gsap.core.Timeline().to('#x', {opacity: 1, duration: 0.1});",
-        arraySelectors: "gsap.to(['#x'], {opacity: 1, duration: 0.1});",
-        tweenThen: "gsap.to('#x', {opacity: 1}).then(function () { document.body.dataset.then = 'ran'; });",
-        batchArray: "gsap.set('#x', {opacity: 0}); ScrollTrigger.batch(gsap.utils.toArray('#x'), {onEnter: function (batch) { gsap.to(batch, {opacity: 1, stagger: 0.1}); }});",
-        context: "gsap.context(function () { gsap.to('#x', {opacity: 1}); });",
-        repeatingCallback: "var calls = 0; function again() { calls++; gsap.to('#x', {opacity: 1, onComplete: again}); } again(); document.body.dataset.calls = String(calls);",
+        timelineMax: "var tl = new TimelineMax(); tl.to('#x', 0.1, {opacity: 1}).add('label').play();",
+        coreTimeline: "new gsap.core.Timeline().to('#x', {opacity: 1});",
+        contextAdd: "var ctx = gsap.context(function () {}); ctx.add(function () {}); ctx.revert();",
+        matchMedia: "gsap.matchMedia().add('(min-width: 1px)', function () {});",
+        timelineCall: "gsap.timeline({scrollTrigger: {trigger: '#x', start: 'top 80%'}}).call(function () {}).fromTo('#x', {opacity: 0}, {opacity: 1});",
+        scrollTrigger: "ScrollTrigger.create({trigger: '#x', onEnter: function () {}}); ScrollTrigger.refresh(); new ScrollTrigger({trigger: '#x'});",
+        batch: "ScrollTrigger.batch(gsap.utils.toArray('#x'), {onEnter: function (batch) { gsap.to(batch, {opacity: 1}); }});",
+        observer: "gsap.registerPlugin(Observer); Observer.create({target: window, type: 'wheel,touch', onUp: function () {}});",
+        quickTo: "gsap.quickTo('#x', 'x')(10);",
+        utils: "var n = gsap.utils.snap(1, 2.4) + gsap.utils.clamp(0, 1, 2); gsap.utils.toArray('#x').forEach(function (el) { el.dataset.loop = 'yes'; });",
+        strictAssign: "(function () { 'use strict'; var tl = gsap.timeline(); tl.name = 'intro'; tl.length = 2; gsap.defaults({ease: 'none'}); delete tl.name; for (const step of tl) { step.kill(); } })();",
+        thenAndAwait: "gsap.to('#x', {opacity: 1}).then(function (tween) { tween.kill(); }); (async function () { const tw = await gsap.to('#x', {opacity: 1}); tw.kill(); async function build() { return gsap.timeline(); } (await build()).play(); for await (const el of gsap.utils.toArray('#x')) { el.dataset.awaited = 'yes'; } })();",
+        repeatingCallback: "function again() { gsap.to('#x', {opacity: 1, onComplete: again}); } again();",
     };
     for (const [name, script] of Object.entries(SHAPES)) {
-        test(`run the shape ${name} to its end and show the element`, async ({ page }) => {
+        test(`run the shape ${name} to its end`, async ({ page }) => {
             const errors = await runWithStandIn(
                 page,
-                '<!doctype html><html><head><style>#x{opacity:0}</style></head><body><div id="x">X</div></body></html>',
+                '<!doctype html><html><body><div id="x">X</div></body></html>',
                 'gsap.registerPlugin(ScrollTrigger, TextPlugin);' + script + "document.body.dataset.done='yes';",
             );
 
-            expect(errors).toEqual([]);
             await expect(page.locator('body')).toHaveAttribute('data-done', 'yes');
-            await expect(page.locator('#x')).toHaveCSS('opacity', '1');
-            if (name === 'repeatingCallback') {
-                // A callback that starts a tween with itself runs once more, not until the stack overflows.
-                await expect(page.locator('body')).toHaveAttribute('data-calls', '2');
+            if (name === 'thenAndAwait') {
+                // The async part ends after the synchronous marker.
+                await expect(page.locator('#x')).toHaveAttribute('data-awaited', 'yes');
             }
+            expect(errors).toEqual([]);
         });
     }
 });
