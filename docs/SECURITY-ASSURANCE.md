@@ -101,7 +101,7 @@ public issues.
 - **Creative-mode HTML.** `CreativeHtmlSanitizer::sanitize()` runs on the LLM response and again on save.
   It is an allowlist built on `typo3/html-sanitizer`: elements and attributes that are not listed are
   removed, so the output contains no `script` element and no event handler attribute. Links accept
-  `http`, `https`, `mailto`, `tel` and local targets; inline SVG references may only point into the same
+  `http`, `https`, `mailto`, `tel` and local targets; inline SVG keeps only SVG elements, and its references may only point into the same
   document; `img` is kept only as a placeholder with `data-image-slot` and without `src`. CSS in `style`
   elements and attributes passes `CreativeCssFilter`, which decodes CSS escapes and removes `url()`, the
   other resource functions and `@import`. Tests: `Tests/Unit/Service/CreativeHtmlSanitizerTest.php`.

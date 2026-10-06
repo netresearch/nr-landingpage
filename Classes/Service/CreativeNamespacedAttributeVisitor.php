@@ -34,25 +34,28 @@ final class CreativeNamespacedAttributeVisitor implements VisitorInterface
             return $domNode;
         }
 
-        $namespaced = [];
-        foreach ($domNode->attributes as $attribute) {
-            if ($attribute instanceof DOMAttr && $attribute->namespaceURI !== null) {
-                $namespaced[] = $attribute;
+        $document = $domNode->ownerDocument;
+        if ($document === null) {
+            return $domNode;
+        }
+        $xpath = new DOMXPath($document);
+
+        // Namespaced attributes of the whole subtree go first: removing a declaration
+        // below can detach the namespace that a descendant's prefixed attribute uses,
+        // which would turn it into a plain attribute of the same local name.
+        $attributes = $xpath->query('descendant-or-self::*/@*[namespace-uri() != ""]', $domNode);
+        foreach ($attributes === false ? [] : iterator_to_array($attributes) as $attribute) {
+            if ($attribute instanceof DOMAttr) {
+                $attribute->ownerElement?->removeAttributeNode($attribute);
             }
         }
-        foreach ($namespaced as $attribute) {
-            $domNode->removeAttributeNode($attribute);
-        }
 
-        // Namespace declarations are not attributes in the DOM and do not show up
-        // in the attribute list; they are removed through their namespace nodes.
-        $document = $domNode->ownerDocument;
-        if ($document !== null) {
-            $declarations = (new DOMXPath($document))->query('namespace::*', $domNode);
-            foreach ($declarations === false ? [] : iterator_to_array($declarations) as $declaration) {
-                if ($declaration->localName !== 'xml' && $declaration->parentNode === $domNode && is_string($declaration->nodeValue)) {
-                    $domNode->removeAttributeNS($declaration->nodeValue, (string) $declaration->localName);
-                }
+        // Namespace declarations are not attributes in the DOM and do not show up in
+        // the attribute list; they are removed through their namespace nodes.
+        $declarations = $xpath->query('namespace::*', $domNode);
+        foreach ($declarations === false ? [] : iterator_to_array($declarations) as $declaration) {
+            if ($declaration->localName !== 'xml' && $declaration->parentNode === $domNode) {
+                $domNode->removeAttributeNS((string) ($declaration->nodeValue ?? ''), (string) $declaration->localName);
             }
         }
 

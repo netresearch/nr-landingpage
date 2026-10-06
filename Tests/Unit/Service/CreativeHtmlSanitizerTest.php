@@ -747,6 +747,49 @@ final class CreativeHtmlSanitizerTest extends UnitTestCase
         self::assertStringNotContainsString('example.org', $result);
     }
 
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function prefixedAttributeBelowAPrefixedAncestorProvider(): array
+    {
+        return [
+            'style below an element with a prefixed attribute' => [
+                '<div xlink:title="t"><p style="color:red" xlink:style="background:url(https://example.org/t.gif)">t</p></div>',
+                '<div><p style="color:red">t</p></div>',
+            ],
+            'href below an SVG link with a prefixed href' => [
+                '<svg><a xlink:href="https://example.org/"><use xlink:href="#icon" href="#icon"/></a></svg>',
+                '<svg><a><use href="#icon" /></a></svg>',
+            ],
+            'local href next to a prefixed one below a prefixed group' => [
+                '<svg><g xlink:title="t"><use href="#a" xlink:href="https://example.org/x.svg#a"/></g></svg>',
+                '<svg><g><use href="#a" /></g></svg>',
+            ],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('prefixedAttributeBelowAPrefixedAncestorProvider')]
+    public function prefixedAttributesBelowPrefixedAncestorsAreRemovedWithoutLeavingDuplicates(string $html, string $expected): void
+    {
+        self::assertSame($expected, $this->subject->sanitize($html));
+    }
+
+    #[Test]
+    public function emptyNamespaceDeclarationsAreRemoved(): void
+    {
+        self::assertSame('<div>x</div>', $this->subject->sanitize('<div xmlns:a="">x</div>'));
+    }
+
+    #[Test]
+    public function htmlElementsInsideSvgAreRemoved(): void
+    {
+        $result = $this->subject->sanitize('<svg><p>moved</p><title><b>t</b></title><circle r="1"/></svg><p>kept</p>');
+
+        // The parser reads <title> as text, so its markup comes out escaped.
+        self::assertSame('<svg><title>&lt;b&gt;t&lt;/b&gt;</title><circle r="1" /></svg><p>kept</p>', $result);
+    }
+
     #[Test]
     public function quotationSourcesAreNotKept(): void
     {
