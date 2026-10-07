@@ -65,7 +65,10 @@
   // CSSOM, so an inline style that a Content Security Policy blocked is not
   // brought back.
   var SAVED = 'data-nr-landingpage-style';
-  var TOUCHED = ['opacity', 'transform', 'transition-property', 'transition-duration',
+  // The shorthand comes first: a shorthand holding var() has no longhand
+  // values to read, and setting the longhands afterwards overrides it only
+  // where they were set on their own.
+  var TOUCHED = ['opacity', 'transform', 'transition', 'transition-property', 'transition-duration',
     'transition-timing-function', 'transition-delay', 'transition-behavior'];
 
   function hide(element, state) {
@@ -96,10 +99,11 @@
 
   function putBack(element, saved) {
     TOUCHED.forEach(function (property) {
+      element.style.removeProperty(property);
+    });
+    TOUCHED.forEach(function (property) {
       var entry = saved[property] || ['', ''];
-      if (entry[0] === '') {
-        element.style.removeProperty(property);
-      } else {
+      if (entry[0] !== '') {
         element.style.setProperty(property, entry[0], entry[1]);
       }
     });

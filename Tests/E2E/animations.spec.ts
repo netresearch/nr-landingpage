@@ -151,11 +151,13 @@ test.describe('animation runtime', () => {
             20: { type: 'stagger-children', duration: 0.1 },
             21: { type: 'stagger-children', duration: 0.1 },
             22: { type: 'fade-up', duration: 0.1 },
+            26: { type: 'fade-up', duration: 0.1 },
         };
         await page.setContent(
             `<!doctype html><html><body><div id="c19" style="${style}"><p>One</p></div>`
             + `<div id="c20"><p style="${style}">Child</p></div>`
             + '<div id="c21"><div id="c22"><p>Nested</p></div></div>'
+            + '<div id="c26" style="--t: 1s; transition: opacity var(--t, 1s) ease; transform: var(--tf, none)"><p>Var</p></div>'
             + `<script type="application/json" data-nr-landingpage-animations>${JSON.stringify(map)}</script></body></html>`,
         );
         // Two copies in one go, as two deferred loaders on one page run
@@ -163,22 +165,29 @@ test.describe('animation runtime', () => {
         const runtime = readFileSync(RUNTIME, 'utf8');
         await page.addScriptTag({ content: `${runtime}\n${runtime}` });
 
-        // The browser serialises !important declarations last; compare the
-        // declarations, not the attribute text.
+        // Compare the declarations, not their order: the browser serialises
+        // !important declarations last, and restored ones are appended.
         const expected = await page.evaluate((text) => {
             const reference = document.createElement('div');
             reference.setAttribute('style', text);
-            return reference.style.cssText;
+            return reference.style.cssText.split(';').map((part) => part.trim()).filter(Boolean).sort().join('; ');
         }, style);
         const styleOf = (selector: string): Promise<string> => page.locator(selector)
-            .evaluate((element) => (element as HTMLElement).style.cssText);
+            .evaluate((element) => (element as HTMLElement).style.cssText
+                .split(';').map((part) => part.trim()).filter(Boolean).sort().join('; '));
         await expect.poll(() => styleOf('#c19')).toBe(expected);
         await expect.poll(() => styleOf('#c20 > p')).toBe(expected);
+        const expectedVar = await page.evaluate(() => {
+            const reference = document.createElement('div');
+            reference.setAttribute('style', '--t: 1s; transition: opacity var(--t, 1s) ease; transform: var(--tf, none)');
+            return reference.style.cssText.split(';').map((part) => part.trim()).filter(Boolean).sort().join('; ');
+        });
+        await expect.poll(() => styleOf('#c26')).toBe(expectedVar);
         await expect.poll(() => page.locator('#c22').evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
         await expect.poll(() => page.locator('#c21 > #c22').getAttribute('data-nr-landingpage-style')).toBeNull();
     });
 
-    test('leaves inline styles that other scripts set, and styles a policy blocked', async ({ page }) => {
+    test('leaves inline styles that other scripts set', async ({ page }) => {
         await pageWithMap(
             page,
             '<div style="height:1200px"></div><div id="c23"><p>One</p></div><div id="c24"><p>Two</p></div>',
