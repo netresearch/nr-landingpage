@@ -1,7 +1,7 @@
 {
     "name": "netresearch/nr-landingpage",
     "type": "typo3-cms-extension",
-    "description": "TYPO3 Landing Page Generator powered by LLM",
+    "description": "Landing Page Generator - Generate landing pages with an LLM in a step-by-step backend wizard.",
     "license": "GPL-2.0-or-later",
     "require": {
         "php": "^8.2",
