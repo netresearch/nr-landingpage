@@ -57,85 +57,46 @@
     return map;
   }
 
-  // The inline properties the runtime changes. Before it hides an element,
-  // their values and priorities are kept in a data attribute, so that a
-  // second copy of this script on the page sees that the element is already
-  // hidden. Only these properties are put back afterwards: styles that other
-  // scripts set in the meantime stay, and the values are read through the
-  // CSSOM, so an inline style that a Content Security Policy blocked is not
-  // brought back.
-  var SAVED = 'data-nr-landingpage-style';
-  // The shorthand comes first: a shorthand holding var() has no longhand
-  // values to read, and setting the longhands afterwards overrides it only
-  // where they were set on their own.
-  var TOUCHED = ['opacity', 'transform', 'transition', 'transition-property', 'transition-duration',
-    'transition-timing-function', 'transition-delay', 'transition-behavior'];
+  // Hiding and revealing run through the Web Animations API, so the
+  // runtime never writes an inline style: the element's own style
+  // attribute, styles other scripts set and styles a Content Security
+  // Policy blocked all stay as they are. An element hidden twice (by a
+  // second copy of this script, or as a mapped child of a stagger-children
+  // section) is held by two animations; the browser removes the one the
+  // later replaces.
+  var holds = new WeakMap();
 
   function hide(element, state) {
-    if (element.hasAttribute(SAVED)) {
+    if (typeof element.animate !== 'function') {
       return;
     }
-    var saved = {};
-    TOUCHED.forEach(function (property) {
-      saved[property] = [element.style.getPropertyValue(property), element.style.getPropertyPriority(property)];
-    });
-    element.setAttribute(SAVED, JSON.stringify(saved));
-    element.style.opacity = state.opacity;
+    holds.set(element, element.animate([{ opacity: state.opacity }], { duration: 0, fill: 'forwards' }));
   }
 
-  function takeSaved(element) {
-    if (!element.hasAttribute(SAVED)) {
-      return null;
+  function release(element) {
+    var hold = holds.get(element);
+    if (!hold) {
+      return false;
     }
-    var saved = {};
-    try {
-      saved = JSON.parse(element.getAttribute(SAVED) || '{}') || {};
-    } catch (e) {
-      saved = {};
-    }
-    element.removeAttribute(SAVED);
-    return saved;
-  }
-
-  function putBack(element, saved) {
-    TOUCHED.forEach(function (property) {
-      element.style.removeProperty(property);
-    });
-    TOUCHED.forEach(function (property) {
-      var entry = saved[property] || ['', ''];
-      if (entry[0] !== '') {
-        element.style.setProperty(property, entry[0], entry[1]);
-      }
-    });
+    holds.delete(element);
+    hold.cancel();
+    return true;
   }
 
   function restore(element) {
-    var saved = takeSaved(element);
-    if (saved !== null) {
-      putBack(element, saved);
-    }
+    release(element);
   }
 
-  // The start transform is applied without a transition and then
-  // transitioned to the element's own opacity and transform; afterwards the
-  // saved properties are put back as they were.
+  // From transparent and the start transform, added to the element's own
+  // transform, to the element's own values.
   function reveal(element, state, duration, delay) {
-    var saved = takeSaved(element);
-    if (saved === null) {
+    if (!release(element)) {
       return;
     }
-    var transform = (saved.transform || [''])[0];
-    element.style.transition = 'none';
-    element.style.transform = state.transform + (transform ? ' ' + transform : '');
-    void element.offsetWidth;
-    element.style.transition = 'opacity ' + duration + 's ease-out ' + delay + 's, transform ' + duration + 's ease-out ' + delay + 's';
-    element.style.opacity = (saved.opacity || [''])[0];
-    element.style.transform = transform;
-    window.setTimeout(function () {
-      if (!element.hasAttribute(SAVED)) {
-        putBack(element, saved);
-      }
-    }, (duration + delay) * 1000 + 50);
+    var timing = { duration: duration * 1000, delay: delay * 1000, easing: 'ease-out', fill: 'backwards' };
+    // One keyframe at offset 0: the end is the element's own value.
+    element.animate([{ opacity: 0, offset: 0 }], timing);
+    element.animate([{ transform: state.transform, composite: 'add', offset: 0 }], timing);
   }
 
   function typewriter(element, duration, delay) {
@@ -162,12 +123,18 @@
   }
 
   function parallax(element) {
+    if (typeof element.animate !== 'function') {
+      return;
+    }
+    // A held animation added to the element's own transform; its keyframe is
+    // updated while the page scrolls.
+    var shift = element.animate([{ transform: 'translateY(0px)', composite: 'add' }], { duration: 0, fill: 'forwards' });
     var update = function () {
       var rect = element.getBoundingClientRect();
       var viewport = window.innerHeight || document.documentElement.clientHeight;
       var progress = (viewport - rect.top) / (viewport + rect.height);
       progress = Math.min(1, Math.max(0, progress));
-      element.style.transform = 'translateY(' + (-30 * progress).toFixed(1) + 'px)';
+      shift.effect.setKeyframes([{ transform: 'translateY(' + (-30 * progress).toFixed(1) + 'px)', composite: 'add' }]);
     };
     var scheduled = false;
     window.addEventListener('scroll', function () {

@@ -36,11 +36,16 @@ async function pageWithMap(
 }
 
 async function opacity(page: Page, selector: string): Promise<string> {
-    return page.locator(selector).evaluate((element) => (element as HTMLElement).style.opacity);
+    return page.locator(selector).evaluate((element) => getComputedStyle(element).opacity);
 }
 
 async function transform(page: Page, selector: string): Promise<string> {
-    return page.locator(selector).evaluate((element) => (element as HTMLElement).style.transform);
+    return page.locator(selector).evaluate((element) => getComputedStyle(element).transform);
+}
+
+// The element's own inline style, which the runtime must never change.
+async function inline(page: Page, selector: string, property: string): Promise<string> {
+    return page.locator(selector).evaluate((element, name) => (element as HTMLElement).style.getPropertyValue(name), property);
 }
 
 /**
@@ -69,7 +74,7 @@ test.describe('animation runtime', () => {
         expect(await opacity(page, '#c10')).toBe('0');
 
         await page.evaluate(() => window.scrollTo(0, 2000));
-        await expect.poll(() => opacity(page, '#c10')).toBe('');
+        await expect.poll(() => opacity(page, '#c10')).toBe('1');
     });
 
     for (const type of ['fade-up', 'fade-down', 'slide-left', 'slide-right', 'zoom-in', 'scale-up']) {
@@ -82,11 +87,12 @@ test.describe('animation runtime', () => {
 
             expect(await opacity(page, '#c5')).toBe('0');
             // Only transparent until revealed: the box stays where it is.
-            expect(await transform(page, '#c5')).toBe('');
+            expect(await transform(page, '#c5')).toBe('none');
 
             await page.evaluate(() => window.scrollTo(0, 1000));
-            await expect.poll(() => opacity(page, '#c5')).toBe('');
-            expect(await transform(page, '#c5')).toBe('');
+            await expect.poll(() => opacity(page, '#c5')).toBe('1');
+            await expect.poll(() => transform(page, '#c5')).toBe('none');
+            expect(await inline(page, '#c5', 'opacity')).toBe('');
         });
     }
 
@@ -94,7 +100,7 @@ test.describe('animation runtime', () => {
         test(`reveals a tall ${type} element that is in view at load`, async ({ page }) => {
             await pageWithMap(page, '<div id="c13" style="height:4000px"><p>Tall</p></div>', { 13: { type, duration: 0.1 } });
 
-            await expect.poll(() => opacity(page, '#c13')).toBe('');
+            await expect.poll(() => opacity(page, '#c13')).toBe('1');
         });
     }
 
@@ -106,7 +112,7 @@ test.describe('animation runtime', () => {
             () => window.scrollTo(0, 1800),
         );
 
-        await expect.poll(() => opacity(page, '#c14')).toBe('');
+        await expect.poll(() => opacity(page, '#c14')).toBe('1');
     });
 
     test('shows sections that were never scrolled to when the page is printed', async ({ page }) => {
@@ -119,11 +125,11 @@ test.describe('animation runtime', () => {
 
         await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
 
-        expect(await opacity(page, '#c15')).toBe('');
-        expect(await opacity(page, '#c16 > p:nth-child(2)')).toBe('');
+        expect(await opacity(page, '#c15')).toBe('1');
+        expect(await opacity(page, '#c16 > p:nth-child(2)')).toBe('1');
     });
 
-    test('keeps the inline opacity and transform of the content it reveals', async ({ page }) => {
+    test('leaves the inline opacity and transform of the content it reveals', async ({ page }) => {
         const children = '<p id="txt">Text</p>'
             + '<div id="deco" style="opacity:0.1;transform:translateX(-50%);transition:color 1s">Overlay</div>';
         await pageWithMap(
@@ -134,17 +140,17 @@ test.describe('animation runtime', () => {
         );
 
         await expect.poll(() => opacity(page, '#deco')).toBe('0.1');
-        await expect.poll(() => transform(page, '#deco')).toBe('translateX(-50%)');
+        expect(await inline(page, '#deco', 'transform')).toBe('translateX(-50%)');
         await expect.poll(() => page.locator('#deco').evaluate((element) => (element as HTMLElement).style.transition)).toBe('color 1s');
 
         await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
         expect(await opacity(page, '#c18')).toBe('0.5');
-        expect(await transform(page, '#c18')).toBe('rotate(1deg)');
+        expect(await inline(page, '#c18', 'transform')).toBe('rotate(1deg)');
         expect(await opacity(page, '#p-deco')).toBe('0.1');
-        expect(await transform(page, '#p-deco')).toBe('translateX(-50%)');
+        expect(await inline(page, '#p-deco', 'transform')).toBe('translateX(-50%)');
     });
 
-    test('puts the inline style back exactly, also when the runtime is loaded twice', async ({ page }) => {
+    test('leaves the inline style as it was, also when the runtime is loaded twice', async ({ page }) => {
         const style = 'opacity: 0.1 !important; transition-duration: 1s; transition-delay: 2s; color: red;';
         const map = {
             19: { type: 'fade-up', duration: 0.1 },
@@ -184,7 +190,6 @@ test.describe('animation runtime', () => {
         });
         await expect.poll(() => styleOf('#c26')).toBe(expectedVar);
         await expect.poll(() => page.locator('#c22').evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
-        await expect.poll(() => page.locator('#c21 > #c22').getAttribute('data-nr-landingpage-style')).toBeNull();
     });
 
     test('leaves inline styles that other scripts set', async ({ page }) => {
@@ -199,7 +204,7 @@ test.describe('animation runtime', () => {
         });
 
         await page.evaluate(() => window.scrollTo(0, 1000));
-        await expect.poll(() => page.locator('#c23').getAttribute('data-nr-landingpage-style')).toBeNull();
+        await expect.poll(() => opacity(page, '#c23')).toBe('1');
         await expect.poll(() => page.locator('#c23').evaluate((element) => (element as HTMLElement).style.cssText)).toBe('min-height: 50px;');
         await expect.poll(() => page.locator('#c24 > p').evaluate((element) => (element as HTMLElement).style.cssText)).toBe('display: none;');
     });
@@ -214,7 +219,7 @@ test.describe('animation runtime', () => {
         }));
         await page.goto('https://example.test/');
 
-        await expect.poll(() => page.locator('#c25').getAttribute('data-nr-landingpage-style')).toBeNull();
+        await expect.poll(() => page.locator('#c25').evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
         expect(await page.locator('#c25').evaluate((element) => getComputedStyle(element).color)).toBe('rgb(0, 0, 0)');
     });
 
@@ -222,7 +227,7 @@ test.describe('animation runtime', () => {
         // The start state moves it 40px up, out of the viewport.
         await pageWithMap(page, '<div id="c12"><p>Top</p></div>', { 12: { type: 'fade-down', duration: 0.1 } });
 
-        await expect.poll(() => opacity(page, '#c12')).toBe('');
+        await expect.poll(() => opacity(page, '#c12')).toBe('1');
     });
 
     test('hides every child of a stagger-children element until it scrolls into view', async ({ page }) => {
@@ -236,8 +241,8 @@ test.describe('animation runtime', () => {
         expect(await opacity(page, '#c6 > p:nth-child(2)')).toBe('0');
 
         await page.evaluate(() => window.scrollTo(0, 1000));
-        await expect.poll(() => opacity(page, '#c6 > p:nth-child(1)')).toBe('');
-        await expect.poll(() => opacity(page, '#c6 > p:nth-child(2)')).toBe('');
+        await expect.poll(() => opacity(page, '#c6 > p:nth-child(1)')).toBe('1');
+        await expect.poll(() => opacity(page, '#c6 > p:nth-child(2)')).toBe('1');
     });
 
     test('types plain text in steps and leaves a paragraph with markup as it is', async ({ page }) => {
@@ -271,7 +276,7 @@ test.describe('animation runtime', () => {
 
         await page.evaluate(() => window.scrollTo(0, 500));
         await expect.poll(() => transform(page, '#c11')).not.toBe(before);
-        expect(await transform(page, '#c11')).toMatch(/^translateY\(-\d+(\.\d)?px\)$/);
+        expect(await inline(page, '#c11', 'transform')).toBe('');
     });
 });
 
