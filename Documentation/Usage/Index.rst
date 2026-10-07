@@ -335,9 +335,9 @@ longer ships. Pages generated with them keep the animation elements
 keep the scripts the LLM wrote into their sections. The files these
 pages load are now a small stand-in of the extension:
 
--  Nothing in such a page stops with an error: every name GSAP 3 defined
-   (``gsap``, ``ScrollTrigger``, ``TweenMax``, the ease objects, ...) is
-   one inert value that does nothing.
+-  Code written for GSAP 3 does not stop with an error or hang: every
+   name GSAP 3 defined (``gsap``, ``ScrollTrigger``, ``TweenMax``, the
+   ease objects, ...) is an inert value that does nothing.
 -  The animation script the extension generated keeps its content
    visible, including the text of typewriter sections.
 -  Scripts the LLM wrote are not emulated: nothing is animated and their

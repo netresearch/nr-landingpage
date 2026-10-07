@@ -185,7 +185,10 @@ test.describe('GSAP stand-in for pages generated with GSAP', () => {
             + "gsap.from('#v', {opacity: 0.2});"
             + "gsap.timeline().from('#w', {autoAlpha: 0.01});"
             + "TweenMax.from('#y', 0.2, {opacity: 0.05});"
-            + "gsap.to('#z', {opacity: 0.4, paused: true});",
+            + "gsap.to('#z', {opacity: 0.4, paused: true});"
+            + "gsap.from('#v', {visibility: 'collapse'});"
+            + "gsap.to('#w', {visibility: 'Hidden'});"
+            + "gsap.fromTo('#y', {visibility: 'visible'}, {visibility: 'hidden'});",
         );
 
         expect(errors).toEqual([]);
@@ -197,7 +200,32 @@ test.describe('GSAP stand-in for pages generated with GSAP', () => {
         await expect(page.locator('#z')).toHaveText('Sixth');
         for (const id of ['#v', '#w', '#y', '#z']) {
             await expect(page.locator(id)).toHaveCSS('opacity', '1');
+            await expect(page.locator(id)).toHaveCSS('visibility', 'visible');
         }
+    });
+
+    test('take end values from the end of from() and fromTo()', async ({ page }) => {
+        const errors = await runWithStandIn(
+            page,
+            '<!doctype html><html><body><h2 id="f"></h2><h2 id="g"></h2></body></html>',
+            "gsap.from('#f', {text: 'Start'});"
+            + "gsap.fromTo('#g', {text: 'Start'}, {text: 'End'});",
+        );
+
+        expect(errors).toEqual([]);
+        await expect(page.locator('#f')).toHaveText('');
+        await expect(page.locator('#g')).toHaveText('End');
+    });
+
+    test('write the text of a tween created with new into an empty element', async ({ page }) => {
+        const errors = await runWithStandIn(
+            page,
+            '<!doctype html><html><body><h2 id="e"></h2></body></html>',
+            "new TweenMax('#e', 0.5, {text: 'Restored'});",
+        );
+
+        expect(errors).toEqual([]);
+        await expect(page.locator('#e')).toHaveText('Restored');
     });
 
     test('run no callbacks of the stored script', async ({ page }) => {
@@ -255,6 +283,10 @@ test.describe('GSAP stand-in for pages generated with GSAP', () => {
         thenAndAwait: "gsap.to('#x', {opacity: 1}).then(function (tween) { tween.kill(); }); (async function () { const tw = await gsap.to('#x', {opacity: 1}); tw.kill(); async function build() { return gsap.timeline(); } (await build()).play(); for await (const el of gsap.utils.toArray('#x')) { el.dataset.awaited = 'yes'; } })();",
         repeatingCallback: "function again() { gsap.to('#x', {opacity: 1, onComplete: again}); } again();",
         toArrayLists: "var x = document.getElementById('x'); gsap.utils.toArray(document.body.children)[0].classList.add('first'); gsap.utils.toArray({count: 0})[0].count = 1; gsap.utils.toArray(x)[0].dataset.single = 'yes';",
+        nestedThen: "var n = 0; (function loop() { n++; if (n < 4) { gsap.to('#x', {x: '+=1', duration: 0.2}).then(loop); } else { document.getElementById('x').dataset.awaited = 'yes'; } })();",
+        awaitLoop: "(async function () { var i = 0; while (true) { await gsap.to('#x', {rotation: '+=90', duration: 0.2}); i++; if (i === 3) { document.getElementById('x').dataset.looping = 'yes'; } } })(); setTimeout(function () { document.getElementById('x').dataset.awaited = 'yes'; }, 50);",
+        stepByDuration: "var tl = gsap.timeline(); for (var p = 0; p < 1; p += tl.duration() / 10) { tl.progress(p); } while (tl.progress() < 1) { tl.progress(tl.progress() + 0.1); }",
+        toArrayNested: "gsap.utils.toArray(['#x', document.querySelectorAll('#x')]).forEach(function (el) { el.classList.add('k'); });",
         awaitedThen: "(async function () { const tw = await gsap.to('#x', {opacity: 1}); await tw.then(function () {}); async function build() { return gsap.timeline(); } (await build()).then(function () {}); document.getElementById('x').dataset.awaited = 'yes'; })();",
     };
     for (const [name, script] of Object.entries(SHAPES)) {
@@ -266,7 +298,7 @@ test.describe('GSAP stand-in for pages generated with GSAP', () => {
             );
 
             await expect(page.locator('body')).toHaveAttribute('data-done', 'yes');
-            if (name === 'thenAndAwait' || name === 'awaitedThen') {
+            if (['thenAndAwait', 'awaitedThen', 'nestedThen', 'awaitLoop'].includes(name)) {
                 // The async part ends after the synchronous marker.
                 await expect(page.locator('#x')).toHaveAttribute('data-awaited', 'yes');
             }
