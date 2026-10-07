@@ -337,7 +337,7 @@ pages load are now a small stand-in of the extension:
 
 -  The animation script the extension generated keeps its content
    visible, including the text of typewriter sections. Writing that text
-   back into empty elements is the only change the stand-in makes to a
+   back into elements without child nodes is the only change the stand-in makes to a
    page; it never changes opacity, visibility or other styles.
 -  Common code written for GSAP 3 runs without an error: every name
    GSAP 3 defined (``gsap``, ``ScrollTrigger``, ``TweenMax``, the ease

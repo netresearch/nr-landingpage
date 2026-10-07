@@ -111,7 +111,7 @@ public issues.
   `ContentGeneratorService::validateAnimation()`). The code that runs is the extension's own
   `Resources/Public/JavaScript/frontend/animations.js`; the extension ships no third-party JavaScript.
   `Resources/Public/JavaScript/vendor/gsap/3/*.min.js` are the extension's own stand-ins for pages generated
-  with GSAP. The only change they make to a page is writing text back into empty elements, which keeps the
+  with GSAP. The only change they make to a page is writing text back into elements without child nodes, which keeps the
   content of the extension's own generated script; they never change styles. Every name GSAP 3 defined is an
   inert value, so common GSAP code runs without an error; apart from continuations of `await` and `.then()`
   they run none of the page's callbacks.

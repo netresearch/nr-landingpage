@@ -194,7 +194,9 @@ test.describe('GSAP stand-in for pages generated with GSAP', () => {
         const errors = await runWithStandIn(
             page,
             '<!doctype html><html><body><h1 id="hero">Hero</h1><p id="v">Third</p><p id="w">Fourth</p>'
-            + '<p id="y">Fifth</p><p id="z">Sixth</p></body></html>',
+            + '<p id="y">Fifth</p><p id="z">Sixth</p>'
+            + '<div id="media"><img alt="" src="data:,"><svg width="10" height="10"><rect width="10" height="10"/></svg></div>'
+            + '</body></html>',
             "gsap.to('#hero', {opacity: 0, y: -50, scrollTrigger: {trigger: '#hero', scrub: true}});"
             + "gsap.to('#hero', {autoAlpha: 0, delay: 2});"
             + "gsap.set('#hero', {visibility: 'hidden'});"
@@ -208,7 +210,8 @@ test.describe('GSAP stand-in for pages generated with GSAP', () => {
             + "gsap.to('#z', {opacity: 0.4, paused: true});"
             + "gsap.from('#v', {visibility: 'collapse'});"
             + "gsap.to('#w', {visibility: 'Hidden'});"
-            + "gsap.fromTo('#y', {visibility: 'visible'}, {visibility: 'hidden'});",
+            + "gsap.fromTo('#y', {visibility: 'visible'}, {visibility: 'hidden'});"
+            + "gsap.to('#media', {text: 'Replaced'});",
         );
 
         expect(errors).toEqual([]);
@@ -218,6 +221,9 @@ test.describe('GSAP stand-in for pages generated with GSAP', () => {
         await expect(page.locator('#w')).toHaveText('Fourth');
         await expect(page.locator('#y')).toHaveText('Fifth');
         await expect(page.locator('#z')).toHaveText('Sixth');
+        await expect(page.locator('#media img')).toHaveCount(1);
+        await expect(page.locator('#media svg')).toHaveCount(1);
+        await expect(page.locator('#media')).toHaveText('');
         for (const id of ['#v', '#w', '#y', '#z']) {
             await expect(page.locator(id)).toHaveCSS('opacity', '1');
             await expect(page.locator(id)).toHaveCSS('visibility', 'visible');
