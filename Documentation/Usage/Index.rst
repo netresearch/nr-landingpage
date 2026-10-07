@@ -95,7 +95,7 @@ Each section is displayed as a card showing:
 -  **Section name** and **content type** (badge)
 -  **Header** and **subheader**
 -  **Body text** — rendered as HTML preview
--  **Animation** — optional GSAP animation effect for the section
+-  **Animation** — optional animation effect for the section
    (e.g. scroll-triggered fade-in, typewriter). Not every section
    needs animation; leave blank for sections where motion would be
    distracting.
@@ -135,7 +135,7 @@ generated and again when the page is saved, scripts and event handler
 attributes are removed, also when the editor added them in the source
 editor. When the template has animations enabled, the AI chooses an
 animation per section (for example a scroll-triggered reveal), and the
-extension generates the animation script for that section.
+extension's animation runtime plays it.
 
 Step 5: Placement & Save
 -------------------------
@@ -324,12 +324,30 @@ Accessibility
 
 Generated animations automatically respect the operating system's
 ``prefers-reduced-motion`` setting. When a user has enabled reduced
-motion, all GSAP animations are skipped.
+motion, all animations are skipped.
 
-GSAP Version Updates
---------------------
+Pages Generated With GSAP
+-------------------------
 
-When updating the extension, check the release notes for GSAP version
-changes. If a GSAP major version was dropped, test existing landing
-pages that were generated with the old version. Re-generate affected
-pages if animations no longer work correctly.
+Earlier versions of the extension loaded the GSAP library, which it no
+longer ships. Pages generated with them keep the animation elements
+"[Animation Library]" and "[Animation Script]", and creative pages also
+keep the scripts the LLM wrote into their sections. The files these
+pages load are now a small stand-in of the extension:
+
+-  The animation script the extension generated keeps its content
+   visible, including the text of typewriter sections. Writing that text
+   back into elements without child nodes is the only change the stand-in makes to a
+   page; it never changes opacity, visibility or other styles.
+-  Common code written for GSAP 3 runs without an error: every name
+   GSAP 3 defined (``gsap``, ``ScrollTrigger``, ``TweenMax``, the ease
+   objects, ...) is an inert value that does nothing. This is not a
+   guarantee for every script.
+-  Scripts the LLM wrote are not emulated: nothing is animated and their
+   callbacks do not run, apart from continuations of ``await`` and
+   ``.then()``. Content such a script hides and expects GSAP to show
+   again stays hidden.
+
+Re-generate pages generated with GSAP to use the current animations.
+Deleting the two animation elements is enough only for structured
+pages: creative pages keep their scripts in the content elements.

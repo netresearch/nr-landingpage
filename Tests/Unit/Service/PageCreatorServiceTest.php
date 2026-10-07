@@ -14,8 +14,8 @@ use Netresearch\NrLandingpage\Domain\Model\GenerationContext;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Event\AfterContentGenerationEvent;
 use Netresearch\NrLandingpage\Event\BeforePageCreationEvent;
+use Netresearch\NrLandingpage\Service\AnimationLoaderService;
 use Netresearch\NrLandingpage\Service\AnimationScriptBuilder;
-use Netresearch\NrLandingpage\Service\GsapService;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -49,24 +49,24 @@ final class PageCreatorServiceTest extends UnitTestCase
         ?EventDispatcherInterface $eventDispatcher = null,
         int $workspaceId = 0,
         ?ResourceFactory $resourceFactory = null,
-        ?GsapService $gsapService = null,
+        ?AnimationLoaderService $animationLoaderService = null,
         ?AnimationScriptBuilder $animationScriptBuilder = null,
     ): PageCreatorService {
         $dispatcher = $eventDispatcher ?? $this->createPassthroughDispatcher();
         $factory = $resourceFactory ?? $this->createMock(ResourceFactory::class);
-        $gsap = $gsapService ?? new GsapService();
+        $animationLoader = $animationLoaderService ?? new AnimationLoaderService();
         $animBuilder = $animationScriptBuilder ?? new AnimationScriptBuilder();
 
-        return new class ($dispatcher, $factory, $gsap, $animBuilder, $dataHandler, $workspaceId) extends PageCreatorService {
+        return new class ($dispatcher, $factory, $animationLoader, $animBuilder, $dataHandler, $workspaceId) extends PageCreatorService {
             public function __construct(
                 EventDispatcherInterface $eventDispatcher,
                 ResourceFactory $resourceFactory,
-                GsapService $gsapService,
+                AnimationLoaderService $animationLoaderService,
                 AnimationScriptBuilder $animationScriptBuilder,
                 private readonly DataHandler $mockDataHandler,
                 private readonly int $mockWorkspaceId,
             ) {
-                parent::__construct($eventDispatcher, $resourceFactory, $gsapService, $animationScriptBuilder);
+                parent::__construct($eventDispatcher, $resourceFactory, $animationLoaderService, $animationScriptBuilder);
             }
 
             protected function createDataHandler(): DataHandler
@@ -374,17 +374,17 @@ final class PageCreatorServiceTest extends UnitTestCase
 
         // Use real PageCreatorService (not the test subclass) to test getCurrentWorkspaceId
         $factory = $this->createMock(ResourceFactory::class);
-        $gsap = new GsapService();
+        $animationLoader = new AnimationLoaderService();
         $animBuilder = new AnimationScriptBuilder();
-        $service = new class ($dispatcher, $factory, $gsap, $animBuilder, $dh) extends PageCreatorService {
+        $service = new class ($dispatcher, $factory, $animationLoader, $animBuilder, $dh) extends PageCreatorService {
             public function __construct(
                 EventDispatcherInterface $eventDispatcher,
                 ResourceFactory $resourceFactory,
-                GsapService $gsapService,
+                AnimationLoaderService $animationLoaderService,
                 AnimationScriptBuilder $animationScriptBuilder,
                 private readonly DataHandler $mockDataHandler,
             ) {
-                parent::__construct($eventDispatcher, $resourceFactory, $gsapService, $animationScriptBuilder);
+                parent::__construct($eventDispatcher, $resourceFactory, $animationLoaderService, $animationScriptBuilder);
             }
 
             protected function createDataHandler(): DataHandler
@@ -412,17 +412,17 @@ final class PageCreatorServiceTest extends UnitTestCase
         $dispatcher = $this->createPassthroughDispatcher();
 
         $factory = $this->createMock(ResourceFactory::class);
-        $gsap = new GsapService();
+        $animationLoader = new AnimationLoaderService();
         $animBuilder = new AnimationScriptBuilder();
-        $service = new class ($dispatcher, $factory, $gsap, $animBuilder, $dh) extends PageCreatorService {
+        $service = new class ($dispatcher, $factory, $animationLoader, $animBuilder, $dh) extends PageCreatorService {
             public function __construct(
                 EventDispatcherInterface $eventDispatcher,
                 ResourceFactory $resourceFactory,
-                GsapService $gsapService,
+                AnimationLoaderService $animationLoaderService,
                 AnimationScriptBuilder $animationScriptBuilder,
                 private readonly DataHandler $mockDataHandler,
             ) {
-                parent::__construct($eventDispatcher, $resourceFactory, $gsapService, $animationScriptBuilder);
+                parent::__construct($eventDispatcher, $resourceFactory, $animationLoaderService, $animationScriptBuilder);
             }
 
             protected function createDataHandler(): DataHandler
@@ -1106,7 +1106,7 @@ final class PageCreatorServiceTest extends UnitTestCase
     }
 
     #[Test]
-    public function createLandingPageCreatesGsapLoaderWhenAnimationEnabled(): void
+    public function createLandingPageCreatesAnimationLoaderWhenAnimationEnabled(): void
     {
         $dh = $this->createMockDataHandler([
             'NEW_page' => 42,
@@ -1114,16 +1114,16 @@ final class PageCreatorServiceTest extends UnitTestCase
         ]);
 
         // The DataHandler's start() method will be called twice:
-        // once for page+content, once for GSAP elements
+        // once for page+content, once for the animation elements
         $dh->expects(self::exactly(2))->method('start');
         $dh->expects(self::exactly(2))->method('process_datamap');
 
-        // Mock GsapService to avoid ExtensionManagementUtility::extPath() call
-        $gsapService = $this->createMock(GsapService::class);
-        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js" defer></script>');
+        // Mock AnimationLoaderService to avoid ExtensionManagementUtility::extPath() call
+        $animationLoaderService = $this->createMock(AnimationLoaderService::class);
+        $animationLoaderService->method('buildLoaderHtml')->willReturn('<script src="animations.js" defer></script>');
 
         $template = new Template(uid: 1, title: 'T', identifier: 't', animationEnabled: true);
-        $service = $this->createService($dh, gsapService: $gsapService);
+        $service = $this->createService($dh, animationLoaderService: $animationLoaderService);
 
         $service->createLandingPage(
             $template,
@@ -1136,14 +1136,14 @@ final class PageCreatorServiceTest extends UnitTestCase
     }
 
     #[Test]
-    public function createLandingPageSkipsGsapLoaderWhenAnimationDisabled(): void
+    public function createLandingPageSkipsAnimationLoaderWhenAnimationDisabled(): void
     {
         $dh = $this->createMockDataHandler([
             'NEW_page' => 42,
             'NEW_content_0' => 100,
         ]);
 
-        // Only one DataHandler call (no GSAP pass)
+        // Only one DataHandler call (no animation pass)
         $dh->expects(self::once())->method('start');
         $dh->expects(self::once())->method('process_datamap');
 
@@ -1173,14 +1173,14 @@ final class PageCreatorServiceTest extends UnitTestCase
             'NEW_content_1' => 102,
         ]);
 
-        // Two DataHandler passes expected: pass 1 (page+content) + pass 2 (GSAP)
+        // Two DataHandler passes expected: pass 1 (page+content) + pass 2 (animation)
         $dh->expects(self::exactly(2))->method('start');
         $dh->expects(self::exactly(2))->method('process_datamap');
 
-        $gsapService = $this->createMock(GsapService::class);
-        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+        $animationLoaderService = $this->createMock(AnimationLoaderService::class);
+        $animationLoaderService->method('buildLoaderHtml')->willReturn('<script src="animations.js" defer></script>');
 
-        $service = $this->createService($dh, gsapService: $gsapService);
+        $service = $this->createService($dh, animationLoaderService: $animationLoaderService);
 
         $result = $service->createLandingPage(
             $this->createTemplate(animationEnabled: true),
@@ -1213,10 +1213,10 @@ final class PageCreatorServiceTest extends UnitTestCase
         $dh->expects(self::exactly(2))->method('start');
         $dh->expects(self::exactly(2))->method('process_datamap');
 
-        $gsapService = $this->createMock(GsapService::class);
-        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+        $animationLoaderService = $this->createMock(AnimationLoaderService::class);
+        $animationLoaderService->method('buildLoaderHtml')->willReturn('<script src="animations.js" defer></script>');
 
-        $service = $this->createService($dh, gsapService: $gsapService);
+        $service = $this->createService($dh, animationLoaderService: $animationLoaderService);
 
         $result = $service->createLandingPage(
             $this->createTemplate(animationEnabled: true),
@@ -1238,8 +1238,8 @@ final class PageCreatorServiceTest extends UnitTestCase
     public function createLandingPagePassesAnimationMapToBuilder(): void
     {
         // AnimationScriptBuilder is final and cannot be mocked — instead we verify
-        // the output: uid 201 (fade-up) must produce a GSAP call, uid 202 (empty)
-        // must be filtered so no #c202 selector appears in the animation script.
+        // the output: uid 201 (fade-up) must appear in the animation map, uid 202
+        // (empty) must be filtered out of it.
         $capturedDataMap = null;
         $callCount = 0;
 
@@ -1255,10 +1255,10 @@ final class PageCreatorServiceTest extends UnitTestCase
             }
         });
 
-        $gsapService = $this->createMock(GsapService::class);
-        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+        $animationLoaderService = $this->createMock(AnimationLoaderService::class);
+        $animationLoaderService->method('buildLoaderHtml')->willReturn('<script src="animations.js" defer></script>');
 
-        $service = $this->createService($dh, gsapService: $gsapService);
+        $service = $this->createService($dh, animationLoaderService: $animationLoaderService);
 
         $service->createLandingPage(
             $this->createTemplate(animationEnabled: true),
@@ -1279,12 +1279,12 @@ final class PageCreatorServiceTest extends UnitTestCase
         self::assertNotNull($capturedDataMap, 'Second DataHandler start() was not called');
 
         // Animation script for uid 201 (fade-up) must be present
-        $animScript = $capturedDataMap['tt_content']['NEW_gsap_animation']['bodytext'] ?? null;
+        $animScript = $capturedDataMap['tt_content']['NEW_animation_map']['bodytext'] ?? null;
         self::assertNotNull($animScript, 'Animation script element not created for valid animation');
-        self::assertStringContainsString('#c201', $animScript);
+        self::assertStringContainsString('"201":', $animScript);
 
-        // uid 202 was filtered — no selector for it in the script
-        self::assertStringNotContainsString('#c202', $animScript);
+        // uid 202 was filtered — no entry for it in the map
+        self::assertStringNotContainsString('"202"', $animScript);
     }
 
     // -------------------------------------------------------------------------
@@ -1292,7 +1292,7 @@ final class PageCreatorServiceTest extends UnitTestCase
     // -------------------------------------------------------------------------
 
     #[Test]
-    public function createGsapElementsLogsWarningOnDataHandlerError(): void
+    public function createAnimationElementsLogsWarningOnDataHandlerError(): void
     {
         $dh = $this->createMockDataHandler([
             'NEW_page' => 30,
@@ -1303,20 +1303,20 @@ final class PageCreatorServiceTest extends UnitTestCase
         $dh->method('start')->willReturnCallback(function () use ($dh, &$callCount): void {
             $callCount++;
             if ($callCount === 2) {
-                // Simulate a DataHandler error on the GSAP pass
-                $dh->errorLog = ['GSAP insert failed'];
+                // Simulate a DataHandler error on the animation pass
+                $dh->errorLog = ['Animation insert failed'];
             }
         });
 
-        $gsapService = $this->createMock(GsapService::class);
-        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+        $animationLoaderService = $this->createMock(AnimationLoaderService::class);
+        $animationLoaderService->method('buildLoaderHtml')->willReturn('<script src="animations.js" defer></script>');
 
         $logger = $this->createMock(\Psr\Log\LoggerInterface::class);
         $logger->expects(self::once())
             ->method('warning')
-            ->with('GSAP elements creation failed', self::arrayHasKey('errors'));
+            ->with('Animation elements creation failed', self::arrayHasKey('errors'));
 
-        $service = $this->createService($dh, gsapService: $gsapService);
+        $service = $this->createService($dh, animationLoaderService: $animationLoaderService);
         $service->setLogger($logger);
 
         $result = $service->createLandingPage(
@@ -1328,12 +1328,12 @@ final class PageCreatorServiceTest extends UnitTestCase
             [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B']],
         );
 
-        // Page is returned successfully despite GSAP error
+        // Page is returned successfully despite the animation error
         self::assertSame(30, $result['pageUid']);
     }
 
     #[Test]
-    public function createGsapElementsLogsWarningOnException(): void
+    public function createAnimationElementsLogsWarningOnException(): void
     {
         $dh = $this->createMockDataHandler([
             'NEW_page' => 40,
@@ -1348,15 +1348,15 @@ final class PageCreatorServiceTest extends UnitTestCase
             }
         });
 
-        $gsapService = $this->createMock(GsapService::class);
-        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+        $animationLoaderService = $this->createMock(AnimationLoaderService::class);
+        $animationLoaderService->method('buildLoaderHtml')->willReturn('<script src="animations.js" defer></script>');
 
         $logger = $this->createMock(\Psr\Log\LoggerInterface::class);
         $logger->expects(self::once())
             ->method('warning')
-            ->with('GSAP elements creation failed', self::arrayHasKey('exception'));
+            ->with('Animation elements creation failed', self::arrayHasKey('exception'));
 
-        $service = $this->createService($dh, gsapService: $gsapService);
+        $service = $this->createService($dh, animationLoaderService: $animationLoaderService);
         $service->setLogger($logger);
 
         $result = $service->createLandingPage(
@@ -1368,7 +1368,7 @@ final class PageCreatorServiceTest extends UnitTestCase
             [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => 'B']],
         );
 
-        // Page is returned successfully despite GSAP exception
+        // Page is returned successfully despite the animation exception
         self::assertSame(40, $result['pageUid']);
     }
 
@@ -1377,7 +1377,7 @@ final class PageCreatorServiceTest extends UnitTestCase
     // -------------------------------------------------------------------------
 
     #[Test]
-    public function gsapLoaderElementHasCorrectProperties(): void
+    public function animationLoaderElementHasCorrectProperties(): void
     {
         $dh = $this->createMockDataHandler([
             'NEW_page' => 50,
@@ -1393,10 +1393,10 @@ final class PageCreatorServiceTest extends UnitTestCase
             }
         });
 
-        $gsapService = $this->createMock(GsapService::class);
-        $gsapService->method('buildLoaderHtml')->willReturn('<script src="gsap.min.js"></script>');
+        $animationLoaderService = $this->createMock(AnimationLoaderService::class);
+        $animationLoaderService->method('buildLoaderHtml')->willReturn('<script src="animations.js" defer></script>');
 
-        $service = $this->createService($dh, gsapService: $gsapService);
+        $service = $this->createService($dh, animationLoaderService: $animationLoaderService);
 
         $service->createLandingPage(
             $this->createTemplate(animationEnabled: true),
@@ -1408,10 +1408,10 @@ final class PageCreatorServiceTest extends UnitTestCase
         );
 
         self::assertNotNull($capturedDataMap, 'Second DataHandler start() was not called');
-        $loader = $capturedDataMap['tt_content']['NEW_gsap_loader'] ?? null;
-        self::assertIsArray($loader, 'GSAP loader element not found in dataMap');
+        $loader = $capturedDataMap['tt_content']['NEW_animation_loader'] ?? null;
+        self::assertIsArray($loader, 'Animation loader element not found in dataMap');
         self::assertSame('html', $loader['CType']);
-        self::assertSame('[Animation Library]', $loader['header']);
+        self::assertSame('[Animation Runtime]', $loader['header']);
         self::assertSame(100, $loader['header_layout']);
         self::assertSame(1, $loader['sorting']);
         self::assertSame(0, $loader['colPos']);

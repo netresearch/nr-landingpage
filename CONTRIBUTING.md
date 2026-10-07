@@ -62,11 +62,14 @@ This repository follows the policies of the Netresearch GitHub organisation:
 
 Checks that run on every pull request in this repository:
 
-- `.github/workflows/ci.yml` calls the shared `netresearch/typo3-ci-workflows` CI: PHP syntax lint, PHP-CS-Fixer (`composer ci:cgl`), PHPStan level 10 with the phpat layer rules (`phpstan.neon`), the unit suite (`composer ci:tests`) and the functional suite on SQLite, for PHP 8.2 to 8.4 and TYPO3 13.4 and 14.3.
+- `.github/workflows/ci.yml` calls the shared `netresearch/typo3-ci-workflows` CI: PHP syntax lint, PHP-CS-Fixer (`composer ci:cgl`), PHPStan level 10 with the phpat layer rules (`phpstan.neon`), the unit suite (`composer ci:tests`) and the functional suite on SQLite, for PHP 8.2 to 8.4 and TYPO3 13.4 and 14.3; the `tests / All CI checks` job summarises them.
 - `.github/workflows/e2e.yml` runs the Playwright suite in `Tests/E2E/` against a TYPO3 instance.
 - `.github/workflows/docs.yml` renders `Documentation/` when a pull request changes it.
+- `.github/workflows/checks.yml`, the organisation template for TYPO3 extensions: Composer Audit and Opengrep SAST through `security.yml` of `netresearch/typo3-ci-workflows` (which findings block a pull request is set by the organisation's [static analysis rule](https://github.com/netresearch/.github/blob/main/SECURITY.md#static-analysis-sast)); Dependency Review; the PHP licence check (`license-check.yml`); CodeQL for the workflow files and the JavaScript; Betterleaks secret scanning; zizmor for the workflow files; `pr-quality`, which reports the size of the pull request and approves a non-draft pull request from a branch of this repository opened by an owner, member or collaborator. The `fuzz` job is called but runs nothing here, as the repository has no fuzz tests. The `All security checks` job fails when any of these jobs failed or was cancelled.
+- `.github/workflows/check-template-drift.yml`: the workflow files managed by the organisation template have not drifted from it (`.github/template.yaml` lists `ci.yml` and `release.yml` as this repository's own).
+- `.github/workflows/labeler.yml` labels the pull request by the paths it changes, `.github/workflows/community.yml` greets the author of a first pull request and `.github/workflows/auto-merge-deps.yml` approves dependency update pull requests from Renovate or Dependabot and enables auto-merge for them, unless the pull request carries the `deps-major` or `deps-no-automerge` label; these three run on `pull_request_target` and check nothing.
 
-These workflows run no dependency vulnerability scan and no static security scanner. Dependency updates arrive as pull requests from Renovate (`renovate.json`, which extends the shared `netresearch/renovate-config`).
+Dependency updates arrive as pull requests from Renovate (`renovate.json`, which extends the shared `netresearch/renovate-config`).
 
 ## Reporting Issues
 
