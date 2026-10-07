@@ -3,6 +3,7 @@
  * SPDX-FileCopyrightText: Netresearch DTT GmbH
  */
 
+import { readFileSync } from 'node:fs';
 import { test, expect, Page } from '@playwright/test';
 
 /**
@@ -141,6 +142,40 @@ test.describe('animation runtime', () => {
         expect(await transform(page, '#c18')).toBe('rotate(1deg)');
         expect(await opacity(page, '#p-deco')).toBe('0.1');
         expect(await transform(page, '#p-deco')).toBe('translateX(-50%)');
+    });
+
+    test('puts the inline style back exactly, also when the runtime is loaded twice', async ({ page }) => {
+        const style = 'opacity: 0.1 !important; transition-duration: 1s; transition-delay: 2s; color: red;';
+        const map = {
+            19: { type: 'fade-up', duration: 0.1 },
+            20: { type: 'stagger-children', duration: 0.1 },
+            21: { type: 'stagger-children', duration: 0.1 },
+            22: { type: 'fade-up', duration: 0.1 },
+        };
+        await page.setContent(
+            `<!doctype html><html><body><div id="c19" style="${style}"><p>One</p></div>`
+            + `<div id="c20"><p style="${style}">Child</p></div>`
+            + '<div id="c21"><div id="c22"><p>Nested</p></div></div>'
+            + `<script type="application/json" data-nr-landingpage-animations>${JSON.stringify(map)}</script></body></html>`,
+        );
+        // Two copies in one go, as two deferred loaders on one page run
+        // before the first reveal.
+        const runtime = readFileSync(RUNTIME, 'utf8');
+        await page.addScriptTag({ content: `${runtime}\n${runtime}` });
+
+        // The browser serialises !important declarations last; compare the
+        // declarations, not the attribute text.
+        const expected = await page.evaluate((text) => {
+            const reference = document.createElement('div');
+            reference.setAttribute('style', text);
+            return reference.style.cssText;
+        }, style);
+        const styleOf = (selector: string): Promise<string> => page.locator(selector)
+            .evaluate((element) => (element as HTMLElement).style.cssText);
+        await expect.poll(() => styleOf('#c19')).toBe(expected);
+        await expect.poll(() => styleOf('#c20 > p')).toBe(expected);
+        await expect.poll(() => page.locator('#c22').evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+        await expect.poll(() => page.locator('#c21 > #c22').getAttribute('data-nr-landingpage-style')).toBeNull();
     });
 
     test('reveals a fade-down element at the top of the page', async ({ page }) => {

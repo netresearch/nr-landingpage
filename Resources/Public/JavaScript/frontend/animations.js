@@ -57,50 +57,72 @@
     return map;
   }
 
-  // Inline styles an element had before the runtime hid it; they are put
-  // back when it is revealed or printed.
-  var original = new WeakMap();
+  // The inline style an element had before the runtime hid it is kept
+  // in a data attribute, so that a second copy of this script on the page
+  // sees that the element is already hidden. It is put back exactly when the
+  // element is revealed or printed.
+  var SAVED = 'data-nr-landingpage-style';
 
-  // Until it is revealed, an element is only made transparent. Its box
-  // keeps its place and size, so the observer sees where it really is.
   function hide(element, state) {
-    original.set(element, {
-      opacity: element.style.opacity,
-      transform: element.style.transform,
-      transition: element.style.transition
-    });
+    if (element.hasAttribute(SAVED)) {
+      return;
+    }
+    element.setAttribute(SAVED, JSON.stringify(element.getAttribute('style')));
     element.style.opacity = state.opacity;
   }
 
-  function restore(element) {
-    var styles = original.get(element);
-    if (!styles) {
-      return;
+  function takeSaved(element) {
+    if (!element.hasAttribute(SAVED)) {
+      return undefined;
     }
-    original.delete(element);
-    element.style.transition = styles.transition;
-    element.style.opacity = styles.opacity;
-    element.style.transform = styles.transform;
+    var saved = null;
+    try {
+      saved = JSON.parse(element.getAttribute(SAVED) || 'null');
+    } catch (e) {
+      saved = null;
+    }
+    element.removeAttribute(SAVED);
+    return saved;
+  }
+
+  function putBack(element, saved) {
+    // cssText rather than setAttribute: a Content Security Policy without
+    // 'unsafe-inline' blocks style attributes set as markup, not the CSSOM.
+    if (typeof saved === 'string') {
+      element.style.cssText = saved;
+    } else {
+      element.removeAttribute('style');
+    }
+  }
+
+  function restore(element) {
+    var saved = takeSaved(element);
+    if (saved !== undefined) {
+      putBack(element, saved);
+    }
   }
 
   // The start transform is applied without a transition and then
-  // transitioned to the element's own opacity and transform; its own
-  // transition comes back once the reveal has ended.
+  // transitioned to the element's own opacity and transform; afterwards the
+  // saved style attribute is put back as it was.
   function reveal(element, state, duration, delay) {
-    var styles = original.get(element);
-    if (!styles) {
+    var saved = takeSaved(element);
+    if (saved === undefined) {
       return;
     }
+    var own = document.createElement('div');
+    if (typeof saved === 'string') {
+      own.style.cssText = saved;
+    }
     element.style.transition = 'none';
-    element.style.transform = state.transform + (styles.transform ? ' ' + styles.transform : '');
+    element.style.transform = state.transform + (own.style.transform ? ' ' + own.style.transform : '');
     void element.offsetWidth;
     element.style.transition = 'opacity ' + duration + 's ease-out ' + delay + 's, transform ' + duration + 's ease-out ' + delay + 's';
-    element.style.opacity = styles.opacity;
-    element.style.transform = styles.transform;
+    element.style.setProperty('opacity', own.style.opacity, own.style.getPropertyPriority('opacity'));
+    element.style.setProperty('transform', own.style.transform, own.style.getPropertyPriority('transform'));
     window.setTimeout(function () {
-      if (original.get(element) === styles) {
-        original.delete(element);
-        element.style.transition = styles.transition;
+      if (!element.hasAttribute(SAVED)) {
+        putBack(element, saved);
       }
     }, (duration + delay) * 1000 + 50);
   }
