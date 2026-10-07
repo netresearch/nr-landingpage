@@ -108,6 +108,20 @@ test.describe('animation runtime', () => {
         await expect.poll(() => opacity(page, '#c14')).toBe('');
     });
 
+    test('shows sections that were never scrolled to when the page is printed', async ({ page }) => {
+        await pageWithMap(
+            page,
+            '<div style="height:1200px"></div><div id="c15"><p>Below</p></div><div id="c16"><p>One</p><p>Two</p></div>',
+            { 15: { type: 'fade-up', duration: 0.1 }, 16: { type: 'stagger-children', duration: 0.1 } },
+        );
+        expect(await opacity(page, '#c15')).toBe('0');
+
+        await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+
+        expect(await opacity(page, '#c15')).toBe('');
+        expect(await opacity(page, '#c16 > p:nth-child(2)')).toBe('');
+    });
+
     test('reveals a fade-down element at the top of the page', async ({ page }) => {
         // The start state moves it 40px up, out of the viewport.
         await pageWithMap(page, '<div id="c12"><p>Top</p></div>', { 12: { type: 'fade-down', duration: 0.1 } });

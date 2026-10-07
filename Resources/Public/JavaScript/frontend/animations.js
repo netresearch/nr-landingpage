@@ -181,6 +181,19 @@
         observer.observe(element);
       }
     });
+
+    // A printed page shows every section, also those never scrolled to.
+    window.addEventListener('beforeprint', function () {
+      pending.forEach(function (run, element) {
+        observer.unobserve(element);
+        [element].concat(Array.prototype.slice.call(element.children)).forEach(function (node) {
+          node.style.transition = 'none';
+          node.style.opacity = '';
+          node.style.transform = '';
+        });
+      });
+      pending.clear();
+    });
   }
 
   if (document.readyState === 'loading') {
