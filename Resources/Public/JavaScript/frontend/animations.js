@@ -65,6 +65,8 @@
   // section) is held by two animations; the browser removes the one the
   // later replaces.
   var holds = new WeakMap();
+  // Reveals and typewriters still running, finished at once for printing.
+  var running = new Set();
 
   function hide(element, state) {
     if (typeof element.animate !== 'function') {
@@ -95,8 +97,14 @@
     }
     var timing = { duration: duration * 1000, delay: delay * 1000, easing: 'ease-out', fill: 'backwards' };
     // One keyframe at offset 0: the end is the element's own value.
-    element.animate([{ opacity: 0, offset: 0 }], timing);
-    element.animate([{ transform: state.transform, composite: 'add', offset: 0 }], timing);
+    [
+      element.animate([{ opacity: 0, offset: 0 }], timing),
+      element.animate([{ transform: state.transform, composite: 'add', offset: 0 }], timing)
+    ].forEach(function (animation) {
+      var entry = { finish: function () { animation.finish(); } };
+      running.add(entry);
+      animation.finished.then(function () { running.delete(entry); }, function () { running.delete(entry); });
+    });
   }
 
   function typewriter(element, duration, delay) {
@@ -108,7 +116,19 @@
       }
       target.textContent = '';
       var start = null;
+      var done = false;
+      var entry = {
+        finish: function () {
+          done = true;
+          running.delete(entry);
+          target.textContent = text;
+        }
+      };
+      running.add(entry);
       var step = function (time) {
+        if (done) {
+          return;
+        }
         if (start === null) {
           start = time + delay * 1000;
         }
@@ -116,6 +136,9 @@
         target.textContent = text.slice(0, Math.round(text.length * progress));
         if (progress < 1) {
           window.requestAnimationFrame(step);
+        } else {
+          done = true;
+          running.delete(entry);
         }
       };
       window.requestAnimationFrame(step);
@@ -213,13 +236,15 @@
       }
     });
 
-    // A printed page shows every section, also those never scrolled to.
+    // A printed page shows every section in full: those never scrolled to,
+    // and those whose reveal or typewriter is still running.
     window.addEventListener('beforeprint', function () {
       pending.forEach(function (run, element) {
         observer.unobserve(element);
         [element].concat(Array.prototype.slice.call(element.children)).forEach(restore);
       });
       pending.clear();
+      Array.from(running).forEach(function (entry) { entry.finish(); });
     });
   }
 

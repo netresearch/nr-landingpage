@@ -223,6 +223,28 @@ test.describe('animation runtime', () => {
         expect(await page.locator('#c25').evaluate((element) => getComputedStyle(element).color)).toBe('rgb(0, 0, 0)');
     });
 
+    test('shows sections whose reveal or typewriter is still running when the page is printed', async ({ page }) => {
+        await pageWithMap(
+            page,
+            '<div id="c27"><p>One</p><p>Two</p></div><div id="c28"><p>Fade</p></div><div id="c29"><h2>Typed heading</h2></div>',
+            {
+                27: { type: 'stagger-children', duration: 3, delay: 2, stagger: 0.5 },
+                28: { type: 'fade-up', duration: 3, delay: 2 },
+                29: { type: 'typewriter', duration: 3, delay: 2 },
+            },
+        );
+        await expect.poll(() => page.locator('#c29 h2').textContent()).toBe('');
+
+        await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+
+        expect(await opacity(page, '#c27 > p:nth-child(2)')).toBe('1');
+        expect(await opacity(page, '#c28')).toBe('1');
+        expect(await page.locator('#c29 h2').textContent()).toBe('Typed heading');
+        // The typewriter must not overwrite the finished text afterwards.
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        expect(await page.locator('#c29 h2').textContent()).toBe('Typed heading');
+    });
+
     test('reveals a fade-down element at the top of the page', async ({ page }) => {
         // The start state moves it 40px up, out of the viewport.
         await pageWithMap(page, '<div id="c12"><p>Top</p></div>', { 12: { type: 'fade-down', duration: 0.1 } });
@@ -348,13 +370,15 @@ test.describe('GSAP stand-in for pages generated with GSAP', () => {
     test('take end values from the end of from() and fromTo()', async ({ page }) => {
         const errors = await runWithStandIn(
             page,
-            '<!doctype html><html><body><h2 id="f"></h2><h2 id="g"></h2></body></html>',
+            '<!doctype html><html><body><h2 id="f"></h2><h2 id="g"></h2><h2 id="h"></h2></body></html>',
             "gsap.from('#f', {text: 'Start'});"
+            + "TweenMax.staggerFrom('#h', 0.5, {text: 'Start'}, 0.1);"
             + "gsap.fromTo('#g', {text: 'Start'}, {text: 'End'});",
         );
 
         expect(errors).toEqual([]);
         await expect(page.locator('#f')).toHaveText('');
+        await expect(page.locator('#h')).toHaveText('');
         await expect(page.locator('#g')).toHaveText('End');
     });
 
