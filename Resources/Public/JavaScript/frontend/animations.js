@@ -57,21 +57,52 @@
     return map;
   }
 
+  // Inline styles an element had before the runtime hid it; they are put
+  // back when it is revealed or printed.
+  var original = new WeakMap();
+
   // Until it is revealed, an element is only made transparent. Its box
   // keeps its place and size, so the observer sees where it really is.
   function hide(element, state) {
+    original.set(element, {
+      opacity: element.style.opacity,
+      transform: element.style.transform,
+      transition: element.style.transition
+    });
     element.style.opacity = state.opacity;
   }
 
+  function restore(element) {
+    var styles = original.get(element);
+    if (!styles) {
+      return;
+    }
+    original.delete(element);
+    element.style.transition = styles.transition;
+    element.style.opacity = styles.opacity;
+    element.style.transform = styles.transform;
+  }
+
   // The start transform is applied without a transition and then
-  // transitioned away together with the opacity.
+  // transitioned to the element's own opacity and transform; its own
+  // transition comes back once the reveal has ended.
   function reveal(element, state, duration, delay) {
+    var styles = original.get(element);
+    if (!styles) {
+      return;
+    }
     element.style.transition = 'none';
-    element.style.transform = state.transform;
+    element.style.transform = state.transform + (styles.transform ? ' ' + styles.transform : '');
     void element.offsetWidth;
     element.style.transition = 'opacity ' + duration + 's ease-out ' + delay + 's, transform ' + duration + 's ease-out ' + delay + 's';
-    element.style.opacity = '';
-    element.style.transform = '';
+    element.style.opacity = styles.opacity;
+    element.style.transform = styles.transform;
+    window.setTimeout(function () {
+      if (original.get(element) === styles) {
+        original.delete(element);
+        element.style.transition = styles.transition;
+      }
+    }, (duration + delay) * 1000 + 50);
   }
 
   function typewriter(element, duration, delay) {
@@ -186,11 +217,7 @@
     window.addEventListener('beforeprint', function () {
       pending.forEach(function (run, element) {
         observer.unobserve(element);
-        [element].concat(Array.prototype.slice.call(element.children)).forEach(function (node) {
-          node.style.transition = 'none';
-          node.style.opacity = '';
-          node.style.transform = '';
-        });
+        [element].concat(Array.prototype.slice.call(element.children)).forEach(restore);
       });
       pending.clear();
     });

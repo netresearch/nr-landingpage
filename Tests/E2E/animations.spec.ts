@@ -122,6 +122,27 @@ test.describe('animation runtime', () => {
         expect(await opacity(page, '#c16 > p:nth-child(2)')).toBe('');
     });
 
+    test('keeps the inline opacity and transform of the content it reveals', async ({ page }) => {
+        const children = '<p id="txt">Text</p>'
+            + '<div id="deco" style="opacity:0.1;transform:translateX(-50%);transition:color 1s">Overlay</div>';
+        await pageWithMap(
+            page,
+            `<div id="c17">${children}</div><div style="height:1200px"></div>`
+            + `<div id="c18" style="opacity:0.5;transform:rotate(1deg)">${children.replace(/id="/g, 'id="p-')}</div>`,
+            { 17: { type: 'stagger-children', duration: 0.1 }, 18: { type: 'fade-up', duration: 0.1 } },
+        );
+
+        await expect.poll(() => opacity(page, '#deco')).toBe('0.1');
+        await expect.poll(() => transform(page, '#deco')).toBe('translateX(-50%)');
+        await expect.poll(() => page.locator('#deco').evaluate((element) => (element as HTMLElement).style.transition)).toBe('color 1s');
+
+        await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+        expect(await opacity(page, '#c18')).toBe('0.5');
+        expect(await transform(page, '#c18')).toBe('rotate(1deg)');
+        expect(await opacity(page, '#p-deco')).toBe('0.1');
+        expect(await transform(page, '#p-deco')).toBe('translateX(-50%)');
+    });
+
     test('reveals a fade-down element at the top of the page', async ({ page }) => {
         // The start state moves it 40px up, out of the viewport.
         await pageWithMap(page, '<div id="c12"><p>Top</p></div>', { 12: { type: 'fade-down', duration: 0.1 } });
