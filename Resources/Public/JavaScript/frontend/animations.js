@@ -57,12 +57,18 @@
     return map;
   }
 
+  // Until it is revealed, an element is only made transparent. Its box
+  // keeps its place and size, so the observer sees where it really is.
   function hide(element, state) {
     element.style.opacity = state.opacity;
-    element.style.transform = state.transform;
   }
 
-  function reveal(element, duration, delay) {
+  // The start transform is applied without a transition and then
+  // transitioned away together with the opacity.
+  function reveal(element, state, duration, delay) {
+    element.style.transition = 'none';
+    element.style.transform = state.transform;
+    void element.offsetWidth;
     element.style.transition = 'opacity ' + duration + 's ease-out ' + delay + 's, transform ' + duration + 's ease-out ' + delay + 's';
     element.style.opacity = '';
     element.style.transform = '';
@@ -133,11 +139,11 @@
       var children = Array.prototype.slice.call(element.children);
       children.forEach(function (child) { hide(child, state); });
       return function () {
-        children.forEach(function (child, index) { reveal(child, duration, delay + index * stagger); });
+        children.forEach(function (child, index) { reveal(child, state, duration, delay + index * stagger); });
       };
     }
     hide(element, state);
-    return function () { reveal(element, duration, delay); };
+    return function () { reveal(element, state, duration, delay); };
   }
 
   function start() {
@@ -152,9 +158,6 @@
     // Threshold 0: an element counts as in view as soon as any part of it is.
     // A ratio threshold is never reached by an element taller than the
     // viewport divided by that ratio, which would then stay hidden.
-    // The margin covers the start states' offsets of up to 60px: the observer
-    // sees the moved box, so an element at the top of the page that starts
-    // 40px higher would otherwise never intersect.
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (entry.isIntersecting && pending.has(entry.target)) {
@@ -164,7 +167,7 @@
           run();
         }
       });
-    }, { threshold: 0, rootMargin: '64px' });
+    }, { threshold: 0 });
 
     Object.keys(map).forEach(function (uid) {
       var element = document.getElementById('c' + uid);

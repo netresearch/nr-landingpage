@@ -335,15 +335,18 @@ longer ships. Pages generated with them keep the animation elements
 keep the scripts the LLM wrote into their sections. The files these
 pages load are now a small stand-in of the extension:
 
--  Code written for GSAP 3 does not stop with an error or hang: every
-   name GSAP 3 defined (``gsap``, ``ScrollTrigger``, ``TweenMax``, the
-   ease objects, ...) is an inert value that does nothing.
 -  The animation script the extension generated keeps its content
-   visible, including the text of typewriter sections.
+   visible, including the text of typewriter sections. Writing that text
+   back into empty elements is the only change the stand-in makes to a
+   page; it never changes opacity, visibility or other styles.
+-  Common code written for GSAP 3 runs without an error: every name
+   GSAP 3 defined (``gsap``, ``ScrollTrigger``, ``TweenMax``, the ease
+   objects, ...) is an inert value that does nothing. This is not a
+   guarantee for every script.
 -  Scripts the LLM wrote are not emulated: nothing is animated and their
    callbacks do not run, apart from continuations of ``await`` and
    ``.then()``. Content such a script hides and expects GSAP to show
-   again can stay hidden.
+   again stays hidden.
 
 Re-generate pages generated with GSAP to use the current animations.
 Deleting the two animation elements is enough only for structured

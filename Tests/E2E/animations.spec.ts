@@ -80,13 +80,33 @@ test.describe('animation runtime', () => {
             );
 
             expect(await opacity(page, '#c5')).toBe('0');
-            expect(await transform(page, '#c5')).not.toBe('');
+            // Only transparent until revealed: the box stays where it is.
+            expect(await transform(page, '#c5')).toBe('');
 
             await page.evaluate(() => window.scrollTo(0, 1000));
             await expect.poll(() => opacity(page, '#c5')).toBe('');
             expect(await transform(page, '#c5')).toBe('');
         });
     }
+
+    for (const type of ['scale-up', 'zoom-in']) {
+        test(`reveals a tall ${type} element that is in view at load`, async ({ page }) => {
+            await pageWithMap(page, '<div id="c13" style="height:4000px"><p>Tall</p></div>', { 13: { type, duration: 0.1 } });
+
+            await expect.poll(() => opacity(page, '#c13')).toBe('');
+        });
+    }
+
+    test('reveals a tall element when the page opens in its middle', async ({ page }) => {
+        await pageWithMap(
+            page,
+            '<div style="height:600px"></div><div id="c14" style="height:2000px"><p>Tall</p></div><div style="height:2000px"></div>',
+            { 14: { type: 'scale-up', duration: 0.1 } },
+            () => window.scrollTo(0, 1800),
+        );
+
+        await expect.poll(() => opacity(page, '#c14')).toBe('');
+    });
 
     test('reveals a fade-down element at the top of the page', async ({ page }) => {
         // The start state moves it 40px up, out of the viewport.
@@ -228,6 +248,32 @@ test.describe('GSAP stand-in for pages generated with GSAP', () => {
         await expect(page.locator('#e')).toHaveText('Restored');
     });
 
+    test('leave a paused overlay as the page hid it', async ({ page }) => {
+        const errors = await runWithStandIn(
+            page,
+            '<!doctype html><html><head><style>.overlay{position:fixed;inset:0;opacity:0;visibility:hidden}</style></head>'
+            + '<body><div class="overlay"><a href="#">Menu</a></div></body></html>',
+            "var menu = gsap.timeline({paused: true, reversed: true});"
+            + "menu.to('.overlay', {autoAlpha: 1, duration: 0.3}).from('.overlay a', {y: 20});"
+            + "gsap.to('.overlay', {opacity: 1, visibility: 'visible', paused: true});",
+        );
+
+        expect(errors).toEqual([]);
+        await expect(page.locator('.overlay')).toHaveCSS('opacity', '0');
+        await expect(page.locator('.overlay')).toHaveCSS('visibility', 'hidden');
+    });
+
+    test('replace an element whose id is a GSAP global', async ({ page }) => {
+        const errors = await runWithStandIn(
+            page,
+            '<!doctype html><html><body><div id="gsap">Section</div></body></html>',
+            "gsap.to('#gsap', {x: 10}); document.body.dataset.done = 'yes';",
+        );
+
+        expect(errors).toEqual([]);
+        await expect(page.locator('body')).toHaveAttribute('data-done', 'yes');
+    });
+
     test('run no callbacks of the stored script', async ({ page }) => {
         const errors = await runWithStandIn(
             page,
@@ -287,6 +333,8 @@ test.describe('GSAP stand-in for pages generated with GSAP', () => {
         awaitLoop: "(async function () { var i = 0; while (true) { await gsap.to('#x', {rotation: '+=90', duration: 0.2}); i++; if (i === 3) { document.getElementById('x').dataset.looping = 'yes'; } } })(); setTimeout(function () { document.getElementById('x').dataset.awaited = 'yes'; }, 50);",
         stepByDuration: "var tl = gsap.timeline(); for (var p = 0; p < 1; p += tl.duration() / 10) { tl.progress(p); } while (tl.progress() < 1) { tl.progress(tl.progress() + 0.1); }",
         toArrayNested: "gsap.utils.toArray(['#x', document.querySelectorAll('#x')]).forEach(function (el) { el.classList.add('k'); });",
+        arrayLike: "(function () { gsap.utils.toArray({0: document.getElementById('x'), length: 1})[0].dataset.y = '1'; gsap.utils.toArray(arguments)[0].dataset.z = '1'; })(document.getElementById('x'));",
+        definedProperty: "var tween = gsap.to('#x', {x: 1}); Object.defineProperty(tween, 'label', {value: 'a'}); if (tween.label !== 'a') { throw new Error('label'); }",
         awaitedThen: "(async function () { const tw = await gsap.to('#x', {opacity: 1}); await tw.then(function () {}); async function build() { return gsap.timeline(); } (await build()).then(function () {}); document.getElementById('x').dataset.awaited = 'yes'; })();",
     };
     for (const [name, script] of Object.entries(SHAPES)) {
