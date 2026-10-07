@@ -7,7 +7,7 @@
 
 $EM_CONF[$_EXTKEY] = [
     'title' => 'Landing Page Generator',
-    'description' => 'Generate Landing Pages via LLM using a step-by-step Backend Wizard',
+    'description' => 'Generate landing pages with an LLM in a step-by-step backend wizard.',
     'category' => 'module',
     'author' => 'Netresearch DTT GmbH',
     'author_email' => 'info@netresearch.de',
