@@ -57,69 +57,76 @@
     return map;
   }
 
-  // The inline style an element had before the runtime hid it is kept
-  // in a data attribute, so that a second copy of this script on the page
-  // sees that the element is already hidden. It is put back exactly when the
-  // element is revealed or printed.
+  // The inline properties the runtime changes. Before it hides an element,
+  // their values and priorities are kept in a data attribute, so that a
+  // second copy of this script on the page sees that the element is already
+  // hidden. Only these properties are put back afterwards: styles that other
+  // scripts set in the meantime stay, and the values are read through the
+  // CSSOM, so an inline style that a Content Security Policy blocked is not
+  // brought back.
   var SAVED = 'data-nr-landingpage-style';
+  var TOUCHED = ['opacity', 'transform', 'transition-property', 'transition-duration',
+    'transition-timing-function', 'transition-delay', 'transition-behavior'];
 
   function hide(element, state) {
     if (element.hasAttribute(SAVED)) {
       return;
     }
-    element.setAttribute(SAVED, JSON.stringify(element.getAttribute('style')));
+    var saved = {};
+    TOUCHED.forEach(function (property) {
+      saved[property] = [element.style.getPropertyValue(property), element.style.getPropertyPriority(property)];
+    });
+    element.setAttribute(SAVED, JSON.stringify(saved));
     element.style.opacity = state.opacity;
   }
 
   function takeSaved(element) {
     if (!element.hasAttribute(SAVED)) {
-      return undefined;
+      return null;
     }
-    var saved = null;
+    var saved = {};
     try {
-      saved = JSON.parse(element.getAttribute(SAVED) || 'null');
+      saved = JSON.parse(element.getAttribute(SAVED) || '{}') || {};
     } catch (e) {
-      saved = null;
+      saved = {};
     }
     element.removeAttribute(SAVED);
     return saved;
   }
 
   function putBack(element, saved) {
-    // cssText rather than setAttribute: a Content Security Policy without
-    // 'unsafe-inline' blocks style attributes set as markup, not the CSSOM.
-    if (typeof saved === 'string') {
-      element.style.cssText = saved;
-    } else {
-      element.removeAttribute('style');
-    }
+    TOUCHED.forEach(function (property) {
+      var entry = saved[property] || ['', ''];
+      if (entry[0] === '') {
+        element.style.removeProperty(property);
+      } else {
+        element.style.setProperty(property, entry[0], entry[1]);
+      }
+    });
   }
 
   function restore(element) {
     var saved = takeSaved(element);
-    if (saved !== undefined) {
+    if (saved !== null) {
       putBack(element, saved);
     }
   }
 
   // The start transform is applied without a transition and then
   // transitioned to the element's own opacity and transform; afterwards the
-  // saved style attribute is put back as it was.
+  // saved properties are put back as they were.
   function reveal(element, state, duration, delay) {
     var saved = takeSaved(element);
-    if (saved === undefined) {
+    if (saved === null) {
       return;
     }
-    var own = document.createElement('div');
-    if (typeof saved === 'string') {
-      own.style.cssText = saved;
-    }
+    var transform = (saved.transform || [''])[0];
     element.style.transition = 'none';
-    element.style.transform = state.transform + (own.style.transform ? ' ' + own.style.transform : '');
+    element.style.transform = state.transform + (transform ? ' ' + transform : '');
     void element.offsetWidth;
     element.style.transition = 'opacity ' + duration + 's ease-out ' + delay + 's, transform ' + duration + 's ease-out ' + delay + 's';
-    element.style.setProperty('opacity', own.style.opacity, own.style.getPropertyPriority('opacity'));
-    element.style.setProperty('transform', own.style.transform, own.style.getPropertyPriority('transform'));
+    element.style.opacity = (saved.opacity || [''])[0];
+    element.style.transform = transform;
     window.setTimeout(function () {
       if (!element.hasAttribute(SAVED)) {
         putBack(element, saved);

@@ -178,6 +178,37 @@ test.describe('animation runtime', () => {
         await expect.poll(() => page.locator('#c21 > #c22').getAttribute('data-nr-landingpage-style')).toBeNull();
     });
 
+    test('leaves inline styles that other scripts set, and styles a policy blocked', async ({ page }) => {
+        await pageWithMap(
+            page,
+            '<div style="height:1200px"></div><div id="c23"><p>One</p></div><div id="c24"><p>Two</p></div>',
+            { 23: { type: 'fade-up', duration: 0.1 }, 24: { type: 'stagger-children', duration: 0.1 } },
+        );
+        await page.evaluate(() => {
+            (document.getElementById('c23') as HTMLElement).style.minHeight = '50px';
+            (document.querySelector('#c24 > p') as HTMLElement).style.display = 'none';
+        });
+
+        await page.evaluate(() => window.scrollTo(0, 1000));
+        await expect.poll(() => page.locator('#c23').getAttribute('data-nr-landingpage-style')).toBeNull();
+        await expect.poll(() => page.locator('#c23').evaluate((element) => (element as HTMLElement).style.cssText)).toBe('min-height: 50px;');
+        await expect.poll(() => page.locator('#c24 > p').evaluate((element) => (element as HTMLElement).style.cssText)).toBe('display: none;');
+    });
+
+    test('does not apply an inline style that the Content Security Policy blocked', async ({ page }) => {
+        await page.route('https://example.test/', (route) => route.fulfill({
+            contentType: 'text/html',
+            headers: { 'Content-Security-Policy': "style-src 'self'; script-src 'self' 'unsafe-inline'" },
+            body: '<!doctype html><html><body><div id="c25" style="color: rgb(255, 0, 0)"><p>Text</p></div>'
+                + '<script type="application/json" data-nr-landingpage-animations>{"25":{"type":"fade-up","duration":0.1}}</script>'
+                + `<script>${readFileSync(RUNTIME, 'utf8')}</script></body></html>`,
+        }));
+        await page.goto('https://example.test/');
+
+        await expect.poll(() => page.locator('#c25').getAttribute('data-nr-landingpage-style')).toBeNull();
+        expect(await page.locator('#c25').evaluate((element) => getComputedStyle(element).color)).toBe('rgb(0, 0, 0)');
+    });
+
     test('reveals a fade-down element at the top of the page', async ({ page }) => {
         // The start state moves it 40px up, out of the viewport.
         await pageWithMap(page, '<div id="c12"><p>Top</p></div>', { 12: { type: 'fade-down', duration: 0.1 } });
