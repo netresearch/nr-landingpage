@@ -204,4 +204,4 @@ docker run --rm -v $(pwd):/project \
 ## Contact
 
 - **Issues**: https://github.com/netresearch/nr-landingpage/issues
-- **Dependency**: `netresearch/nr-llm` ^0.34 || ^0.35 || ^0.36 || ^0.37 || ^0.38 || ^0.39
+- **Dependency**: `netresearch/nr-llm` ^0.34 || ^0.35 || ^0.36 || ^0.37 || ^0.38 || ^0.39 || ^0.40
