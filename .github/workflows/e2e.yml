@@ -22,6 +22,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions: {}
+
 concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
