@@ -16,6 +16,7 @@ use Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer;
 use Netresearch\NrLandingpage\Service\CTypeMetadataService;
 use Netresearch\NrLandingpage\Service\LlmCallerSource;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
+use Netresearch\NrLlm\Exception\GuardrailViolationException;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Netresearch\NrLlm\Service\Option\ChatOptions;
@@ -369,6 +370,19 @@ final class ContentGeneratorServiceTest extends UnitTestCase
 
         $service = $this->createService($completionService);
         $service->generatePageFields($this->createTemplate(pageFields: []), ['topic' => 'Test']);
+    }
+
+    #[Test]
+    public function generatePageFieldsLetsAGuardrailStopReachTheCaller(): void
+    {
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->method('completeJson')
+            ->willThrowException(new GuardrailViolationException('Guardrail', 'Es enthält Rabatt.'));
+
+        $this->expectException(GuardrailViolationException::class);
+        $this->expectExceptionMessage('Es enthält Rabatt.');
+
+        $this->createService($completionService)->generatePageFields($this->createTemplate(), []);
     }
 
     #[Test]
