@@ -13,6 +13,7 @@ use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLandingpage\Service\LlmCallerSource;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
+use Netresearch\NrLlm\Exception\GuardrailViolationException;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Netresearch\NrLlm\Service\Option\ChatOptions;
@@ -168,6 +169,25 @@ final class BriefingServiceTest extends UnitTestCase
         ))->generateQuestions(
             $this->createTemplate('My custom prompt for events'),
         );
+    }
+
+    #[Test]
+    public function aGuardrailStopReachesTheCallerSoTheEditorReadsWhy(): void
+    {
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->method('completeJson')
+            ->willThrowException(new GuardrailViolationException('Guardrail', 'Es enthält Rabatt.'));
+
+        $service = new BriefingService(
+            $completionService,
+            $this->createMock(LlmServiceManagerInterface::class),
+            $this->createMock(LlmConfigurationRepository::class),
+        );
+
+        $this->expectException(GuardrailViolationException::class);
+        $this->expectExceptionMessage('Es enthält Rabatt.');
+
+        $service->generateQuestions($this->createTemplate());
     }
 
     #[Test]

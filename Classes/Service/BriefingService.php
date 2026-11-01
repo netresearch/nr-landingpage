@@ -11,6 +11,7 @@ namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
+use Netresearch\NrLlm\Exception\GuardrailPolicyException;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Psr\Log\LoggerAwareInterface;
@@ -43,6 +44,9 @@ final class BriefingService implements LoggerAwareInterface
                 $this->buildPrompt($template),
                 'generateBriefingQuestions',
             );
+        } catch (GuardrailPolicyException $e) {
+            // The editor has to read why, so this is no failure to fall back from.
+            throw $e;
         } catch (Throwable $e) {
             $this->logger?->error('Briefing generation failed', [
                 'template' => $template->identifier,
