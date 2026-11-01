@@ -74,13 +74,32 @@ final class AiLabelMiddlewareTest extends TestCase
     }
 
     #[Test]
+    public function aTranslationOfAGeneratedPageShowsTheNotice(): void
+    {
+        $source = new class {
+            /**
+             * @return array<string, int>
+             */
+            public function toArray(): array
+            {
+                return ['tx_nrlandingpage_generated_at' => 1700000000];
+            }
+        };
+
+        $body = $this->process(['enabled' => true], ['tx_nrlandingpage_generated_at' => 0, '_TRANSLATION_SOURCE' => $source]);
+
+        self::assertStringContainsString('nr-landingpage-ai-label', $body);
+    }
+
+    #[Test]
     public function theMiddlewareRunsWhereThePageRecordIsAlreadyOnTheRequest(): void
     {
         $stack = require __DIR__ . '/../../../Configuration/RequestMiddlewares.php';
         $entry = $stack['frontend']['netresearch/nr-landingpage/ai-label'];
 
         self::assertSame(AiLabelMiddleware::class, $entry['target']);
-        self::assertContains('typo3/cms-frontend/page-resolver', $entry['after']);
+        self::assertContains('typo3/cms-frontend/shortcut-and-mountpoint-redirect', $entry['after']);
+        self::assertContains('typo3/cms-frontend/content-length-headers', $entry['before']);
     }
 
     /**

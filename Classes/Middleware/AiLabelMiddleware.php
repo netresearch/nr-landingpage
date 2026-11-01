@@ -67,7 +67,16 @@ final readonly class AiLabelMiddleware implements MiddlewareInterface
             return false;
         }
 
-        $generatedAt = $pageInformation->getPageRecord()['tx_nrlandingpage_generated_at'] ?? 0;
+        $record = $pageInformation->getPageRecord();
+        // Core does not copy this column to a translation, and the overlay
+        // replaces it with the translation's 0. The default language keeps it.
+        $source = $record['_TRANSLATION_SOURCE'] ?? null;
+        $sourceRecord = is_object($source) && method_exists($source, 'toArray') ? $source->toArray() : null;
+        if (is_array($sourceRecord)) {
+            $record = $sourceRecord;
+        }
+
+        $generatedAt = $record['tx_nrlandingpage_generated_at'] ?? 0;
 
         return is_numeric($generatedAt) && (int) $generatedAt > 0;
     }
