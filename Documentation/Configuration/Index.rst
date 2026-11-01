@@ -108,6 +108,32 @@ Each template can override individual colors in its own record
 
 .. _color-inheritance:
 
+AI Notice
+---------
+
+Under **Landing Page Generator > AI Notice** a site can show a visible notice on
+the landing pages this extension generated:
+
+.. confval:: nr_landingpage.aiLabel.enabled
+   :name: ai-label-enabled
+   :type: bool
+   :default: false
+
+   Adds a paragraph with the class ``nr-landingpage-ai-label`` at the end of the
+   page body. A page counts as generated while it carries generation data; a
+   page written by hand shows nothing.
+
+.. confval:: nr_landingpage.aiLabel.text
+   :name: ai-label-text
+   :type: string
+   :default: (empty)
+
+   The text of the notice. Empty uses the built-in English or German text,
+   chosen by the language of the page.
+
+The notice is added to the delivered page and needs no template change. Style it
+with the class above.
+
 Color Inheritance Cascade
 -------------------------
 

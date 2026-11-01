@@ -653,6 +653,10 @@
                 <source>The template configuration has changed since this page was generated. Consider re-generating.</source>
                 <target>Die Vorlagenkonfiguration hat sich seit der Generierung dieser Seite geändert. Eine Neugenerierung wird empfohlen.</target>
             </trans-unit>
+            <trans-unit id="aiLabel.text" resname="aiLabel.text">
+                <source>This page was created with the help of AI.</source>
+                <target>Diese Seite wurde mit Unterstützung von KI erstellt.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>
