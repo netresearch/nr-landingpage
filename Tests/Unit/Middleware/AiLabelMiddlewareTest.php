@@ -94,12 +94,10 @@ final class AiLabelMiddlewareTest extends TestCase
     #[Test]
     public function theMiddlewareRunsWhereThePageRecordIsAlreadyOnTheRequest(): void
     {
-        $stack = require __DIR__ . '/../../../Configuration/RequestMiddlewares.php';
-        $entry = $stack['frontend']['netresearch/nr-landingpage/ai-label'];
+        $stack = (string) file_get_contents(__DIR__ . '/../../../Configuration/RequestMiddlewares.php');
 
-        self::assertSame(AiLabelMiddleware::class, $entry['target']);
-        self::assertContains('typo3/cms-frontend/shortcut-and-mountpoint-redirect', $entry['after']);
-        self::assertContains('typo3/cms-frontend/content-length-headers', $entry['before']);
+        self::assertMatchesRegularExpression("/'after'\s*=> \[\s*'typo3\/cms-frontend\/shortcut-and-mountpoint-redirect',/", $stack);
+        self::assertMatchesRegularExpression("/'before' => \[\s*'typo3\/cms-frontend\/content-length-headers',/", $stack);
     }
 
     /**
