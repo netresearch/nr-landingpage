@@ -492,6 +492,9 @@
             <trans-unit id="hub.docs.usage.step5" resname="hub.docs.usage.step5">
                 <source>Choose the parent page and save to create the landing page.</source>
             </trans-unit>
+            <trans-unit id="aiLabel.text" resname="aiLabel.text">
+                <source>This page was created with the help of AI.</source>
+            </trans-unit>
         </body>
     </file>
 </xliff>

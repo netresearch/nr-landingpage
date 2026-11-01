@@ -7,6 +7,9 @@ categories:
   nr_landingpage.colors:
     label: 'Default Color Scheme'
     parent: nr_landingpage
+  nr_landingpage.aiLabel:
+    label: 'AI Notice'
+    parent: nr_landingpage
 
 settings:
   nr_landingpage.colorPrimary:
@@ -44,3 +47,22 @@ settings:
     type: color
     default: '#333333'
     category: nr_landingpage.colors
+
+  nr_landingpage.aiLabel.enabled:
+    label: 'Show an AI notice on generated pages'
+    description: >
+      Adds a visible notice at the end of every landing page this extension
+      generated. Off by default, because what a site says about itself is the
+      site's decision.
+    type: bool
+    default: false
+    category: nr_landingpage.aiLabel
+
+  nr_landingpage.aiLabel.text:
+    label: 'Text of the AI notice'
+    description: >
+      Leave empty for the built-in English or German text, chosen by the
+      language of the page.
+    type: string
+    default: ''
+    category: nr_landingpage.aiLabel
