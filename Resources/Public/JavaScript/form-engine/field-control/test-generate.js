@@ -152,10 +152,10 @@ class TestGenerate {
         ]));
       }
     } catch (error) {
-      // An answer with an error status arrives here too, and a guardrail's reason is in it.
+      // An answer with an error status arrives here as an AjaxResponse, with a guardrail's reason in it.
       let detail = '';
       try {
-        const data = await error.response?.resolve();
+        const data = await error.resolve?.();
         detail = data?.error || '';
       } catch {
         // response not parseable, keep the general message
