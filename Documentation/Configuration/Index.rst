@@ -129,7 +129,8 @@ the landing pages this extension generated:
    :default: (empty)
 
    The text of the notice. Empty uses the built-in English or German text,
-   chosen by the language of the page.
+   chosen by the language of the page. A text set here applies to every language
+   of the site.
 
 The notice is added to the delivered page and needs no template change. Style it
 with the class above.

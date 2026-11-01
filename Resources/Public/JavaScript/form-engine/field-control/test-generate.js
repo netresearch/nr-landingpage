@@ -151,10 +151,18 @@ class TestGenerate {
           document.createTextNode(' ' + (data.error || this.lang('fieldControl.testGenerate.error.unknown', 'Unknown error'))),
         ]));
       }
-    } catch {
+    } catch (error) {
+      // An answer with an error status arrives here as an AjaxResponse, with a guardrail's reason in it.
+      let detail = '';
+      try {
+        const data = await error.resolve?.();
+        detail = data?.error || '';
+      } catch {
+        // response not parseable, keep the general message
+      }
       this.setContent(contentArea, this.el('div', {
         className: 'alert alert-danger',
-        text: this.lang('fieldControl.testGenerate.error.server', 'Could not reach the server. Please check your LLM configuration.'),
+        text: detail || this.lang('fieldControl.testGenerate.error.server', 'Could not reach the server. Please check your LLM configuration.'),
       }));
     } finally {
       modal.querySelectorAll('.modal-footer button').forEach(btn => btn.disabled = false);

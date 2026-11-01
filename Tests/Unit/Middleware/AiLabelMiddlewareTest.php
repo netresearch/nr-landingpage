@@ -16,6 +16,7 @@ use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Http\Stream;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
+use TYPO3\CMS\Core\Service\DependencyOrderingService;
 use TYPO3\CMS\Core\Site\Entity\Site;
 use TYPO3\CMS\Core\Site\Entity\SiteSettings;
 use TYPO3\CMS\Frontend\Page\PageInformation;
@@ -91,13 +92,27 @@ final class AiLabelMiddlewareTest extends TestCase
         self::assertStringContainsString('nr-landingpage-ai-label', $body);
     }
 
+    /**
+     * Ordered by core's own service from core's own list: a later position is
+     * further in, so the page record is on the request, and the Content-Length
+     * core sets on the way back counts the notice.
+     */
     #[Test]
-    public function theMiddlewareRunsWhereThePageRecordIsAlreadyOnTheRequest(): void
+    public function theMiddlewareRunsInsideThePageRecordAndTheContentLength(): void
     {
-        $stack = (string) file_get_contents(__DIR__ . '/../../../Configuration/RequestMiddlewares.php');
+        $vendor = __DIR__ . '/../../../.Build/vendor/typo3/cms-frontend/Configuration/RequestMiddlewares.php';
+        /** @var array{frontend: array<string, array<string, mixed>>} $core */
+        $core = require $vendor;
+        /** @var array{frontend: array<string, array<string, mixed>>} $own */
+        $own = require __DIR__ . '/../../../Configuration/RequestMiddlewares.php';
 
-        self::assertMatchesRegularExpression("/'after'\s*=> \[\s*'typo3\/cms-frontend\/shortcut-and-mountpoint-redirect',/", $stack);
-        self::assertMatchesRegularExpression("/'before' => \[\s*'typo3\/cms-frontend\/content-length-headers',/", $stack);
+        $order = array_keys((new DependencyOrderingService())->orderByDependencies($core['frontend'] + $own['frontend']));
+        $at    = array_flip($order);
+        $label = $at['netresearch/nr-landingpage/ai-label'];
+
+        self::assertGreaterThan($at['typo3/cms-frontend/content-length-headers'], $label);
+        self::assertGreaterThan($at['typo3/cms-frontend/shortcut-and-mountpoint-redirect'], $label);
+        self::assertGreaterThan($at['typo3/cms-frontend/prepare-tsfe-rendering'] ?? $at['typo3/cms-frontend/tsfe'], $label);
     }
 
     /**

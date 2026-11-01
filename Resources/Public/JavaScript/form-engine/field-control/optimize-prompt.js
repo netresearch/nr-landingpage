@@ -108,7 +108,7 @@ class OptimizePrompt {
       .catch(async (error) => {
         let detail = 'Could not reach the server';
         try {
-          const data = await error.response?.resolve();
+          const data = await error.resolve?.();
           if (data?.error) {
             detail = data.error;
           }
