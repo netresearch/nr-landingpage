@@ -1128,7 +1128,15 @@ test.describe('Landing Page Wizard', () => {
         const browser = page.frameLocator('dialog iframe').last();
         const entry = browser.locator('[data-close], a').filter({ hasText: title }).last();
         await entry.waitFor({ state: 'visible', timeout: 15000 });
-        await entry.click();
+        // The record list can be rendered before the browser's script has
+        // bound its click handler; a click in that window does nothing. A
+        // pick closes the browser, so click until it is gone.
+        await expect(async () => {
+            if (await entry.isVisible()) {
+                await entry.click({ timeout: 2000 });
+            }
+            await expect(page.locator('dialog:visible')).toHaveCount(1, { timeout: 2000 });
+        }).toPass({ timeout: 30000 });
     }
 
     test('the parent page is a page picker, not a number field, and takes a page from the element browser', async ({ authenticatedPage: page }) => {
