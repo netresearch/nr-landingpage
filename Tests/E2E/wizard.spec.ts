@@ -1042,6 +1042,8 @@ test.describe('Landing Page Wizard', () => {
         await expect(notification).toBeVisible({ timeout: 15000 });
         // A 500: the page may exist anyway, so the editor looks before trying again.
         await expect(notification).toContainText(/may have been created anyway|möglicherweise trotzdem angelegt/);
+        // The closed wizard's content is gone: no "still in this wizard".
+        await expect(notification).not.toContainText(/still in this wizard|weiterhin in diesem Assistenten/);
     });
 
     test('a refused save says that no page was created', async ({ authenticatedPage: page }) => {
@@ -1220,6 +1222,35 @@ test.describe('Landing Page Wizard', () => {
         await expect(picker.locator('[data-picker-error]')).toHaveAttribute('role', 'alert');
         await expect(picker.locator('#placement_parent')).toHaveValue('');
         await expect(picker.locator('[data-picker-browse]')).toHaveAttribute('aria-describedby', /placement_parent_error/);
+    });
+
+    test('a refusal of an earlier check does not remove the same page picked again', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => { release = resolve; });
+        let checks = 0;
+        await page.route('**/nr-landingpage/wizard/check-parent-page**', async (route) => {
+            if (++checks === 1) {
+                await held;
+                await route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ success: false, code: 'noPermission', error: 'Earlier refusal' }) });
+                return;
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: {} }) });
+        });
+        const uid = await ensureParentPage(page);
+        const modal = await openWizard(page, await navigateToModule(page));
+        const picker = await walkToPlacement(modal, page);
+
+        await pickInElementBrowser(page, picker, PARENT_TITLE);
+        await expect.poll(() => checks).toBe(1);
+        await picker.locator('[data-picker-remove]').click();
+        await pickInElementBrowser(page, picker, PARENT_TITLE);
+        await expect.poll(() => checks).toBe(2);
+        release();
+        await page.waitForTimeout(1000);
+
+        await expect(picker.locator('#placement_parent')).toHaveValue(String(uid));
+        await expect(picker.locator('[data-picker-error]')).toHaveText('');
     });
 
     test('a preselected page the editor may not use is removed when the step opens, with the reason', async ({ authenticatedPage: page }) => {

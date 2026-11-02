@@ -338,6 +338,12 @@
             <trans-unit id="wizard.saveFailed.ask" resname="wizard.saveFailed.ask">
                 <source>If it keeps failing, ask your administrator. The TYPO3 log holds the full error under the time of your attempt.</source>
             </trans-unit>
+            <trans-unit id="wizard.saveFailed.closed.refused" resname="wizard.saveFailed.closed.refused">
+                <source>No page was created. Start the wizard again to create it.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.closed.unknown" resname="wizard.saveFailed.closed.unknown">
+                <source>The page may have been created anyway. Look below the parent page in the page tree before you start the wizard again.</source>
+            </trans-unit>
             <trans-unit id="wizard.notification.created" resname="wizard.notification.created">
                 <source>Landing page created</source>
             </trans-unit>

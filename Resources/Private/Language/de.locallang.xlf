@@ -449,6 +449,14 @@
                 <source>If it keeps failing, ask your administrator. The TYPO3 log holds the full error under the time of your attempt.</source>
                 <target>Wenn es weiterhin fehlschlägt, wenden Sie sich an Ihre Administration. Das TYPO3-Log enthält den vollständigen Fehler unter dem Zeitpunkt Ihres Versuchs.</target>
             </trans-unit>
+            <trans-unit id="wizard.saveFailed.closed.refused" resname="wizard.saveFailed.closed.refused">
+                <source>No page was created. Start the wizard again to create it.</source>
+                <target>Es wurde keine Seite angelegt. Starten Sie den Assistenten erneut, um sie anzulegen.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.closed.unknown" resname="wizard.saveFailed.closed.unknown">
+                <source>The page may have been created anyway. Look below the parent page in the page tree before you start the wizard again.</source>
+                <target>Die Seite wurde möglicherweise trotzdem angelegt. Sehen Sie im Seitenbaum unter der übergeordneten Seite nach, bevor Sie den Assistenten erneut starten.</target>
+            </trans-unit>
             <trans-unit id="wizard.notification.created" resname="wizard.notification.created">
                 <source>Landing page created</source>
                 <target>Landing Page erstellt</target>

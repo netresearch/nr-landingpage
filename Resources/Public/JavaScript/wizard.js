@@ -27,6 +27,8 @@ class LandingPageWizard {
         this._busy = null;
         // True while the confirmation before a save is open (see confirmAndSave()).
         this._confirmOpen = false;
+        // The number of the latest parent page check per picker (see checkParentPage()).
+        this._parentPageChecks = new WeakMap();
         this._briefingForm = null;
         this._briefingQuestions = null;
         this._pageFieldsForm = null;
@@ -1853,12 +1855,17 @@ class LandingPageWizard {
      * @param {number} uid
      */
     async checkParentPage(group, show, uid) {
+        // Only the latest check speaks: the same page picked again must not
+        // be removed by the refusal of an earlier check of it.
+        const check = (this._parentPageChecks.get(group) ?? 0) + 1;
+        this._parentPageChecks.set(group, check);
         try {
             await this.fetchJson(this.getAjaxUrl('checkParentPage'), { parentPageId: uid });
         } catch (error) {
             // Only a refusal says something about the page; a lost
             // connection leaves the pick, and the save checks it again.
             if (typeof error.status === 'number' && error.status >= 400 && error.status < 500
+                && this._parentPageChecks.get(group) === check
                 && WizardState.getParentPageId() === uid && group.isConnected) {
                 show(0, '');
                 this.showParentPageError(group, error.message);
@@ -2152,9 +2159,10 @@ class LandingPageWizard {
             // and, unless the server refused, that the page may exist anyway.
             const refused = typeof failure.status === 'number' && failure.status >= 400 && failure.status < 500;
             const kind = refused ? 'refused' : 'unknown';
+            // Its content is gone with it: open() starts a new wizard empty.
             Notification.error(
                 this.label('wizard.error.save', failure.message),
-                this.label('wizard.saveFailed.exists.' + kind) + ' ' + this.label('wizard.saveFailed.todo.' + kind),
+                this.label('wizard.saveFailed.closed.' + kind),
             );
         }
     }
