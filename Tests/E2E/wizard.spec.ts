@@ -1083,6 +1083,45 @@ test.describe('Landing Page Wizard', () => {
         return picker;
     }
 
+    /** The page the picker tests choose; created once, at the root, when it does not exist. */
+    const PARENT_TITLE = 'E2E parent page';
+
+    /**
+     * The uid of the PARENT_TITLE page. The CI instance is set up without a
+     * site, so it has no page to pick; this creates one through the backend's
+     * own AJAX DataHandler route (as the logged-in admin) and refreshes the
+     * page tree.
+     */
+    async function ensureParentPage(page: Page): Promise<number> {
+        const uid = await page.evaluate(async (title: string) => {
+            const urls = (window as any).TYPO3.settings.ajaxUrls;
+            const find = async (): Promise<number> => {
+                const reply = await (await fetch(urls.livesearch + '&query=' + encodeURIComponent(title), { credentials: 'same-origin' })).json();
+                for (const result of reply.results ?? []) {
+                    const edit = (result.actions ?? []).find((action: any) => action.identifier === 'edit');
+                    const match = result.itemTitle === title ? /pages%5D%5B(\d+)%5D/.exec(edit?.url ?? '') : null;
+                    if (match) {
+                        return parseInt(match[1], 10);
+                    }
+                }
+                return 0;
+            };
+            const found = await find();
+            if (found > 0) {
+                return found;
+            }
+            const body = new URLSearchParams();
+            body.set('data[pages][NEW1][pid]', '0');
+            body.set('data[pages][NEW1][title]', title);
+            body.set('data[pages][NEW1][hidden]', '0');
+            await fetch(urls.record_process, { method: 'POST', body, credentials: 'same-origin' });
+            return find();
+        }, PARENT_TITLE);
+        expect(uid).toBeGreaterThan(0);
+        await page.evaluate(() => document.dispatchEvent(new CustomEvent('typo3:pagetree:refresh')));
+        return uid;
+    }
+
     /** Pick a page by title in TYPO3's element browser opened from the picker. */
     async function pickInElementBrowser(page: Page, picker: Locator, title: string): Promise<void> {
         await picker.locator('[data-picker-browse]').click();
@@ -1099,6 +1138,7 @@ test.describe('Landing Page Wizard', () => {
             checked = route.request().postDataJSON();
             await route.continue();
         });
+        const uid = await ensureParentPage(page);
         const modal = await openWizard(page, await navigateToModule(page));
         const picker = await walkToPlacement(modal, page);
 
@@ -1112,13 +1152,13 @@ test.describe('Landing Page Wizard', () => {
         await expect(browse).toHaveAccessibleDescription(/No page chosen|Keine Seite/);
         await expect(picker.locator('[data-picker-remove]')).toBeHidden();
 
-        await pickInElementBrowser(page, picker, 'Home');
-        await expect(picker.locator('#placement_parent_item')).toHaveText(/Home \[1\]/, { timeout: 15000 });
-        await expect(picker.locator('#placement_parent')).toHaveValue('1');
-        await expect(browse).toHaveAccessibleDescription(/Home \[1\]/);
+        await pickInElementBrowser(page, picker, PARENT_TITLE);
+        await expect(picker.locator('#placement_parent_item')).toHaveText(`${PARENT_TITLE} [${uid}]`, { timeout: 15000 });
+        await expect(picker.locator('#placement_parent')).toHaveValue(String(uid));
+        await expect(browse).toHaveAccessibleDescription(new RegExp(`${PARENT_TITLE} \\[${uid}\\]`));
         await expect(page.locator('dialog:visible')).toHaveCount(1);
         await expect(browse).toBeFocused();
-        await expect.poll(() => checked, { timeout: 15000 }).toEqual({ parentPageId: 1 });
+        await expect.poll(() => checked, { timeout: 15000 }).toEqual({ parentPageId: uid });
         // The real server accepted the admin's pick: no message.
         await expect(picker.locator('[data-picker-error]')).toHaveText('');
 
@@ -1144,15 +1184,16 @@ test.describe('Landing Page Wizard', () => {
 
     test('the picker starts with the page selected in the page tree', async ({ authenticatedPage: page }) => {
         await mockUpToContent(page);
+        const uid = await ensureParentPage(page);
         await navigateToModule(page);
-        await page.getByRole('treeitem', { name: 'Home' }).first().click();
+        await page.getByRole('treeitem', { name: PARENT_TITLE }).first().click();
         const frame = getModuleFrame(page);
-        await frame.locator('#nr-landingpage-launch-wizard[data-parent-page-id="1"][data-wizard-ready="1"]').waitFor({ timeout: 15000 });
+        await frame.locator(`#nr-landingpage-launch-wizard[data-parent-page-id="${uid}"][data-wizard-ready="1"]`).waitFor({ timeout: 15000 });
         const modal = await openWizard(page, frame);
         const picker = await walkToPlacement(modal, page);
 
-        await expect(picker.locator('#placement_parent_item')).toHaveText('Home [1]');
-        await expect(picker.locator('#placement_parent')).toHaveValue('1');
+        await expect(picker.locator('#placement_parent_item')).toHaveText(`${PARENT_TITLE} [${uid}]`);
+        await expect(picker.locator('#placement_parent')).toHaveValue(String(uid));
     });
 
     test('a picked page the editor may not use is removed again, with the reason', async ({ authenticatedPage: page }) => {
@@ -1162,10 +1203,11 @@ test.describe('Landing Page Wizard', () => {
             contentType: 'application/json',
             body: JSON.stringify({ success: false, code: 'noPermission', error: 'You may not create pages below page 1.' }),
         }));
+        await ensureParentPage(page);
         const modal = await openWizard(page, await navigateToModule(page));
         const picker = await walkToPlacement(modal, page);
 
-        await pickInElementBrowser(page, picker, 'Home');
+        await pickInElementBrowser(page, picker, PARENT_TITLE);
         await expect(picker.locator('[data-picker-error]')).toHaveText('You may not create pages below page 1.', { timeout: 15000 });
         await expect(picker.locator('[data-picker-error]')).toHaveAttribute('role', 'alert');
         await expect(picker.locator('#placement_parent')).toHaveValue('');
@@ -1179,10 +1221,11 @@ test.describe('Landing Page Wizard', () => {
             contentType: 'application/json',
             body: JSON.stringify({ success: false, code: 'noSubpages', error: 'Page 1 is of a type that cannot hold subpages.' }),
         }));
+        const uid = await ensureParentPage(page);
         await navigateToModule(page);
-        await page.getByRole('treeitem', { name: 'Home' }).first().click();
+        await page.getByRole('treeitem', { name: PARENT_TITLE }).first().click();
         const frame = getModuleFrame(page);
-        await frame.locator('#nr-landingpage-launch-wizard[data-parent-page-id="1"][data-wizard-ready="1"]').waitFor({ timeout: 15000 });
+        await frame.locator(`#nr-landingpage-launch-wizard[data-parent-page-id="${uid}"][data-wizard-ready="1"]`).waitFor({ timeout: 15000 });
         const modal = await openWizard(page, frame);
         const picker = await walkToPlacement(modal, page);
 
