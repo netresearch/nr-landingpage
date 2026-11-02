@@ -50,7 +50,7 @@ Key Features
    .. card:: Image Integration
 
       Automatic image matching from the TYPO3 media library based on
-      AI-generated keywords. Optional AI image generation as fallback.
+      AI-generated keywords. Optional AI-generated images next to the media library matches.
 
    .. card:: Prompt Optimization
 

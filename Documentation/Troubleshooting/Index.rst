@@ -64,8 +64,8 @@ for all sections.
 2.  **Poor keyword matching** — the AI generates English search
     keywords by default. If your media library uses German file names,
     consider adding English alternative text or titles
-3.  **AI image generation not configured** — if you want fallback AI
-    images, configure an Image Task in the template settings
+3.  **AI image generation not configured** — if you want AI images as
+    well, choose an AI image prompt in the template settings
 
 AI Image Generation Fails
 ==========================
@@ -74,10 +74,12 @@ AI Image Generation Fails
 
 **Causes and solutions:**
 
-1.  **No image task configured** — select an Image Task in the
-    template's AI Configuration tab
-2.  **Image generation service unavailable** — verify the LLM task is
-    properly configured and the API supports image generation
+1.  **No image prompt chosen** — choose an AI image prompt in the
+    template field "Images: media library or AI image prompt"
+2.  **Image generation service unavailable** — the image services read
+    their key from the nr_llm extension settings, not from a provider or
+    task record: ``providers.openai.apiKeyIdentifier`` (an nr-vault secret)
+    for OpenAI, ``image.fal.apiKeyIdentifier`` for fal.ai
 3.  **Quota exceeded** — image generation APIs often have rate limits
 
 Preview Button Shows Escaped HTML

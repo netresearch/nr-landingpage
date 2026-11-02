@@ -134,16 +134,28 @@
                 <target>-- Von übergeordneter Seite erben --</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task" resname="tx_nrlandingpage_domain_model_template.image_task">
-                <source>Image Source</source>
-                <target>Bildquelle</target>
+                <source>Images: media library or AI image prompt</source>
+                <target>Bilder: Mediathek oder KI-Bild-Prompt</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.description" resname="tx_nrlandingpage_domain_model_template.image_task.description">
-                <source>How to find images for the page. "Media Library only" searches existing files. With an AI task selected, missing images are generated automatically.</source>
-                <target>Wie Bilder für die Seite gefunden werden. „Nur Mediathek“ durchsucht vorhandene Dateien. Mit einem KI-Task werden fehlende Bilder automatisch generiert.</target>
+                <source>"Media Library only" uses existing files. An image prompt switches on AI image generation: every section is offered a generated image next to the media library matches. The prompt is a fallback for a section the content model returned without an image prompt of its own; {{input}} becomes the section heading. The image model is not the task's: OpenAI uses nr-llm's default image model, fal.ai uses flux-schnell. Listed are the tasks marked "Landing page: image prompt" in nr-llm.</source>
+                <target>„Nur Mediathek“ verwendet vorhandene Dateien. Ein Bild-Prompt schaltet die KI-Bilderzeugung ein: Jeder Abschnitt erhält zusätzlich zu den Treffern aus der Mediathek ein erzeugtes Bild. Der Prompt ist ein Ersatz für Abschnitte, für die die Text-KI keinen eigenen Bild-Prompt geliefert hat; {{input}} wird durch die Überschrift des Abschnitts ersetzt. Das Bildmodell stammt nicht aus der Aufgabe: OpenAI verwendet das Standard-Bildmodell von nr-llm, fal.ai verwendet flux-schnell. Angeboten werden die Aufgaben, die in nr-llm als „Landing-Page: Bild-Prompt“ markiert sind.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.none" resname="tx_nrlandingpage_domain_model_template.image_task.none">
                 <source>-- Media Library only (no AI) --</source>
                 <target>-- Nur Mediathek (keine KI) --</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.group.marked" resname="tx_nrlandingpage_domain_model_template.image_task.group.marked">
+                <source>AI image prompts</source>
+                <target>KI-Bild-Prompts</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.group.unmarked" resname="tx_nrlandingpage_domain_model_template.image_task.group.unmarked">
+                <source>Not marked as an image prompt</source>
+                <target>Nicht als Bild-Prompt markiert</target>
+            </trans-unit>
+            <trans-unit id="tx_nrllm_task.placements.landingpage_image" resname="tx_nrllm_task.placements.landingpage_image">
+                <source>Landing page: image prompt</source>
+                <target>Landing-Page: Bild-Prompt</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.prompt_optimizer_context" resname="tx_nrlandingpage_domain_model_template.prompt_optimizer_context">
                 <source>Optimization Context</source>

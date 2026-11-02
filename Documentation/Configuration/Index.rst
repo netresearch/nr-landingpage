@@ -268,21 +268,41 @@ on a page of that site, for example from the page tree.
 AI image generation does not use the site's configuration: the image
 services of nr-llm use the same key and model for every site.
 
-.. confval:: Image Task
+.. confval:: Images: media library or AI image prompt
 
    :type: select
-   :default: None (media library only)
+   :default: Media Library only (no AI)
 
-   Controls AI image generation. When set to "None", images are
-   sourced exclusively from the TYPO3 media library (FAL) based on
-   keyword matching. Select an LLM task to enable AI-generated
-   images as fallback when no matching media library images are
-   found.
+   "Media Library only" takes images from the TYPO3 media library (FAL),
+   matched by keywords. Choosing an image prompt switches on AI image
+   generation: every section is offered a generated image next to its media
+   library matches, one generated image per section.
+
+   The chosen task supplies an image prompt, nothing else. Its prompt
+   template is used for a section the content model returned without an image
+   prompt of its own; ``{{input}}`` is replaced with the section heading. The
+   image model is not taken from the task's configuration. OpenAI uses the
+   default image model in nr-llm (a model record with the capability
+   ``image``, otherwise ``gpt-image-2``); fal.ai, tried when OpenAI is not
+   available or fails, uses ``flux-schnell``.
+
+   The field lists the tasks marked :guilabel:`Landing page: image prompt` in
+   the task's :guilabel:`Offered first in` field in nr-llm. A template keeps a
+   task it already uses even when that task is not marked, and while no task
+   is marked at all the field lists every task.
 
    .. note::
 
-      AI image generation requires a configured image generation
-      task in the nr_llm extension (e.g. DALL-E, Stable Diffusion).
+      In structured mode the content model is asked for an image prompt for
+      every section, so the task's prompt applies only where that prompt is
+      missing and does not set the style of the other images. In creative
+      mode the content model writes an image prompt only for a section with
+      a photo slot; every other section is generated from the task's
+      prompt. To prepare
+      one, create a task in nr-llm with a prompt template such as
+      ``Professional photograph for a landing page section about {{input}}.
+      Natural light, no text.`` and mark it
+      :guilabel:`Landing page: image prompt`.
 
 .. confval:: AI Instructions (System Prompt)
 

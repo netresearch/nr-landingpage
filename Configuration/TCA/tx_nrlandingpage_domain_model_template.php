@@ -229,9 +229,21 @@ return [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
                 'foreign_table' => 'tx_nrllm_task',
-                'foreign_table_where' => 'AND {#tx_nrllm_task}.{#deleted} = 0 AND {#tx_nrllm_task}.{#hidden} = 0 ORDER BY tx_nrllm_task.category, tx_nrllm_task.name',
+                'foreign_table_where' => 'AND {#tx_nrllm_task}.{#deleted} = 0 AND {#tx_nrllm_task}.{#hidden} = 0 ORDER BY tx_nrllm_task.name',
                 'items' => [
                     ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_task.none', 'value' => 0, 'icon' => 'apps-filetree-folder-media'],
+                ],
+                // Only tasks an integrator marked as an image prompt for this
+                // field are offered; nr-llm keeps the task a template already
+                // holds and offers every task while none is marked (ADR-245).
+                'itemsProcFunc' => \Netresearch\NrLlm\Form\Tca\TaskPlacementItems::class . '->groupByPlacement',
+                'itemsProcConfig' => [
+                    'placement' => 'landingpage_image',
+                    'unmarked' => 'hide',
+                ],
+                'itemGroups' => [
+                    'nrllm_placement' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_task.group.marked',
+                    'nrllm_unmarked' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_task.group.unmarked',
                 ],
                 'default' => 0,
             ],
