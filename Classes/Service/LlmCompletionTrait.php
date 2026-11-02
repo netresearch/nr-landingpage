@@ -11,7 +11,6 @@ namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
-use Netresearch\NrLlm\Provider\Middleware\TelemetryMiddleware;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Netresearch\NrLlm\Service\Option\ChatOptions;
@@ -79,10 +78,17 @@ trait LlmCompletionTrait
      *                          than fixed here: this trait serves several
      *                          callers, and one constant would collapse them
      *                          into a single row.
+     * @param string $site      Identifier of the site the page is generated for,
+     *                          '' when unknown. A template on "Use Default" runs
+     *                          on the configuration this site names in its
+     *                          `nrllm.configuration` setting (nr-llm ADR-244);
+     *                          a configuration chosen on the template still
+     *                          wins, and the site then only selects the term
+     *                          lists bound to it.
      *
      * @return array<string, mixed>
      */
-    private function completeJsonWithTemplate(Template $template, string $prompt, string $operation): array
+    private function completeJsonWithTemplate(Template $template, string $prompt, string $operation, string $site = ''): array
     {
         if ($template->llmConfiguration > 0) {
             $llmConfig = $this->configurationRepository->findByUid($template->llmConfiguration);
@@ -94,10 +100,7 @@ trait LlmCompletionTrait
                 $completionResponse = $this->llmServiceManager->chatWithConfiguration(
                     $messages,
                     $llmConfig,
-                    [
-                        TelemetryMiddleware::METADATA_SOURCE_EXTENSION => LlmCallerSource::EXTENSION,
-                        TelemetryMiddleware::METADATA_SOURCE_OPERATION => $operation,
-                    ],
+                    LlmCallAttribution::metadata($operation, $site),
                 );
                 $content = trim($completionResponse->content);
                 // Strip markdown code fences if present
@@ -153,7 +156,7 @@ trait LlmCompletionTrait
 
         return $this->completionService->completeJson(
             $prompt,
-            ChatOptions::json()->withCallerSource(LlmCallerSource::EXTENSION, $operation),
+            LlmCallAttribution::options(ChatOptions::json(), $operation, $site),
         );
     }
 

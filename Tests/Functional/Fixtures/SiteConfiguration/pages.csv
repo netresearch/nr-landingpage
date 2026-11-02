@@ -1,0 +1,5 @@
+"pages"
+,"uid","pid","title","doktype","is_siteroot","perms_userid","perms_groupid","perms_user","perms_group","perms_everybody","deleted","hidden"
+,1,0,"Shop",1,1,"1","0","31","0","31","0","0"
+,2,1,"Campaigns",1,0,"1","0","31","0","31","0","0"
+,3,0,"Outside any site",1,0,"1","0","31","0","31","0","0"

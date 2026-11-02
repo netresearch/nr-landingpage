@@ -11,6 +11,9 @@ namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
+use Netresearch\NrLlm\Exception\AccessDeniedException;
+use Netresearch\NrLlm\Exception\ConfigurationInactiveException;
+use Netresearch\NrLlm\Exception\ConfigurationNotFoundException;
 use Netresearch\NrLlm\Exception\GuardrailPolicyException;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
@@ -155,16 +158,17 @@ final class ContentGeneratorService implements LoggerAwareInterface
      *
      * @param array<string, string> $briefingAnswers
      * @param int $parentPageId Page ID used to resolve TSconfig-based backend layouts
+     * @param string $site Identifier of the parent page's site, '' when unknown (see LlmCallAttribution)
      * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string, animation?: array{type?: string, duration?: float, delay?: float, stagger?: float}}>
      */
-    public function generateContent(Template $template, array $briefingAnswers, string $outputLanguage = '', int $parentPageId = 0): array
+    public function generateContent(Template $template, array $briefingAnswers, string $outputLanguage = '', int $parentPageId = 0, string $site = ''): array
     {
         if ($template->isCreativeMode()) {
-            return $this->generateCreativeContent($template, $briefingAnswers, $outputLanguage, $parentPageId);
+            return $this->generateCreativeContent($template, $briefingAnswers, $outputLanguage, $parentPageId, $site);
         }
 
         $prompt = $this->buildContentPrompt($template, $briefingAnswers, $outputLanguage, $parentPageId);
-        $response = $this->completeJsonWithTemplate($template, $prompt, 'generateContent');
+        $response = $this->completeJsonWithTemplate($template, $prompt, 'generateContent', $site);
 
         $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout, $parentPageId);
         $columnMap = $this->filterColumnMap($columnMap, $template->contentColumns);
@@ -179,7 +183,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
      * @param array<string, string> $briefingAnswers
      * @return list<array{section: string, ctype: string, colPos: int, header: string, subheader: string, bodytext: string, imageKeywords: list<string>, imagePrompt: string, animation: array{type?: string, duration?: float, delay?: float, stagger?: float}}>
      */
-    private function generateCreativeContent(Template $template, array $briefingAnswers, string $outputLanguage, int $parentPageId): array
+    private function generateCreativeContent(Template $template, array $briefingAnswers, string $outputLanguage, int $parentPageId, string $site): array
     {
         $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout, $parentPageId);
         if ($columnMap === []) {
@@ -188,7 +192,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $columnMap = $this->filterColumnMap($columnMap, $template->contentColumns);
 
         $prompt = $this->buildCreativePrompt($template, $briefingAnswers, $outputLanguage, $columnMap);
-        $response = $this->completeJsonWithTemplate($template, $prompt, 'generateCreativeContent');
+        $response = $this->completeJsonWithTemplate($template, $prompt, 'generateCreativeContent', $site);
 
         return $this->validateCreativeSections($response, $columnMap, $template->isAnimationEnabled());
     }
@@ -197,15 +201,19 @@ final class ContentGeneratorService implements LoggerAwareInterface
      * Generate page field values (title, seo_title, description, etc.) via LLM.
      *
      * @param array<string, string> $briefingAnswers
+     * @param string $site Identifier of the parent page's site, '' when unknown (see LlmCallAttribution)
      * @return array<string, string>
      */
-    public function generatePageFields(Template $template, array $briefingAnswers, string $outputLanguage = ''): array
+    public function generatePageFields(Template $template, array $briefingAnswers, string $outputLanguage = '', string $site = ''): array
     {
         try {
             $prompt = $this->buildPageFieldsPrompt($template, $briefingAnswers, $outputLanguage);
-            $response = $this->completeJsonWithTemplate($template, $prompt, 'generatePageFields');
-        } catch (GuardrailPolicyException $e) {
+            $response = $this->completeJsonWithTemplate($template, $prompt, 'generatePageFields', $site);
+        } catch (GuardrailPolicyException|ConfigurationNotFoundException|ConfigurationInactiveException|AccessDeniedException $e) {
             // The editor has to read why, so this is no failure to fall back from.
+            // A site that names a configuration nr-llm cannot use fails the call
+            // instead of falling back to the default (nr-llm ADR-244); empty page
+            // fields would hide that until the next step.
             throw $e;
         } catch (Throwable $e) {
             $this->logger?->error('Page field generation failed', [

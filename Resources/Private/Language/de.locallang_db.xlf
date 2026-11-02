@@ -90,8 +90,8 @@
                 <target>-- Standard verwenden --</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.llm_configuration.description" resname="tx_nrlandingpage_domain_model_template.llm_configuration.description">
-                <source>Which LLM configuration (provider, model and settings) generates the content. Leave on "Use Default" to use the LLM configuration marked as default.</source>
-                <target>Welche LLM-Konfiguration (Anbieter, Modell und Einstellungen) die Inhalte generiert. Auf „Standard verwenden“ belassen, um die als Standard markierte LLM-Konfiguration zu nutzen.</target>
+                <source>Which LLM configuration (provider, model and settings) generates the content. Leave on "Use Default" to use the LLM configuration the site of the wizard's parent page names in its settings, or else the one marked as default.</source>
+                <target>Welche LLM-Konfiguration (Anbieter, Modell und Einstellungen) die Inhalte generiert. Auf „Standard verwenden“ belassen, um die LLM-Konfiguration zu nutzen, die die Site der übergeordneten Seite im Assistenten in ihren Einstellungen nennt, sonst die als Standard markierte.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.system_prompt.description" resname="tx_nrlandingpage_domain_model_template.system_prompt.description">
                 <source>Instructions that tell the AI how to write: tone, style, length, language, and constraints. Example: "Write in formal German, max 200 words per section, include a call-to-action." Tip: Use "Auto-optimize" to generate instructions from your template settings, or "Preview" to test the full output.</source>

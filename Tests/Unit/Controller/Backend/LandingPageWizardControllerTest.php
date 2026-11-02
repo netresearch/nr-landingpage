@@ -1268,6 +1268,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
     public static function parentPageActionProvider(): array
     {
         return [
+            'generate briefing' => ['generateBriefingAction'],
             'generate page fields' => ['generatePageFieldsAction'],
             'generate content' => ['generateContentAction'],
             'regenerate section' => ['regenerateSectionAction'],
