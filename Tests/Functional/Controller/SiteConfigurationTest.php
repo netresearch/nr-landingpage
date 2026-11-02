@@ -202,6 +202,18 @@ final class SiteConfigurationTest extends FunctionalTestCase
         self::assertStringContainsString('no-such-configuration', (string) $response->getBody());
     }
 
+    #[Test]
+    public function aSiteNamingAMissingConfigurationStopsTheBriefingWithTheReason(): void
+    {
+        $this->writeSite('no-such-configuration');
+        $this->subject = $this->buildController(passThroughToNrLlm: true);
+
+        $response = $this->call('generateBriefingAction', self::TEMPLATE_ON_DEFAULT, self::PAGE_IN_SITE);
+
+        self::assertSame(500, $response->getStatusCode());
+        self::assertStringContainsString('no-such-configuration', (string) $response->getBody());
+    }
+
     /**
      * @param array<string, int> $extra
      */
