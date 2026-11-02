@@ -303,7 +303,7 @@
             </trans-unit>
             <trans-unit id="wizard.success.message" resname="wizard.success.message">
                 <source>The landing page "%s" has been successfully created.</source>
-                <target>Die Landing Page "%s" wurde erfolgreich erstellt.</target>
+                <target>Die Landing Page „%s“ wurde erfolgreich erstellt.</target>
             </trans-unit>
             <trans-unit id="wizard.success.editPage" resname="wizard.success.editPage">
                 <source>Edit Page Properties</source>

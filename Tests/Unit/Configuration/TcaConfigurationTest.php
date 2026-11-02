@@ -51,15 +51,31 @@ final class TcaConfigurationTest extends UnitTestCase
     {
         $showitem = (string) ($this->templateTca['types']['1']['showitem'] ?? '');
         preg_match_all('/--div--;([^,]+)/', $showitem, $matches);
-        // Labels that resolve to the same text, such as an extension's
-        // "Access" next to core's, count as one.
-        $texts = array_map(
-            static fn(string $label): string => strtolower((string) preg_replace('/^tabs\./', '', substr($label, (int) strrpos($label, ':') + 1))),
-            $matches[1],
-        );
+        // Compared by the English text the editor reads, not by label id:
+        // the extension's "Access" next to core's "Access" are two ids.
+        $texts = array_map($this->labelText(...), $matches[1]);
 
         self::assertNotSame([], $texts);
         self::assertSame(array_values(array_unique($texts)), $texts, 'Two tabs carry the same label: ' . implode(', ', $texts));
+    }
+
+    /**
+     * The English source text of an LLL reference to this extension or to
+     * the core.
+     */
+    private function labelText(string $reference): string
+    {
+        self::assertMatchesRegularExpression('/^LLL:EXT:(nr_landingpage|core)\\/.+\\.xlf:.+$/', $reference);
+        [$path, $id] = explode(':', substr($reference, strlen('LLL:EXT:')), 2);
+        [$extension, $file] = explode('/', $path, 2);
+        $root = dirname(__DIR__, 3);
+        $directory = $extension === 'core' ? $root . '/.Build/vendor/typo3/cms-core' : $root;
+        $xml = simplexml_load_file($directory . '/' . $file);
+        self::assertNotFalse($xml, $reference);
+        $units = $xml->xpath(sprintf('//*[local-name()="trans-unit"][@id="%s"]/*[local-name()="source"]', $id));
+        self::assertNotEmpty($units, $reference);
+
+        return strtolower(trim((string) $units[0]));
     }
 
     #[Test]
@@ -102,11 +118,13 @@ final class TcaConfigurationTest extends UnitTestCase
     }
 
     #[Test]
-    public function germanQuotationMarksAreClosedTypographically(): void
+    public function germanTextsUseGermanQuotationMarks(): void
     {
         foreach (glob(dirname(__DIR__, 3) . '/Resources/Private/Language/de.*.xlf') ?: [] as $file) {
-            preg_match_all('/„[^“"\n<]*"/u', (string) file_get_contents($file), $matches);
-            self::assertSame([], $matches[0], basename($file) . ' closes „ with a straight quote');
+            // A straight quote in a German text is either the closing mark
+            // after „ or one of a straight pair; German uses „…“.
+            preg_match_all('/<target>[^<]*"[^<]*<\/target>/u', (string) file_get_contents($file), $matches);
+            self::assertSame([], $matches[0], basename($file) . ' has a straight quotation mark');
         }
     }
 

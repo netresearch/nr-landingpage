@@ -226,6 +226,11 @@ AI Configuration Tab
    marked as default, or choose a specific configuration if this
    template needs another provider, model or settings.
 
+   "Use Default" works only while the default configuration has a model
+   assigned and is not restricted to backend groups; otherwise the
+   generation stops with the message that no default provider is
+   configured.
+
 .. confval:: Image Task
 
    :type: select
