@@ -47,6 +47,70 @@ final class TcaConfigurationTest extends UnitTestCase
     }
 
     #[Test]
+    public function everyTabOfTheFormHasItsOwnLabel(): void
+    {
+        $showitem = (string) ($this->templateTca['types']['1']['showitem'] ?? '');
+        preg_match_all('/--div--;([^,]+)/', $showitem, $matches);
+        // Labels that resolve to the same text, such as an extension's
+        // "Access" next to core's, count as one.
+        $texts = array_map(
+            static fn(string $label): string => strtolower((string) preg_replace('/^tabs\./', '', substr($label, (int) strrpos($label, ':') + 1))),
+            $matches[1],
+        );
+
+        self::assertNotSame([], $texts);
+        self::assertSame(array_values(array_unique($texts)), $texts, 'Two tabs carry the same label: ' . implode(', ', $texts));
+    }
+
+    #[Test]
+    public function staticItemsOfRecordSelectsHaveAnIcon(): void
+    {
+        // The records of the foreign table come with an icon, so the select
+        // shows an icon box; a static item without one leaves it empty.
+        foreach ($this->templateTca['columns'] as $fieldName => $fieldConfig) {
+            $config = $fieldConfig['config'] ?? [];
+            if (($config['renderType'] ?? '') !== 'selectSingle' || !isset($config['foreign_table'])) {
+                continue;
+            }
+            foreach ($config['items'] ?? [] as $item) {
+                self::assertNotSame('', (string) ($item['icon'] ?? ''), sprintf('Static item of "%s" has no icon', $fieldName));
+            }
+        }
+    }
+
+    #[Test]
+    public function llmConfigurationIsLabelledAsAConfigurationInEveryLanguage(): void
+    {
+        $label = (string) $this->templateTca['columns']['llm_configuration']['label'];
+        $description = (string) $this->templateTca['columns']['llm_configuration']['description'];
+        $languageDir = dirname(__DIR__, 3) . '/Resources/Private/Language/';
+        foreach (['locallang_db.xlf' => 'source', 'de.locallang_db.xlf' => 'target'] as $file => $element) {
+            $xml = simplexml_load_file($languageDir . $file);
+            self::assertNotFalse($xml);
+            foreach ([$label, $description] as $reference) {
+                $id = substr($reference, strrpos($reference, ':') + 1);
+                $units = $xml->xpath(sprintf('//*[local-name()="trans-unit"][@id="%s"]/*[local-name()="%s"]', $id, $element));
+                self::assertNotEmpty($units, $file . ': ' . $id);
+                $text = (string) $units[0];
+                self::assertMatchesRegularExpression('/configuration|Konfiguration/i', $text, $file . ': ' . $id);
+                if ($reference === $label) {
+                    // The description names the model as one part of a configuration.
+                    self::assertDoesNotMatchRegularExpression('/\bmodel\b|\bModell\b/i', $text, $file . ': ' . $id);
+                }
+            }
+        }
+    }
+
+    #[Test]
+    public function germanQuotationMarksAreClosedTypographically(): void
+    {
+        foreach (glob(dirname(__DIR__, 3) . '/Resources/Private/Language/de.*.xlf') ?: [] as $file) {
+            preg_match_all('/„[^“"\n<]*"/u', (string) file_get_contents($file), $matches);
+            self::assertSame([], $matches[0], basename($file) . ' closes „ with a straight quote');
+        }
+    }
+
+    #[Test]
     public function allColumnsHaveDescriptions(): void
     {
         $columns = $this->templateTca['columns'] ?? [];

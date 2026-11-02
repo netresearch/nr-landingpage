@@ -223,7 +223,7 @@
             </trans-unit>
             <trans-unit id="wizard.content.creativeDescription" resname="wizard.content.creativeDescription">
                 <source>The AI generated creative HTML blocks for your landing page. Preview each block below. Toggle "Source" to edit the HTML directly.</source>
-                <target>Die KI hat kreative HTML-Blöcke für Ihre Landing Page generiert. Vorschau der einzelnen Blöcke unten. Klicken Sie auf „Quelltext", um den HTML-Code direkt zu bearbeiten.</target>
+                <target>Die KI hat kreative HTML-Blöcke für Ihre Landing Page generiert. Vorschau der einzelnen Blöcke unten. Klicken Sie auf „Quelltext“, um den HTML-Code direkt zu bearbeiten.</target>
             </trans-unit>
             <trans-unit id="wizard.content.creativeToggleSource" resname="wizard.content.creativeToggleSource">
                 <source>Source</source>
@@ -379,7 +379,7 @@
             </trans-unit>
             <trans-unit id="wizard.notification.createdMessage" resname="wizard.notification.createdMessage">
                 <source>The landing page "%s" has been created.</source>
-                <target>Die Landing Page „%s" wurde erstellt.</target>
+                <target>Die Landing Page „%s“ wurde erstellt.</target>
             </trans-unit>
             <trans-unit id="wizard.notification.sectionRegenerated" resname="wizard.notification.sectionRegenerated">
                 <source>Section regenerated</source>
@@ -606,7 +606,7 @@
             </trans-unit>
             <trans-unit id="hub.docs.usage.step1" resname="hub.docs.usage.step1">
                 <source>Click "Create Landing Page" and select a template.</source>
-                <target>Klicken Sie auf „Landing Page erstellen" und wählen Sie eine Vorlage.</target>
+                <target>Klicken Sie auf „Landing Page erstellen“ und wählen Sie eine Vorlage.</target>
             </trans-unit>
             <trans-unit id="hub.docs.usage.step2" resname="hub.docs.usage.step2">
                 <source>Answer the briefing questions (if required by the template).</source>
