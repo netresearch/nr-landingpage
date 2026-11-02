@@ -276,7 +276,7 @@ services of nr-llm use the same key and model for every site.
    "Media Library only" takes images from the TYPO3 media library (FAL),
    matched by keywords. Choosing an image prompt switches on AI image
    generation: every section is offered a generated image next to its media
-   library matches, one image request per section.
+   library matches, one generated image per section.
 
    The chosen task supplies an image prompt, nothing else. Its prompt
    template is used for a section the content model returned without an image
@@ -293,9 +293,12 @@ services of nr-llm use the same key and model for every site.
 
    .. note::
 
-      The content model is asked for an image prompt for every section, so
-      the task's prompt is a fallback that applies only where that prompt
-      is missing. It does not set the style of the other images. To prepare
+      In structured mode the content model is asked for an image prompt for
+      every section, so the task's prompt applies only where that prompt is
+      missing and does not set the style of the other images. In creative
+      mode the content model writes an image prompt only for a section with
+      a photo slot; every other section is generated from the task's
+      prompt. To prepare
       one, create a task in nr-llm with a prompt template such as
       ``Professional photograph for a landing page section about {{input}}.
       Natural light, no text.`` and mark it

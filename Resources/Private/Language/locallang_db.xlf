@@ -111,7 +111,7 @@
                 <source>Images: media library or AI image prompt</source>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.description" resname="tx_nrlandingpage_domain_model_template.image_task.description">
-                <source>"Media Library only" uses existing files. An image prompt switches on AI image generation: every section is offered a generated image next to the media library matches. The prompt is a fallback for a section the content model returned without an image prompt of its own; {{input}} becomes the section heading. The image model comes from nr-llm's image settings, not from the task's configuration. Listed are the tasks marked "Landing page: image prompt" in nr-llm.</source>
+                <source>"Media Library only" uses existing files. An image prompt switches on AI image generation: every section is offered a generated image next to the media library matches. The prompt is a fallback for a section the content model returned without an image prompt of its own; {{input}} becomes the section heading. The image model is not the task's: OpenAI uses nr-llm's default image model, fal.ai uses flux-schnell. Listed are the tasks marked "Landing page: image prompt" in nr-llm.</source>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.none" resname="tx_nrlandingpage_domain_model_template.image_task.none">
                 <source>-- Media Library only (no AI) --</source>
