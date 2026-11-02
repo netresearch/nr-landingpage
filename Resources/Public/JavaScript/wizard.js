@@ -9,6 +9,7 @@ import Modal from '@typo3/backend/modal.js';
 import Notification from '@typo3/backend/notification.js';
 import Severity from '@typo3/backend/severity.js';
 import Icons from '@typo3/backend/icons.js';
+import { MessageUtility } from '@typo3/backend/utility/message-utility.js';
 import '@typo3/backend/element/spinner-element.js';
 
 /**
@@ -1666,10 +1667,9 @@ class LandingPageWizard {
      * remove it. The page id goes into the hidden #placement_parent, which
      * confirmAndSave() and saveLandingPage() read.
      *
-     * A pick is reported as an event on the browser's modal (`useEvents` in
-     * its URL), the way FormEngine listens too; the wizard has no FormEngine.
-     * The server checks the picked page at once (checkParentPage), so a page
-     * the editor may not use is named right away, not after the save.
+     * The server checks the page (checkParentPage) when it is picked and when
+     * the step opens with a page already chosen, so a page the editor may not
+     * use is named right away, not after the save.
      *
      * @returns {HTMLElement}
      */
@@ -1691,7 +1691,11 @@ class LandingPageWizard {
         asterisk.className = 'text-danger ms-1';
         asterisk.textContent = '*';
         asterisk.setAttribute('aria-hidden', 'true');
-        label.appendChild(asterisk);
+        // The asterisk is decoration; this tells a screen reader instead.
+        const required = document.createElement('span');
+        required.className = 'visually-hidden';
+        required.textContent = ' (' + this.label('wizard.placement.parentPage.required') + ')';
+        label.append(asterisk, required);
 
         const input = document.createElement('input');
         input.type = 'hidden';
@@ -1710,7 +1714,6 @@ class LandingPageWizard {
         browse.id = 'placement_parent_browse';
         browse.dataset.pickerBrowse = '';
         browse.setAttribute('aria-describedby', 'placement_parent_item placement_parent_help');
-        browse.setAttribute('aria-required', 'true');
         browse.textContent = this.label('wizard.placement.parentPage.browse');
         const remove = document.createElement('button');
         remove.type = 'button';
@@ -1725,22 +1728,28 @@ class LandingPageWizard {
         help.id = 'placement_parent_help';
         help.textContent = this.label('wizard.placement.parentPage.description');
 
+        // The alert role is there before any text: a live region is
+        // announced when its content changes, not when it appears.
         const error = document.createElement('div');
         error.className = 'invalid-feedback';
         error.id = 'placement_parent_error';
         error.dataset.pickerError = '';
+        error.setAttribute('role', 'alert');
 
         group.append(label, input, inputGroup, help, error);
 
         // textContent paths (not innerHTML): page titles and XLF strings are no markup.
         const show = (id, title) => {
             input.value = id > 0 ? String(id) : '';
-            item.textContent = id > 0 ? `${title} [${id}]` : this.label('wizard.placement.parentPage.empty');
+            item.textContent = id > 0 ? `${title} [${id}]`.trim() : this.label('wizard.placement.parentPage.empty');
             item.classList.toggle('text-variant', id <= 0);
             remove.hidden = id <= 0;
             WizardState.setParentPage(id, title);
         };
         show(WizardState.getParentPageId(), WizardState.getParentPageTitle());
+        if (WizardState.getParentPageId() > 0) {
+            void this.checkParentPage(group, show, WizardState.getParentPageId());
+        }
 
         browse.addEventListener('click', () => this.browseParentPage(group, show));
         remove.addEventListener('click', () => {
@@ -1754,6 +1763,12 @@ class LandingPageWizard {
 
     /**
      * Open TYPO3's page browser, take the first pick and check it.
+     *
+     * TYPO3 14 reports a pick as an event on the browser's modal (`useEvents`
+     * in its URL), the way FormEngine listens too; the wizard has no
+     * FormEngine. TYPO3 13 posts it as a message to this module frame (see
+     * LandingPageWizardController::pageBrowserUrl()). Both carry the same
+     * action name and value.
      *
      * @param {HTMLElement} group  The picker (createParentPagePicker())
      * @param {function(number, string): void} show  Shows and stores a page
@@ -1769,21 +1784,55 @@ class LandingPageWizard {
             content: current > 0 ? baseUrl + '&expandPage=' + current : baseUrl,
             size: Modal.sizes.large,
         });
-        modal.addEventListener('typo3:element-browser:message', (event) => {
-            const { actionName, value, label } = event.detail ?? {};
-            if (actionName !== 'typo3:elementBrowser:elementAdded') {
+        let hidden = false;
+        let picked = false;
+        const take = (value, label) => {
+            if (picked) {
                 return;
             }
+            picked = true;
             // "pages_12" from the page browser.
             const uid = parseInt(String(value).split('_').pop() ?? '', 10);
-            // One parent page: any pick ends the browsing. Closing the modal
-            // gives the focus back to the browse button.
-            modal.hideModal();
             if (uid > 0) {
                 show(uid, label ?? '');
                 this.showParentPageError(group, '');
                 void this.checkParentPage(group, show, uid);
             }
+        };
+
+        // TYPO3 14: the browser stays open; one parent page, so any pick ends
+        // the browsing. Closing the modal gives the focus back to the browse button.
+        modal.addEventListener('typo3:element-browser:message', (event) => {
+            const { actionName, value, label } = event.detail ?? {};
+            if (actionName !== 'typo3:elementBrowser:elementAdded') {
+                return;
+            }
+            modal.hideModal();
+            take(value, label);
+        });
+
+        // TYPO3 13: the browser may close itself right after the message (it
+        // dismisses the topmost modal). Hiding it here as well would then hide
+        // the wizard, so the modal is closed only if it is still open a moment
+        // later.
+        const onMessage = (event) => {
+            const data = event.data ?? {};
+            if (!MessageUtility.verifyOrigin(event.origin)
+                || data.actionName !== 'typo3:elementBrowser:elementAdded'
+                || data.fieldName !== 'nr-landingpage-parent-page') {
+                return;
+            }
+            take(data.value, data.label);
+            setTimeout(() => {
+                if (!hidden) {
+                    modal.hideModal();
+                }
+            }, 150);
+        };
+        window.addEventListener('message', onMessage);
+        modal.addEventListener('typo3-modal-hidden', () => {
+            hidden = true;
+            window.removeEventListener('message', onMessage);
         });
     }
 
@@ -1823,13 +1872,10 @@ class LandingPageWizard {
         }
         error.textContent = message;
         error.classList.toggle('d-block', message !== '');
-        if (message !== '') {
-            error.setAttribute('role', 'alert');
-            browse.setAttribute('aria-describedby', 'placement_parent_item placement_parent_help placement_parent_error');
-        } else {
-            error.removeAttribute('role');
-            browse.setAttribute('aria-describedby', 'placement_parent_item placement_parent_help');
-        }
+        browse.setAttribute(
+            'aria-describedby',
+            message !== '' ? 'placement_parent_item placement_parent_help placement_parent_error' : 'placement_parent_item placement_parent_help',
+        );
     }
 
     /**
@@ -2086,9 +2132,16 @@ class LandingPageWizard {
             this.releaseBusy(owner);
         }
 
-        if (failure !== null && !this.isStaleRun(run) && container?.isConnected) {
+        if (failure === null) {
+            return;
+        }
+        if (!this.isStaleRun(run) && container?.isConnected) {
             this.hideSaveProgress(container);
             this.showSaveFailure(container, failure);
+        } else {
+            // The wizard was closed (and maybe opened again) during the save:
+            // no step to explain it in, but the editor must still learn it.
+            Notification.error(this.label('wizard.error.save', failure.message), '');
         }
     }
 
@@ -2122,8 +2175,6 @@ class LandingPageWizard {
         spinner.setAttribute('size', 'small');
         spinner.setAttribute('aria-hidden', 'true');
         const text = doc.createElement('span');
-        // textContent path (not innerHTML): XLF strings are no markup.
-        text.textContent = this.label('wizard.save.running');
         content.append(spinner, text);
         status.appendChild(content);
         const form = container.querySelector('form');
@@ -2132,6 +2183,10 @@ class LandingPageWizard {
         } else {
             container.appendChild(status);
         }
+        // The text arrives after the status region is in the document: a
+        // live region is announced when its content changes, not when it
+        // appears. textContent path (not innerHTML): XLF strings are no markup.
+        text.textContent = this.label('wizard.save.running');
     }
 
     /**

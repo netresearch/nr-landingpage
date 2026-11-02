@@ -1026,6 +1026,21 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal.locator('button[name="next"]')).toBeEnabled();
     });
 
+    test('a save that fails after the wizard was closed is still reported', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', {}, 500);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+        await save.first;
+        await expect(page.locator('dialog:visible')).toHaveCount(1, { timeout: 10000 });
+        await closeWizard(page);
+        save.release();
+
+        await expect(page.locator('typo3-notification-message, .alert').filter({ hasText: 'Held reply failed' }).first()).toBeVisible({ timeout: 15000 });
+    });
+
     test('a refused save says that no page was created', async ({ authenticatedPage: page }) => {
         await mockUpToContent(page);
         const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', {}, 403);
@@ -1152,6 +1167,24 @@ test.describe('Landing Page Wizard', () => {
         await expect(picker.locator('[data-picker-error]')).toHaveAttribute('role', 'alert');
         await expect(picker.locator('#placement_parent')).toHaveValue('');
         await expect(picker.locator('[data-picker-browse]')).toHaveAttribute('aria-describedby', /placement_parent_error/);
+    });
+
+    test('a preselected page the editor may not use is removed when the step opens, with the reason', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        await page.route('**/nr-landingpage/wizard/check-parent-page**', (route) => route.fulfill({
+            status: 400,
+            contentType: 'application/json',
+            body: JSON.stringify({ success: false, code: 'noSubpages', error: 'Page 1 is of a type that cannot hold subpages.' }),
+        }));
+        await navigateToModule(page);
+        await page.getByRole('treeitem', { name: 'Home' }).first().click();
+        const frame = getModuleFrame(page);
+        await frame.locator('#nr-landingpage-launch-wizard[data-parent-page-id="1"][data-wizard-ready="1"]').waitFor({ timeout: 15000 });
+        const modal = await openWizard(page, frame);
+        const picker = await walkToPlacement(modal, page);
+
+        await expect(picker.locator('[data-picker-error]')).toHaveText('Page 1 is of a type that cannot hold subpages.', { timeout: 15000 });
+        await expect(picker.locator('#placement_parent')).toHaveValue('');
     });
 
     test('Generate without a parent page says so at the picker and sends nothing', async ({ authenticatedPage: page }) => {

@@ -98,6 +98,30 @@ final class BackendAccessGuardTest extends FunctionalTestCase
 
         self::assertSame(ParentPageVerdict::Allowed, $this->subject->checkParentPage(1));
         self::assertSame(ParentPageVerdict::Allowed, $this->subject->checkParentPage(4));
+        // Page 8 grants nothing to the admin's user, group or everybody.
+        self::assertSame(ParentPageVerdict::Allowed, $this->subject->checkParentPage(8));
+    }
+
+    #[Test]
+    public function theOwningGroupMayCreatePagesWhereOnlyItIsGrantedIt(): void
+    {
+        $editor = $this->setUpBackendUser(2);
+        $editor->user['db_mountpoints'] = '1';
+        $editor->fetchGroupData();
+        $editor->groupData['tables_modify'] = 'pages';
+
+        self::assertSame(ParentPageVerdict::Allowed, $this->subject->checkParentPage(7));
+    }
+
+    #[Test]
+    public function aUserOutsideTheOwningGroupMayNotCreatePagesThere(): void
+    {
+        $user = $this->setUpBackendUser(3);
+        $user->user['db_mountpoints'] = '1';
+        $user->fetchGroupData();
+        $user->groupData['tables_modify'] = 'pages';
+
+        self::assertSame(ParentPageVerdict::NoPermission, $this->subject->checkParentPage(7));
     }
 
     #[Test]
@@ -125,6 +149,7 @@ final class BackendAccessGuardTest extends FunctionalTestCase
         $backendUser = $this->setUpBackendUser(2);
         $backendUser->user['db_mountpoints'] = '1';
         $backendUser->fetchGroupData();
+        $backendUser->groupData['tables_modify'] = 'pages';
 
         // Page 1: "show" only. Page 2: nothing for others. Page 6: everything.
         self::assertSame(ParentPageVerdict::NoPermission, $this->subject->checkParentPage(1));
@@ -138,9 +163,34 @@ final class BackendAccessGuardTest extends FunctionalTestCase
         $backendUser = $this->setUpBackendUser(2);
         $backendUser->user['db_mountpoints'] = '4';
         $backendUser->fetchGroupData();
+        $backendUser->groupData['tables_modify'] = 'pages';
 
         self::assertSame(ParentPageVerdict::NotFound, $this->subject->checkParentPage(6));
         self::assertSame(ParentPageVerdict::Allowed, $this->subject->checkParentPage(4));
+    }
+
+    #[Test]
+    public function anEditorWhoMayNotModifyPagesMayNotCreateThem(): void
+    {
+        $backendUser = $this->setUpBackendUser(2);
+        $backendUser->user['db_mountpoints'] = '1';
+        $backendUser->fetchGroupData();
+
+        self::assertSame(ParentPageVerdict::NoPermission, $this->subject->checkParentPage(6));
+    }
+
+    #[Test]
+    public function anEditorWithoutBackendGroupGetsThePermissionsForEverybody(): void
+    {
+        // DataHandler grants "create page" through perms_everybody without
+        // any group; BackendUserAuthentication::calcPerms() would not.
+        $backendUser = $this->setUpBackendUser(3);
+        $backendUser->user['db_mountpoints'] = '1';
+        $backendUser->fetchGroupData();
+        $backendUser->groupData['tables_modify'] = 'pages';
+
+        self::assertSame(ParentPageVerdict::Allowed, $this->subject->checkParentPage(6));
+        self::assertSame(ParentPageVerdict::NoPermission, $this->subject->checkParentPage(1));
     }
 
     #[Test]

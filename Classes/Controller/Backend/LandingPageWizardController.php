@@ -25,6 +25,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Throwable;
+use TYPO3\CMS\Backend\ElementBrowser\ElementBrowserParameters;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
@@ -37,6 +38,9 @@ use TYPO3\CMS\Core\Site\SiteFinder;
 final class LandingPageWizardController implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
+
+    /** The field reference the page browser reports a parent page pick for (wizard.js). */
+    private const PARENT_PAGE_FIELD = 'nr-landingpage-parent-page';
 
     private ?ModuleTemplate $moduleTemplate = null;
 
@@ -720,15 +724,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
             'moduleUrls' => [
                 'editRecord' => (string) $this->uriBuilder->buildUriFromRoute('record_edit'),
                 'pageLayout' => (string) $this->uriBuilder->buildUriFromRoute('web_layout'),
-                // TYPO3's element browser for pages. useEvents makes it report
-                // a pick as an event on its iframe, which needs no FormEngine;
-                // fieldReference must not be empty, or the browser drops the pick.
-                'pageBrowser' => (string) $this->uriBuilder->buildUriFromRoute('wizard_element_browser', [
-                    'mode' => 'db',
-                    'allowedTypes' => 'pages',
-                    'fieldReference' => 'nr-landingpage-parent-page',
-                    'useEvents' => 1,
-                ]),
+                'pageBrowser' => $this->pageBrowserUrl(),
             ],
         ]);
 
@@ -739,6 +735,25 @@ final class LandingPageWizardController implements LoggerAwareInterface
         );
 
         $this->pageRenderer->loadJavaScriptModule('@netresearch/nr-landingpage/wizard.js');
+    }
+
+    /**
+     * TYPO3's element browser for pages, for the parent page picker in
+     * wizard.js. The field reference must not be empty, or the browser drops
+     * the pick.
+     *
+     * TYPO3 14 takes separate parameters, and useEvents makes it report a
+     * pick as an event on its modal, which needs no FormEngine. TYPO3 13
+     * reads only the pipe-separated bparams (field|||allowed tables|) and
+     * posts the pick as a message to the module frame.
+     */
+    private function pageBrowserUrl(): string
+    {
+        $parameters = class_exists(ElementBrowserParameters::class)
+            ? ['mode' => 'db', 'allowedTypes' => 'pages', 'fieldReference' => self::PARENT_PAGE_FIELD, 'useEvents' => 1]
+            : ['mode' => 'db', 'bparams' => self::PARENT_PAGE_FIELD . '|||pages|'];
+
+        return (string) $this->uriBuilder->buildUriFromRoute('wizard_element_browser', $parameters);
     }
 
     /**

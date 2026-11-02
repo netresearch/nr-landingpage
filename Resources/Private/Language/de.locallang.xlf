@@ -249,6 +249,10 @@
                 <source>Parent page</source>
                 <target>Übergeordnete Seite</target>
             </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.required" resname="wizard.placement.parentPage.required">
+                <source>required</source>
+                <target>Pflichtfeld</target>
+            </trans-unit>
             <trans-unit id="wizard.placement.parentPage.empty" resname="wizard.placement.parentPage.empty">
                 <source>No page chosen</source>
                 <target>Keine Seite ausgewählt</target>
@@ -392,10 +396,6 @@
             <trans-unit id="wizard.notification.pageTitleRequired" resname="wizard.notification.pageTitleRequired">
                 <source>Please enter a page title.</source>
                 <target>Bitte geben Sie einen Seitentitel ein.</target>
-            </trans-unit>
-            <trans-unit id="wizard.notification.parentRequired" resname="wizard.notification.parentRequired">
-                <source>Parent page required</source>
-                <target>Übergeordnete Seite erforderlich</target>
             </trans-unit>
             <trans-unit id="wizard.notification.parentRequiredMessage" resname="wizard.notification.parentRequiredMessage">
                 <source>Choose the page below which the landing page is created.</source>

@@ -74,11 +74,11 @@ class BackendAccessGuard
 
     /**
      * Whether the current user may create a landing page below the given
-     * page, and if not, why. The rules DataHandler applies when the page is
-     * saved: the page is in the user's page tree (web mount and "show"), the
-     * user may create pages below this page (its own permissions, as
-     * DataHandler checks them, not those of every page above it), and its
-     * type holds subpages. A page the user cannot see counts as not found.
+     * page, and if not, why. The page checks DataHandler makes when it
+     * inserts a page: the page is in the user's page tree (web mount and
+     * "show"), the user may modify the pages table and has "create page" on
+     * this page itself (hasNewPagePermission()), and the page's type holds
+     * subpages. A page the user cannot see counts as not found.
      */
     public function checkParentPage(int $pageId): ParentPageVerdict
     {
@@ -87,7 +87,7 @@ class BackendAccessGuard
         if ($page === null || $backendUser === null) {
             return ParentPageVerdict::NotFound;
         }
-        if (!$backendUser->doesUserHaveAccess($page, Permission::PAGE_NEW)) {
+        if (!$backendUser->check('tables_modify', 'pages') || !$this->hasNewPagePermission($page, $backendUser)) {
             return ParentPageVerdict::NoPermission;
         }
         $doktype = $page['doktype'] ?? 0;
@@ -96,6 +96,29 @@ class BackendAccessGuard
         }
 
         return ParentPageVerdict::Allowed;
+    }
+
+    /**
+     * "Create page" on the page itself, computed the way
+     * DataHandler::hasPageContextPermission() does in 13.4 and 14.3: from
+     * the permissions for everybody, for the owner and for the owning group.
+     * BackendUserAuthentication::calcPerms() is stricter (it grants nothing
+     * to a user without a backend group), DataHandler is the authority.
+     *
+     * @param array<string, mixed> $page
+     */
+    private function hasNewPagePermission(array $page, BackendUserAuthentication $backendUser): bool
+    {
+        if ($backendUser->isAdmin()) {
+            return true;
+        }
+        $permission = Permission::PAGE_NEW;
+        $value = static fn(string $field): int => is_numeric($page[$field] ?? null) ? (int) $page[$field] : 0;
+        $groups = array_map(static fn(mixed $uid): int => is_numeric($uid) ? (int) $uid : 0, $backendUser->userGroupsUID);
+
+        return ($value('perms_everybody') & $permission) === $permission
+            || ($value('perms_userid') === (int) $backendUser->getUserId() && ($value('perms_user') & $permission) === $permission)
+            || ($groups !== [] && in_array($value('perms_groupid'), $groups, true) && ($value('perms_group') & $permission) === $permission);
     }
 
     /**

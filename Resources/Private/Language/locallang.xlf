@@ -188,6 +188,9 @@
             <trans-unit id="wizard.placement.parentPage" resname="wizard.placement.parentPage">
                 <source>Parent page</source>
             </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.required" resname="wizard.placement.parentPage.required">
+                <source>required</source>
+            </trans-unit>
             <trans-unit id="wizard.placement.parentPage.empty" resname="wizard.placement.parentPage.empty">
                 <source>No page chosen</source>
             </trans-unit>
@@ -295,9 +298,6 @@
             </trans-unit>
             <trans-unit id="wizard.notification.pageTitleRequired" resname="wizard.notification.pageTitleRequired">
                 <source>Please enter a page title.</source>
-            </trans-unit>
-            <trans-unit id="wizard.notification.parentRequired" resname="wizard.notification.parentRequired">
-                <source>Parent page required</source>
             </trans-unit>
             <trans-unit id="wizard.notification.parentRequiredMessage" resname="wizard.notification.parentRequiredMessage">
                 <source>Choose the page below which the landing page is created.</source>
