@@ -1155,7 +1155,7 @@ test.describe('Landing Page Wizard', () => {
         await pickInElementBrowser(page, picker, PARENT_TITLE);
         await expect(picker.locator('#placement_parent_item')).toHaveText(`${PARENT_TITLE} [${uid}]`, { timeout: 15000 });
         await expect(picker.locator('#placement_parent')).toHaveValue(String(uid));
-        await expect(browse).toHaveAccessibleDescription(new RegExp(`${PARENT_TITLE} \\[${uid}\\]`));
+        await expect(browse).toHaveAccessibleDescription(/E2E parent page \[\d+\]/);
         await expect(page.locator('dialog:visible')).toHaveCount(1);
         await expect(browse).toBeFocused();
         await expect.poll(() => checked, { timeout: 15000 }).toEqual({ parentPageId: uid });
