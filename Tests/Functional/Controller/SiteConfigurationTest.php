@@ -31,6 +31,7 @@ use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Netresearch\NrLlm\Service\Option\ChatOptions;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -48,8 +49,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 /**
- * The site of the page a landing page is placed below reaches every LLM call
- * of the wizard, and through it the configuration that site names in
+ * The site of the wizard's parent page reaches every LLM call of the wizard, and through it the configuration that site names in
  * `nrllm.configuration` (nr-llm ADR-244).
  *
  * Everything is real except the two nr-llm entry points, which record what
@@ -190,28 +190,30 @@ final class SiteConfigurationTest extends FunctionalTestCase
         self::assertNull($this->defaultCalls[0]->getSite());
     }
 
-    #[Test]
-    public function aSiteNamingAMissingConfigurationStopsThePageFieldsWithTheReason(): void
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function unusableSiteConfigurations(): array
     {
-        $this->writeSite('no-such-configuration');
-        $this->subject = $this->buildController(passThroughToNrLlm: true);
-
-        $response = $this->call('generatePageFieldsAction', self::TEMPLATE_ON_DEFAULT, self::PAGE_IN_SITE);
-
-        self::assertSame(500, $response->getStatusCode());
-        self::assertStringContainsString('no-such-configuration', (string) $response->getBody());
+        return [
+            'page fields, missing configuration' => ['generatePageFieldsAction', 'no-such-configuration'],
+            'page fields, disabled configuration' => ['generatePageFieldsAction', 'disabled-writer'],
+            'briefing, missing configuration' => ['generateBriefingAction', 'no-such-configuration'],
+            'briefing, disabled configuration' => ['generateBriefingAction', 'disabled-writer'],
+        ];
     }
 
     #[Test]
-    public function aSiteNamingAMissingConfigurationStopsTheBriefingWithTheReason(): void
+    #[DataProvider('unusableSiteConfigurations')]
+    public function aSiteNamingAnUnusableConfigurationStopsTheStepWithTheReason(string $action, string $configuration): void
     {
-        $this->writeSite('no-such-configuration');
+        $this->writeSite($configuration);
         $this->subject = $this->buildController(passThroughToNrLlm: true);
 
-        $response = $this->call('generateBriefingAction', self::TEMPLATE_ON_DEFAULT, self::PAGE_IN_SITE);
+        $response = $this->call($action, self::TEMPLATE_ON_DEFAULT, self::PAGE_IN_SITE);
 
         self::assertSame(500, $response->getStatusCode());
-        self::assertStringContainsString('no-such-configuration', (string) $response->getBody());
+        self::assertStringContainsString($configuration, (string) $response->getBody());
     }
 
     /**

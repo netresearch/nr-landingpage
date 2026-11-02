@@ -17,8 +17,9 @@ use Netresearch\NrLlm\Service\Option\ChatOptions;
  * What every LLM call of this extension tells nr-llm about itself: the caller
  * identity (LlmCallerSource) and the site the landing page is generated for.
  *
- * The site is the one of the page the landing page is placed below, by its
- * identifier; '' when no such page is known. nr-llm decides what the site
+ * The site is the one of the parent page the wizard knows when it calls the
+ * AI (the page it was opened on), by its identifier; '' when no such page is
+ * known. nr-llm decides what the site
  * changes (ADR-244): a call on the installation default runs on the
  * configuration the site names in `nrllm.configuration`, and a configuration
  * chosen on the template still wins.

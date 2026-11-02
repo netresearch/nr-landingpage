@@ -856,8 +856,9 @@ final class LandingPageWizardController implements LoggerAwareInterface
      *
      * The LLM calls name it so nr-llm runs a template on "Use Default" on the
      * configuration the site names (nr-llm ADR-244). nr-llm does not derive the
-     * site itself: the page the landing page is placed below decides it, not
-     * the page the backend request happens to come from.
+     * site itself; the wizard passes the parent page it knows when it calls the
+     * AI, which is the page it was opened on until the editor picks another one
+     * in the last step.
      */
     private function resolveSiteIdentifier(int $parentPageId): string
     {
