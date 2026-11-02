@@ -275,16 +275,16 @@ services of nr-llm use the same key and model for every site.
 
    "Media Library only" takes images from the TYPO3 media library (FAL),
    matched by keywords. Choosing an image prompt switches on AI image
-   generation: each section is offered a generated image next to its media
-   library matches.
+   generation: every section is offered a generated image next to its media
+   library matches, one image request per section.
 
    The chosen task supplies an image prompt, nothing else. Its prompt
    template is used for a section the content model returned without an image
    prompt of its own; ``{{input}}`` is replaced with the section heading. The
-   image model is not taken from the task's configuration: it is the default
-   image model in nr-llm (a model record with the capability ``image``,
-   otherwise ``gpt-image-2``); fal.ai is tried when OpenAI is not available
-   or fails.
+   image model is not taken from the task's configuration. OpenAI uses the
+   default image model in nr-llm (a model record with the capability
+   ``image``, otherwise ``gpt-image-2``); fal.ai, tried when OpenAI is not
+   available or fails, uses ``flux-schnell``.
 
    The field lists the tasks marked :guilabel:`Landing page: image prompt` in
    the task's :guilabel:`Offered first in` field in nr-llm. A template keeps a
@@ -293,10 +293,12 @@ services of nr-llm use the same key and model for every site.
 
    .. note::
 
-      To prepare an image prompt, create a task in nr-llm whose prompt
-      template describes the image style, for example
+      The content model is asked for an image prompt for every section, so
+      the task's prompt is a fallback that applies only where that prompt
+      is missing. It does not set the style of the other images. To prepare
+      one, create a task in nr-llm with a prompt template such as
       ``Professional photograph for a landing page section about {{input}}.
-      Natural light, no text.``, and mark it
+      Natural light, no text.`` and mark it
       :guilabel:`Landing page: image prompt`.
 
 .. confval:: AI Instructions (System Prompt)

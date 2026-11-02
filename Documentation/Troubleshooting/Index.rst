@@ -76,9 +76,10 @@ AI Image Generation Fails
 
 1.  **No image prompt chosen** — choose an AI image prompt in the
     template field "Images: media library or AI image prompt"
-2.  **Image generation service unavailable** — verify that nr-llm has an
-    active image model (capability ``image``) whose provider has an API key;
-    the task's own configuration is not used for images
+2.  **Image generation service unavailable** — the image services read
+    their key from the nr_llm extension settings, not from a provider or
+    task record: ``providers.openai.apiKeyIdentifier`` (an nr-vault secret)
+    for OpenAI, ``image.fal.apiKeyIdentifier`` for fal.ai
 3.  **Quota exceeded** — image generation APIs often have rate limits
 
 Preview Button Shows Escaped HTML
