@@ -231,6 +231,38 @@ AI Configuration Tab
    generation stops with the message that no default provider is
    configured.
 
+   A site can name its own configuration (see
+   :ref:`configuration-site-llm-configuration`). Then "Use Default" means
+   the configuration of the site the landing page is placed in.
+
+.. _configuration-site-llm-configuration:
+
+A site's own LLM configuration
+------------------------------
+
+A site can name the LLM configuration its AI calls run on, in the site
+setting ``nrllm.configuration`` of nr-llm (category
+:guilabel:`AI (LLM Foundation)`; see the nr-llm manual, chapter "Site
+settings"). The wizard takes the site from the page the landing page is
+placed below: the page it was opened on, or the parent page chosen in the
+wizard.
+
+*   A template on "Use Default" generates the briefing questions, the page
+    fields, the content and a regenerated section with the site's
+    configuration instead of the installation default.
+*   A template with its own LLM configuration keeps it. The site then only
+    selects the term lists of nr-llm that are bound to it.
+*   A site that names a configuration which does not exist, is disabled or
+    is restricted to backend groups stops the generation with that reason;
+    it does not fall back to the installation default.
+*   Without a parent page, or below a page that belongs to no site, the
+    installation default applies as before. The same holds for the preview
+    in the template record, which has no page.
+
+AI image generation does not use the site's configuration: the image
+services of nr-llm take their API key and model from the extension
+configuration of nr-llm, for every site.
+
 .. confval:: Image Task
 
    :type: select

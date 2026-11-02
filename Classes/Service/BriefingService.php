@@ -11,6 +11,9 @@ namespace Netresearch\NrLandingpage\Service;
 
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
+use Netresearch\NrLlm\Exception\AccessDeniedException;
+use Netresearch\NrLlm\Exception\ConfigurationInactiveException;
+use Netresearch\NrLlm\Exception\ConfigurationNotFoundException;
 use Netresearch\NrLlm\Exception\GuardrailPolicyException;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
@@ -34,18 +37,22 @@ final class BriefingService implements LoggerAwareInterface
     /**
      * Generate briefing questions for a template via LLM.
      *
+     * @param string $site Identifier of the parent page's site, '' when unknown (see LlmCallAttribution)
      * @return list<array{id: string, label: string, type: string, required: bool, placeholder: string, options: list<string>}>
      */
-    public function generateQuestions(Template $template): array
+    public function generateQuestions(Template $template, string $site = ''): array
     {
         try {
             $response = $this->completeJsonWithTemplate(
                 $template,
                 $this->buildPrompt($template),
                 'generateBriefingQuestions',
+                $site,
             );
-        } catch (GuardrailPolicyException $e) {
+        } catch (GuardrailPolicyException|ConfigurationNotFoundException|ConfigurationInactiveException|AccessDeniedException $e) {
             // The editor has to read why, so this is no failure to fall back from.
+            // A site that names a configuration nr-llm cannot use fails the call
+            // instead of falling back to the default (nr-llm ADR-244).
             throw $e;
         } catch (Throwable $e) {
             $this->logger?->error('Briefing generation failed', [

@@ -30,6 +30,7 @@ use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\PageRenderer;
@@ -158,7 +159,12 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 return new JsonResponse(['success' => false, 'error' => 'Template not found'], 400);
             }
 
-            $questions = $this->briefingService->generateQuestions($template);
+            $parentPageId = $this->extractIntFromBody($body, 'parentPageId');
+            if ($parentPageId > 0 && !$this->accessGuard->mayReadPage($parentPageId)) {
+                return $this->forbiddenResponse();
+            }
+
+            $questions = $this->briefingService->generateQuestions($template, $this->resolveSiteIdentifier($parentPageId));
 
             return new JsonResponse(['success' => true, 'data' => $questions]);
         } catch (Throwable $e) {
@@ -195,7 +201,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
             }
             $outputLanguage = $this->resolveOutputLanguage($parentPageId);
 
-            $pageFields = $this->contentGeneratorService->generatePageFields($template, $stringAnswers, $outputLanguage);
+            $pageFields = $this->contentGeneratorService->generatePageFields($template, $stringAnswers, $outputLanguage, $this->resolveSiteIdentifier($parentPageId));
 
             return new JsonResponse(['success' => true, 'data' => $pageFields]);
         } catch (Throwable $e) {
@@ -233,7 +239,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
             $outputLanguage = $this->resolveOutputLanguage($parentPageId);
             $template = $template->withResolvedColors($this->resolveColorDefaults($parentPageId));
 
-            $contentSections = $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage, $parentPageId);
+            $contentSections = $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage, $parentPageId, $this->resolveSiteIdentifier($parentPageId));
 
             $images = $this->imageProviderService->resolveImagesForSections($template, $contentSections);
             $imageErrors = $this->imageProviderService->getImageErrors();
@@ -288,7 +294,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
             // Regenerate ALL content and return only the section at the given index.
             // The LLM cannot regenerate just one section — we regenerate all and pick the one the user wanted refreshed.
-            $contentSections = $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage, $parentPageId);
+            $contentSections = $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage, $parentPageId, $this->resolveSiteIdentifier($parentPageId));
 
             if (!isset($contentSections[$sectionIndex])) {
                 return new JsonResponse(['success' => false, 'error' => 'Section index out of range'], 400);
@@ -532,6 +538,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
             $optimizedPrompt = $this->promptOptimizerService->generateOptimizedPrompt(
                 $template->withResolvedColors([]),
                 $outputLanguage,
+                $this->resolveSiteIdentifier($parentPageId),
             );
 
             return new JsonResponse(['success' => true, 'data' => ['prompt' => $optimizedPrompt]]);
@@ -839,6 +846,28 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
             return $defaultLanguage->getLocale()->getName();
         } catch (Throwable) {
+            return '';
+        }
+    }
+
+    /**
+     * The identifier of the site a page belongs to, '' for no page or a page
+     * outside every site.
+     *
+     * The LLM calls name it so nr-llm runs a template on "Use Default" on the
+     * configuration the site names (nr-llm ADR-244). nr-llm does not derive the
+     * site itself: the page the landing page is placed below decides it, not
+     * the page the backend request happens to come from.
+     */
+    private function resolveSiteIdentifier(int $parentPageId): string
+    {
+        if ($parentPageId <= 0) {
+            return '';
+        }
+
+        try {
+            return $this->siteFinder->getSiteByPageId($parentPageId)->getIdentifier();
+        } catch (SiteNotFoundException) {
             return '';
         }
     }

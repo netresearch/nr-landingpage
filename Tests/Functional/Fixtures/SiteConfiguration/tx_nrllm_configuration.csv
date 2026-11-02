@@ -1,0 +1,4 @@
+"tx_nrllm_configuration"
+,"uid","pid","identifier","name","is_active","is_default","hidden","deleted"
+,1,0,"shop-writer","Shop writer",1,0,0,0
+,2,0,"template-writer","Template writer",1,0,0,0

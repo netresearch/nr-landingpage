@@ -758,6 +758,7 @@ class LandingPageWizard {
         try {
             const questions = await this.fetchJson(this.getAjaxUrl('generateBriefing'), {
                 templateUid: template.uid,
+                parentPageId: WizardState.getParentPageId(),
             });
             if (this.isStaleRender(token, container)) {
                 return;

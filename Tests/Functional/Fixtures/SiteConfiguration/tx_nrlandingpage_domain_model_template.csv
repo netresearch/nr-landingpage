@@ -1,0 +1,5 @@
+"tx_nrlandingpage_domain_model_template"
+,"uid","pid","title","identifier","llm_configuration","system_prompt","allowed_ctypes","page_fields","briefing_mode","generation_mode","hidden","deleted"
+,1,0,"Uses the default","uses-default",0,"Write a page","text","title","optional","structured",0,0
+,2,0,"Names its configuration","names-configuration",2,"Write a page","text","title","optional","structured",0,0
+,3,0,"Creative","creative",0,"Write a page","","title","optional","creative",0,0

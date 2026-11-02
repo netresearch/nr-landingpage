@@ -12,7 +12,6 @@ namespace Netresearch\NrLandingpage\Service;
 use Locale;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
-use Netresearch\NrLlm\Provider\Middleware\TelemetryMiddleware;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Netresearch\NrLlm\Service\Option\ChatOptions;
@@ -124,7 +123,10 @@ class PromptOptimizerService implements LoggerAwareInterface
         private readonly BackendLayoutService $backendLayoutService,
     ) {}
 
-    public function generateOptimizedPrompt(Template $template, string $outputLanguage = ''): string
+    /**
+     * @param string $site Identifier of the site the prompt is written for, '' when unknown
+     */
+    public function generateOptimizedPrompt(Template $template, string $outputLanguage = '', string $site = ''): string
     {
         try {
             $structuralContext = $this->buildStructuralContext($template);
@@ -151,7 +153,7 @@ class PromptOptimizerService implements LoggerAwareInterface
                     . $template->promptOptimizerContext;
             }
 
-            return $this->completeTextWithTemplate($template, $prompt, 'optimizePrompt');
+            return $this->completeTextWithTemplate($template, $prompt, 'optimizePrompt', $site);
         } catch (Throwable $e) {
             $this->logger?->error('Prompt optimization failed', [
                 'template' => $template->identifier,
@@ -247,8 +249,9 @@ class PromptOptimizerService implements LoggerAwareInterface
     /**
      * @param string $operation Names what the caller is running, for nr-llm's
      *                          per-operation usage breakdown.
+     * @param string $site      See LlmCompletionTrait::completeJsonWithTemplate()
      */
-    private function completeTextWithTemplate(Template $template, string $prompt, string $operation): string
+    private function completeTextWithTemplate(Template $template, string $prompt, string $operation, string $site): string
     {
         if ($template->llmConfiguration > 0) {
             $llmConfig = $this->configurationRepository->findByUid($template->llmConfiguration);
@@ -259,10 +262,7 @@ class PromptOptimizerService implements LoggerAwareInterface
                 $completionResponse = $this->llmServiceManager->chatWithConfiguration(
                     $messages,
                     $llmConfig,
-                    [
-                        TelemetryMiddleware::METADATA_SOURCE_EXTENSION => LlmCallerSource::EXTENSION,
-                        TelemetryMiddleware::METADATA_SOURCE_OPERATION => $operation,
-                    ],
+                    LlmCallAttribution::metadata($operation, $site),
                 );
 
                 return trim($completionResponse->content);
@@ -271,7 +271,7 @@ class PromptOptimizerService implements LoggerAwareInterface
 
         $response = $this->completionService->complete(
             $prompt,
-            (new ChatOptions())->withCallerSource(LlmCallerSource::EXTENSION, $operation),
+            LlmCallAttribution::options(new ChatOptions(), $operation, $site),
         );
 
         return trim($response->content);
