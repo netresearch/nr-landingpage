@@ -281,6 +281,42 @@
             <trans-unit id="wizard.notification.parentRequiredMessage" resname="wizard.notification.parentRequiredMessage">
                 <source>Please enter a valid parent page ID.</source>
             </trans-unit>
+            <trans-unit id="wizard.save.running" resname="wizard.save.running">
+                <source>Creating the landing page. This can take a minute or longer, for example when the page and its content are translated as well. When it is done, the wizard closes and the new page opens.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.title" resname="wizard.saveFailed.title">
+                <source>The landing page could not be created</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.happened" resname="wizard.saveFailed.heading.happened">
+                <source>What happened</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.exists" resname="wizard.saveFailed.heading.exists">
+                <source>What exists now</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.todo" resname="wizard.saveFailed.heading.todo">
+                <source>What you can do</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.ask" resname="wizard.saveFailed.heading.ask">
+                <source>Whom to ask</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.happened" resname="wizard.saveFailed.happened">
+                <source>The server reported: %s</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.exists.refused" resname="wizard.saveFailed.exists.refused">
+                <source>No page was created. Your content is still in this wizard.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.exists.unknown" resname="wizard.saveFailed.exists.unknown">
+                <source>The page may have been created anyway: the server can finish its work after the answer was lost. Your content is still in this wizard.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.todo.refused" resname="wizard.saveFailed.todo.refused">
+                <source>Correct what the message names, then press “Generate Landing Page” again.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.todo.unknown" resname="wizard.saveFailed.todo.unknown">
+                <source>Look below the parent page in the page tree first. If the page is there, close this wizard and open the page. If it is not, press “Generate Landing Page” again.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.ask" resname="wizard.saveFailed.ask">
+                <source>If it keeps failing, ask your administrator. The TYPO3 log holds the full error under the time of your attempt.</source>
+            </trans-unit>
             <trans-unit id="wizard.notification.created" resname="wizard.notification.created">
                 <source>Landing page created</source>
             </trans-unit>

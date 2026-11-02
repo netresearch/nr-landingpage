@@ -146,8 +146,27 @@ Configure where and how the page is created:
 -  **Page title** — review the final page title
 -  **URL slug** — review the final URL path
 
-Click :guilabel:`Save` to create the landing page with all content
-elements in the TYPO3 page tree.
+Click :guilabel:`Generate Landing Page` and confirm with :guilabel:`OK`
+to create the landing page with all content elements in the TYPO3
+page tree.
+
+Creating the page can take a minute or longer, for example when the
+installation translates new pages and content elements while they are
+saved. Until it is done, the placement step shows that the page is
+being created, and :guilabel:`Generate Landing Page` and
+:guilabel:`Previous` are locked, so a second click cannot create the
+page twice. When it is done, the wizard closes and the new page opens
+in the Page module.
+
+If the page cannot be created, the placement step says what happened,
+what exists now, what to do next and whom to ask:
+
+-  When the server refused the request (for example a missing
+   permission), no page was created. Correct what the message names
+   and try again.
+-  When the server failed or the connection broke, the page may have
+   been created anyway. Look below the parent page in the page tree
+   before you try again.
 
 .. note::
 

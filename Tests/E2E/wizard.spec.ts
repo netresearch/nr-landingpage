@@ -926,15 +926,124 @@ test.describe('Landing Page Wizard', () => {
         // running: the open wizard must still count as busy.
         releases[0]();
         await expect.poll(() => parsedReplies(page, 'save'), { timeout: 15000 }).toBe(1);
-        // Not busy, this confirmed Save would send its request at once —
-        // before the open wizard's own request is released below.
-        await modal.locator('button.btn-success').click();
-        const ok = page.locator('dialog:not([data-severity=""])').last().locator('button[name="ok"]');
-        await ok.waitFor({ state: 'visible', timeout: 10000 });
-        await ok.click();
+        // Its own save still runs: Generate stays locked and the progress
+        // stays. Unlocked by force, Generate must neither ask nor send —
+        // not busy, it would send a request at once, before the open
+        // wizard's own request is released below.
+        const generate = modal.locator('button[name="next"]');
+        await expect(generate).toBeDisabled();
+        await expect(modal.locator('.carousel-item.active [data-save-status]')).toBeVisible();
+        await generate.evaluate((button: HTMLButtonElement) => { button.disabled = false; });
+        await generate.click();
+        await page.waitForTimeout(500);
+        await expect(page.locator('dialog:visible')).toHaveCount(1);
+        expect(count()).toBe(2);
         releases[1]();
         await expect.poll(() => parsedReplies(page, 'save'), { timeout: 15000 }).toBe(2);
         expect(count()).toBe(2);
+    });
+
+    // Creating the page runs DataHandler for the page and every section, and
+    // an installation that translates new records on save makes that take
+    // half a minute or more. OK must show that work is going on at once.
+    test('OK shows that the page is being created until the save replies', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', { pageUid: 0 });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+        await save.first;
+
+        const status = modal.locator('.carousel-item.active [data-save-status]');
+        await expect(status).toBeVisible();
+        await expect(status).toHaveAttribute('role', 'status');
+        await expect(status.locator('typo3-backend-spinner')).toHaveCount(1);
+        await expect(status).not.toHaveText('');
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+        await expect(modal.locator('button[name="prev"]')).toBeDisabled();
+
+        save.release();
+        await expect(page.locator('dialog:visible')).toHaveCount(0, { timeout: 15000 });
+    });
+
+    test('a double click on OK, and Generate pressed again, during a save send one request', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', { pageUid: 0 });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active #placement_parent').waitFor({ state: 'visible', timeout: 15000 });
+        await modal.locator('#placement_parent').fill('1');
+        await modal.locator('button.btn-success').click();
+        const ok = page.locator('dialog:not([data-severity=""])').last().locator('button[name="ok"]');
+        await ok.waitFor({ state: 'visible', timeout: 10000 });
+        await ok.dblclick();
+        await save.first;
+        await expect(page.locator('dialog:visible')).toHaveCount(1, { timeout: 10000 });
+        // Generate is locked while the save runs. Unlocked by force, a press
+        // must still neither ask again nor send a second save.
+        const generate = modal.locator('button[name="next"]');
+        await expect(generate).toBeDisabled();
+        await generate.evaluate((button: HTMLButtonElement) => { button.disabled = false; });
+        await generate.click();
+        await page.waitForTimeout(500);
+        await expect(page.locator('dialog:visible')).toHaveCount(1);
+        expect(save.count()).toBe(1);
+        save.release();
+        await expect(page.locator('dialog:visible')).toHaveCount(0, { timeout: 15000 });
+        expect(save.count()).toBe(1);
+    });
+
+    test('a failed save says what happened, what exists, what to do and whom to ask', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', {}, 500);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+        await save.first;
+        save.release();
+
+        const failure = modal.locator('.carousel-item.active [data-save-failure]');
+        await expect(failure).toBeVisible({ timeout: 15000 });
+        await expect(failure).toContainText('Held reply failed');
+        await expect(failure).toHaveAttribute('data-save-failure', 'unknown');
+        for (const part of ['happened', 'exists', 'todo', 'ask']) {
+            await expect(failure.locator(`[data-failure-part="${part}"]`)).not.toHaveText('');
+        }
+        await expect(modal.locator('.carousel-item.active [data-save-status]')).toHaveCount(0);
+        await expect(modal.locator('button[name="next"]')).toBeEnabled();
+    });
+
+    test('a refused save says that no page was created', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', {}, 403);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+        await save.first;
+        save.release();
+
+        const failure = modal.locator('.carousel-item.active [data-save-failure]');
+        await expect(failure).toBeVisible({ timeout: 15000 });
+        await expect(failure).toHaveAttribute('data-save-failure', 'refused');
+    });
+
+    test('a save whose connection breaks says the page may exist and to look in the page tree first', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        await page.route('**/nr-landingpage/wizard/save**', (route) => route.abort('failed'));
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+
+        const failure = modal.locator('.carousel-item.active [data-save-failure]');
+        await expect(failure).toBeVisible({ timeout: 15000 });
+        await expect(failure).toHaveAttribute('data-save-failure', 'unknown');
+        await expect(failure.locator('[data-failure-part="exists"]')).not.toHaveText('');
     });
 
     // A slide renderer whose wizard was closed, and not opened again, gets its

@@ -22,6 +22,8 @@ class LandingPageWizard {
     constructor() {
         // The running save or section regeneration, or null (see isBusy()).
         this._busy = null;
+        // True while the confirmation before a save is open (see confirmAndSave()).
+        this._confirmOpen = false;
         this._briefingForm = null;
         this._briefingQuestions = null;
         this._pageFieldsForm = null;
@@ -75,13 +77,17 @@ class LandingPageWizard {
     /**
      * Perform a fetch request and return parsed JSON.
      *
+     * The error thrown for a reply carries its HTTP status as `status`; an
+     * error without one means no reply arrived (network, timeout).
+     *
      * @param {string} url
      * @param {Object|null} data
+     * @param {number} timeout  Milliseconds until the request is given up; 0 waits for the reply
      * @returns {Promise<Object>}
      */
-    async fetchJson(url, data = null) {
+    async fetchJson(url, data = null, timeout = 60000) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        const timeoutId = timeout > 0 ? setTimeout(() => controller.abort(), timeout) : null;
 
         const options = {
             method: data ? 'POST' : 'GET',
@@ -104,7 +110,9 @@ class LandingPageWizard {
             }
             throw new Error('Network error: ' + error.message);
         } finally {
-            clearTimeout(timeoutId);
+            if (timeoutId !== null) {
+                clearTimeout(timeoutId);
+            }
         }
 
         if (!response.ok) {
@@ -113,7 +121,9 @@ class LandingPageWizard {
                 const errorJson = await response.json();
                 if (errorJson.error) errorMsg = errorJson.error;
             } catch (_) { /* non-JSON error response, use HTTP status */ }
-            throw new Error(errorMsg);
+            const error = new Error(errorMsg);
+            error.status = response.status;
+            throw error;
         }
 
         let json;
@@ -124,7 +134,9 @@ class LandingPageWizard {
         }
 
         if (!json.success) {
-            throw new Error(json.error || 'Unknown server error');
+            const error = new Error(json.error || 'Unknown server error');
+            error.status = response.status;
+            throw error;
         }
 
         return json.data;
@@ -158,6 +170,7 @@ class LandingPageWizard {
         this._run++;
         this._render++;
         this._busy = null;
+        this._confirmOpen = false;
         this._userActed = false;
         if (parentPageId > 0) {
             WizardState.setParentPageId(parentPageId);
@@ -1754,11 +1767,31 @@ class LandingPageWizard {
     }
 
     /**
+     * The wizard modal's Next (on the last step: Generate) and Previous
+     * buttons, as jQuery collections; empty when the wizard is closed.
+     *
+     * @returns {{next: JQuery|undefined, prev: JQuery|undefined}}
+     */
+    wizardButtons() {
+        const modal = MultiStepWizard.getComponent()?.closest('.modal');
+        return {
+            next: modal?.find('button[name="next"]'),
+            prev: modal?.find('button[name="prev"]'),
+        };
+    }
+
+    /**
      * Show confirmation modal before saving.
+     *
+     * Generate pressed again while the confirmation is open, or while the
+     * save runs, does nothing: one landing page per press of OK.
      *
      * @param {HTMLFormElement} form
      */
     confirmAndSave(form) {
+        if (this.isBusy() || this._confirmOpen) {
+            return;
+        }
         const titleInput = form.querySelector('#placement_title');
         const parentInput = form.querySelector('#placement_parent');
         const title = titleInput?.value?.trim() || '';
@@ -1784,23 +1817,44 @@ class LandingPageWizard {
 
         const confirmTitleKey = WizardState.regenerateMode ? 'wizard.confirm.regenerateTitle' : 'wizard.confirm.title';
         const confirmMsgKey = WizardState.regenerateMode ? 'wizard.confirm.regenerateMessage' : 'wizard.confirm.message';
+        this._confirmOpen = true;
         const modal = Modal.confirm(
             this.label(confirmTitleKey),
             this.label(confirmMsgKey),
             Modal.sizes.small,
         );
+        modal.addEventListener('typo3-modal-hidden', () => {
+            this._confirmOpen = false;
+        });
+        // A double click on OK fires this twice before the modal is gone. The
+        // second one must not hide the modal again: a second hideModal() on
+        // the closing confirmation leaves the wizard unable to close itself
+        // after the save.
+        let answered = false;
         modal.addEventListener('confirm.button.ok', () => {
+            if (answered) {
+                return;
+            }
+            answered = true;
+            this._confirmOpen = false;
             modal.hideModal();
             // saveLandingPage() reports its own errors; nothing awaits it.
             void this.saveLandingPage(form);
         });
         modal.addEventListener('confirm.button.cancel', () => {
+            this._confirmOpen = false;
             modal.hideModal();
         });
     }
 
     /**
      * Save the landing page via AJAX.
+     *
+     * Creating the page and its content can take half a minute or more (an
+     * installation may translate every new record while it is saved), so the
+     * placement step shows that the work runs, and Generate and Previous are
+     * locked until the reply. The request has no client timeout: giving up
+     * would not stop the server, which would create the page anyway.
      *
      * @param {HTMLFormElement} form
      */
@@ -1828,7 +1882,10 @@ class LandingPageWizard {
 
         const owner = this.takeBusy(null);
         const run = this._run;
+        const container = form.parentElement;
+        this.showSaveProgress(container);
 
+        let failure = null;
         try {
             const result = await this.fetchJson(this.getAjaxUrl('save'), {
                 templateUid: template.uid,
@@ -1839,7 +1896,7 @@ class LandingPageWizard {
                 contentSections: WizardState.getContentSections(),
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 sourcePageUid: WizardState.sourcePageUid || 0,
-            });
+            }, 0);
 
             // The page exists whether or not this wizard is still open, so
             // the notification and the page tree refresh stay. Closing the
@@ -1865,13 +1922,129 @@ class LandingPageWizard {
                 }
             }
         } catch (error) {
-            Notification.error(
-                this.label('wizard.error.save', error.message),
-                '',
-            );
+            failure = error;
         } finally {
             this.releaseBusy(owner);
         }
+
+        if (failure !== null && !this.isStaleRun(run) && container?.isConnected) {
+            this.hideSaveProgress(container);
+            this.showSaveFailure(container, failure);
+        }
+    }
+
+    /**
+     * Lock Generate and Previous and show, below the placement form, that the
+     * page is being created.
+     *
+     * @param {HTMLElement|null} container  The placement step's element
+     */
+    showSaveProgress(container) {
+        const { next, prev } = this.wizardButtons();
+        next?.prop('disabled', true);
+        prev?.prop('disabled', true);
+        if (!container) {
+            return;
+        }
+        container.querySelector('[data-save-failure]')?.remove();
+        container.querySelector('[data-save-status]')?.remove();
+
+        // The modal lives in the top document, not in this module's frame:
+        // a custom element made in the frame's document cannot attach its
+        // styles there.
+        const doc = container.ownerDocument;
+        const status = doc.createElement('div');
+        status.className = 'callout callout-info mt-3';
+        status.dataset.saveStatus = '';
+        status.setAttribute('role', 'status');
+        const content = doc.createElement('div');
+        content.className = 'callout-content d-flex align-items-center gap-2';
+        const spinner = doc.createElement('typo3-backend-spinner');
+        spinner.setAttribute('size', 'small');
+        spinner.setAttribute('aria-hidden', 'true');
+        const text = doc.createElement('span');
+        // textContent path (not innerHTML): XLF strings are no markup.
+        text.textContent = this.label('wizard.save.running');
+        content.append(spinner, text);
+        status.appendChild(content);
+        const form = container.querySelector('form');
+        if (form) {
+            form.after(status);
+        } else {
+            container.appendChild(status);
+        }
+    }
+
+    /**
+     * Remove the progress notice and unlock Generate and Previous again.
+     *
+     * @param {HTMLElement} container  The placement step's element
+     */
+    hideSaveProgress(container) {
+        container.querySelector('[data-save-status]')?.remove();
+        const { next, prev } = this.wizardButtons();
+        next?.prop('disabled', false);
+        prev?.prop('disabled', false);
+    }
+
+    /**
+     * Explain a failed save the way the editor needs it: what happened, what
+     * exists now, what to do next and whom to ask.
+     *
+     * A refusal (HTTP 4xx: input, permission, missing template) created
+     * nothing. Any other failure — a server error, a lost connection — may
+     * have come after the page was written, so the editor looks in the page
+     * tree before pressing Generate again, or the page exists twice.
+     *
+     * @param {HTMLElement} container  The placement step's element
+     * @param {Error & {status?: number}} error
+     */
+    showSaveFailure(container, error) {
+        const refused = typeof error.status === 'number' && error.status >= 400 && error.status < 500;
+        const kind = refused ? 'refused' : 'unknown';
+
+        const doc = container.ownerDocument;
+        const box = doc.createElement('div');
+        box.className = 'callout callout-danger mt-3';
+        box.dataset.saveFailure = kind;
+        box.setAttribute('role', 'alert');
+        box.tabIndex = -1;
+
+        const content = doc.createElement('div');
+        content.className = 'callout-content';
+        const title = doc.createElement('div');
+        title.className = 'callout-title';
+        title.textContent = this.label('wizard.saveFailed.title');
+        content.appendChild(title);
+
+        const body = doc.createElement('div');
+        body.className = 'callout-body';
+        const parts = [
+            ['happened', this.label('wizard.saveFailed.happened', error.message)],
+            ['exists', this.label('wizard.saveFailed.exists.' + kind)],
+            ['todo', this.label('wizard.saveFailed.todo.' + kind)],
+            ['ask', this.label('wizard.saveFailed.ask')],
+        ];
+        for (const [part, text] of parts) {
+            const heading = doc.createElement('h3');
+            heading.className = 'h6 fw-bold mb-1';
+            heading.textContent = this.label('wizard.saveFailed.heading.' + part);
+            const paragraph = doc.createElement('p');
+            paragraph.className = 'mb-2';
+            paragraph.dataset.failurePart = part;
+            paragraph.textContent = text;
+            body.append(heading, paragraph);
+        }
+        content.appendChild(body);
+        box.appendChild(content);
+
+        const form = container.querySelector('form');
+        if (form) {
+            form.after(box);
+        } else {
+            container.appendChild(box);
+        }
+        box.focus();
     }
 
     // ── UI helpers ──────────────────────────────────────────────

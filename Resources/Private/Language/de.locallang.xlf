@@ -373,6 +373,54 @@
                 <source>Please enter a valid parent page ID.</source>
                 <target>Bitte geben Sie eine gültige Seiten-ID ein.</target>
             </trans-unit>
+            <trans-unit id="wizard.save.running" resname="wizard.save.running">
+                <source>Creating the landing page. This can take a minute or longer, for example when the page and its content are translated as well. When it is done, the wizard closes and the new page opens.</source>
+                <target>Die Landing Page wird angelegt. Das kann eine Minute oder länger dauern, zum Beispiel wenn die Seite und ihre Inhalte zugleich übersetzt werden. Danach schließt sich der Assistent und die neue Seite öffnet sich.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.title" resname="wizard.saveFailed.title">
+                <source>The landing page could not be created</source>
+                <target>Die Landing Page konnte nicht angelegt werden</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.happened" resname="wizard.saveFailed.heading.happened">
+                <source>What happened</source>
+                <target>Was passiert ist</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.exists" resname="wizard.saveFailed.heading.exists">
+                <source>What exists now</source>
+                <target>Was jetzt existiert</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.todo" resname="wizard.saveFailed.heading.todo">
+                <source>What you can do</source>
+                <target>Was Sie tun können</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.ask" resname="wizard.saveFailed.heading.ask">
+                <source>Whom to ask</source>
+                <target>Wen Sie fragen können</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.happened" resname="wizard.saveFailed.happened">
+                <source>The server reported: %s</source>
+                <target>Der Server meldet: %s</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.exists.refused" resname="wizard.saveFailed.exists.refused">
+                <source>No page was created. Your content is still in this wizard.</source>
+                <target>Es wurde keine Seite angelegt. Ihre Inhalte sind weiterhin in diesem Assistenten.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.exists.unknown" resname="wizard.saveFailed.exists.unknown">
+                <source>The page may have been created anyway: the server can finish its work after the answer was lost. Your content is still in this wizard.</source>
+                <target>Die Seite wurde möglicherweise trotzdem angelegt: Der Server kann seine Arbeit beenden, auch wenn die Antwort verloren gegangen ist. Ihre Inhalte sind weiterhin in diesem Assistenten.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.todo.refused" resname="wizard.saveFailed.todo.refused">
+                <source>Correct what the message names, then press “Generate Landing Page” again.</source>
+                <target>Korrigieren Sie, was die Meldung nennt, und klicken Sie dann erneut auf „Landing Page generieren“.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.todo.unknown" resname="wizard.saveFailed.todo.unknown">
+                <source>Look below the parent page in the page tree first. If the page is there, close this wizard and open the page. If it is not, press “Generate Landing Page” again.</source>
+                <target>Sehen Sie zuerst im Seitenbaum unter der übergeordneten Seite nach. Ist die Seite dort, schließen Sie den Assistenten und öffnen Sie die Seite. Ist sie nicht dort, klicken Sie erneut auf „Landing Page generieren“.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.ask" resname="wizard.saveFailed.ask">
+                <source>If it keeps failing, ask your administrator. The TYPO3 log holds the full error under the time of your attempt.</source>
+                <target>Wenn es weiterhin fehlschlägt, wenden Sie sich an Ihre Administration. Das TYPO3-Log enthält den vollständigen Fehler unter dem Zeitpunkt Ihres Versuchs.</target>
+            </trans-unit>
             <trans-unit id="wizard.notification.created" resname="wizard.notification.created">
                 <source>Landing page created</source>
                 <target>Landing Page erstellt</target>
