@@ -148,15 +148,18 @@ Configure where and how the page is created:
    :guilabel:`Choose page` opens the TYPO3 record browser for pages;
    the chosen page is shown with its title and id, and
    :guilabel:`Remove` empties the field again. When you opened the
-   wizard from a page (page tree selection, context menu or
-   :guilabel:`Re-generate`), that page is chosen already.
+   wizard from a page (page tree selection or context menu), that page
+   is chosen already; for :guilabel:`Re-generate` it is the parent of
+   the re-generated page.
 
 The parent page is checked when you choose it, when the placement step
 opens with a page already chosen, and again when the page is saved: it
 must be in your part of the page tree, you need the permission to
 modify pages and to create pages below this one, and its page type
-must allow subpages. If one of them is missing, the field is emptied
-again and a message below it says which one and what to do.
+must allow subpages. If one of them is missing when you choose the
+page or when the step opens, the field is emptied again and a message
+below it says which one and what to do; if it is missing when the page
+is saved, the save is refused and says so.
 
 Click :guilabel:`Generate Landing Page` and confirm with :guilabel:`OK`
 to create the landing page with all content elements in the TYPO3

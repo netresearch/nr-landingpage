@@ -1038,7 +1038,10 @@ test.describe('Landing Page Wizard', () => {
         await closeWizard(page);
         save.release();
 
-        await expect(page.locator('typo3-notification-message, .alert').filter({ hasText: 'Held reply failed' }).first()).toBeVisible({ timeout: 15000 });
+        const notification = page.locator('typo3-notification-message, .alert').filter({ hasText: 'Held reply failed' }).first();
+        await expect(notification).toBeVisible({ timeout: 15000 });
+        // A 500: the page may exist anyway, so the editor looks before trying again.
+        await expect(notification).toContainText(/may have been created anyway|möglicherweise trotzdem angelegt/);
     });
 
     test('a refused save says that no page was created', async ({ authenticatedPage: page }) => {

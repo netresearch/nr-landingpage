@@ -1801,7 +1801,7 @@ class LandingPageWizard {
         };
 
         // TYPO3 14: the browser stays open; one parent page, so any pick ends
-        // the browsing. Closing the modal gives the focus back to the browse button.
+        // the browsing.
         modal.addEventListener('typo3:element-browser:message', (event) => {
             const { actionName, value, label } = event.detail ?? {};
             if (actionName !== 'typo3:elementBrowser:elementAdded') {
@@ -1833,6 +1833,12 @@ class LandingPageWizard {
         modal.addEventListener('typo3-modal-hidden', () => {
             hidden = true;
             window.removeEventListener('message', onMessage);
+            // TYPO3 14's <dialog> gives the focus back on its own; TYPO3 13's
+            // browser focuses the module frame behind the wizard instead.
+            const browse = group.querySelector('[data-picker-browse]');
+            if (group.isConnected && browse) {
+                browse.focus();
+            }
         });
     }
 
@@ -2140,8 +2146,14 @@ class LandingPageWizard {
             this.showSaveFailure(container, failure);
         } else {
             // The wizard was closed (and maybe opened again) during the save:
-            // no step to explain it in, but the editor must still learn it.
-            Notification.error(this.label('wizard.error.save', failure.message), '');
+            // no step to explain it in, but the editor must still learn it,
+            // and, unless the server refused, that the page may exist anyway.
+            const refused = typeof failure.status === 'number' && failure.status >= 400 && failure.status < 500;
+            const kind = refused ? 'refused' : 'unknown';
+            Notification.error(
+                this.label('wizard.error.save', failure.message),
+                this.label('wizard.saveFailed.exists.' + kind) + ' ' + this.label('wizard.saveFailed.todo.' + kind),
+            );
         }
     }
 
@@ -2183,10 +2195,13 @@ class LandingPageWizard {
         } else {
             container.appendChild(status);
         }
-        // The text arrives after the status region is in the document: a
-        // live region is announced when its content changes, not when it
-        // appears. textContent path (not innerHTML): XLF strings are no markup.
-        text.textContent = this.label('wizard.save.running');
+        // The text arrives a frame after the status region is in the
+        // document: a live region is announced when its content changes,
+        // not when it appears. textContent path (not innerHTML): XLF strings
+        // are no markup.
+        requestAnimationFrame(() => {
+            text.textContent = this.label('wizard.save.running');
+        });
     }
 
     /**
