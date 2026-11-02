@@ -9,9 +9,11 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Tests\Functional\Service;
 
+use Netresearch\NrLandingpage\Domain\Model\ParentPageVerdict;
 use Netresearch\NrLandingpage\Service\BackendAccessGuard;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use TYPO3\CMS\Core\DataHandling\PageDoktypeRegistry;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 #[CoversClass(BackendAccessGuard::class)]
@@ -87,5 +89,69 @@ final class BackendAccessGuardTest extends FunctionalTestCase
         self::assertFalse($this->subject->mayCreatePageBelow(1));
         self::assertFalse($this->subject->mayReadPage(2));
         self::assertFalse($this->subject->mayReadPage(0));
+    }
+
+    #[Test]
+    public function adminMayCreateBelowAPageAndAFolder(): void
+    {
+        $this->setUpBackendUser(1);
+
+        self::assertSame(ParentPageVerdict::Allowed, $this->subject->checkParentPage(1));
+        self::assertSame(ParentPageVerdict::Allowed, $this->subject->checkParentPage(4));
+    }
+
+    #[Test]
+    public function aMissingOrDeletedPageIsNotFound(): void
+    {
+        $this->setUpBackendUser(1);
+
+        self::assertSame(ParentPageVerdict::NotFound, $this->subject->checkParentPage(0));
+        self::assertSame(ParentPageVerdict::NotFound, $this->subject->checkParentPage(5));
+        self::assertSame(ParentPageVerdict::NotFound, $this->subject->checkParentPage(999));
+    }
+
+    #[Test]
+    public function aPageTypeThatHoldsNoSubpagesIsRefused(): void
+    {
+        $this->setUpBackendUser(1);
+        $this->get(PageDoktypeRegistry::class)->add(123, ['allowedTables' => 'sys_category']);
+
+        self::assertSame(ParentPageVerdict::NoSubpages, $this->subject->checkParentPage(3));
+    }
+
+    #[Test]
+    public function anEditorGetsTheVerdictOfPagePermissionAndWebMount(): void
+    {
+        $backendUser = $this->setUpBackendUser(2);
+        $backendUser->user['db_mountpoints'] = '1';
+        $backendUser->fetchGroupData();
+
+        // Page 1: "show" only. Page 2: nothing for others. Page 6: everything.
+        self::assertSame(ParentPageVerdict::NoPermission, $this->subject->checkParentPage(1));
+        self::assertSame(ParentPageVerdict::NotFound, $this->subject->checkParentPage(2));
+        self::assertSame(ParentPageVerdict::Allowed, $this->subject->checkParentPage(6));
+    }
+
+    #[Test]
+    public function aPageOutsideTheWebMountIsNotFound(): void
+    {
+        $backendUser = $this->setUpBackendUser(2);
+        $backendUser->user['db_mountpoints'] = '4';
+        $backendUser->fetchGroupData();
+
+        self::assertSame(ParentPageVerdict::NotFound, $this->subject->checkParentPage(6));
+        self::assertSame(ParentPageVerdict::Allowed, $this->subject->checkParentPage(4));
+    }
+
+    #[Test]
+    public function pageLabelNamesAReadablePageOnly(): void
+    {
+        $backendUser = $this->setUpBackendUser(2);
+        $backendUser->user['db_mountpoints'] = '1';
+        $backendUser->fetchGroupData();
+
+        self::assertSame('Open to everybody', $this->subject->readablePageTitle(6));
+        self::assertNull($this->subject->readablePageTitle(2));
+        self::assertNull($this->subject->readablePageTitle(0));
     }
 }

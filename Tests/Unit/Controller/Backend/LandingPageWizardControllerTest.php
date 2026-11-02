@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Tests\Unit\Controller\Backend;
 
 use Netresearch\NrLandingpage\Controller\Backend\LandingPageWizardController;
+use Netresearch\NrLandingpage\Domain\Model\ParentPageVerdict;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Service\BackendAccessGuard;
 use Netresearch\NrLandingpage\Service\BackendLayoutService;
@@ -64,6 +65,9 @@ final class LandingPageWizardControllerTest extends UnitTestCase
     /** @var list<int> */
     private array $unreadableFileUids = [];
 
+    /** @var array<int, ParentPageVerdict> Verdicts for parent pages other than "allowed" or "not found" */
+    private array $parentPageVerdicts = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -107,6 +111,11 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         );
         $this->accessGuard->method('mayCreatePageBelow')->willReturnCallback(
             fn(int $pageId): bool => !in_array($pageId, $this->unreadablePageIds, true),
+        );
+        $this->accessGuard->method('checkParentPage')->willReturnCallback(
+            fn(int $pageId): ParentPageVerdict => in_array($pageId, $this->unreadablePageIds, true) || $pageId <= 0
+                ? ParentPageVerdict::NotFound
+                : $this->parentPageVerdicts[$pageId] ?? ParentPageVerdict::Allowed,
         );
 
         $this->subject = new LandingPageWizardController(
@@ -1158,6 +1167,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
             'search images' => ['searchImagesAction'],
             'save' => ['saveAction'],
             'generation info' => ['generationInfoAction'],
+            'check parent page' => ['checkParentPageAction'],
         ];
     }
 
@@ -1302,5 +1312,78 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         ]));
 
         self::assertSame(403, $response->getStatusCode());
+    }
+
+    /**
+     * @return array<string, array{ParentPageVerdict, int}>
+     */
+    public static function refusedParentPageProvider(): array
+    {
+        return [
+            'no permission' => [ParentPageVerdict::NoPermission, 403],
+            'no subpages' => [ParentPageVerdict::NoSubpages, 400],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('refusedParentPageProvider')]
+    public function saveRefusesAParentPageAndNamesTheReason(ParentPageVerdict $verdict, int $status): void
+    {
+        $this->parentPageVerdicts = [10 => $verdict];
+        $this->mockLoadByUid($this->templateRow());
+        $this->pageCreatorService->expects(self::never())->method('createLandingPage');
+
+        $response = $this->subject->saveAction($this->createJsonRequest([
+            'templateUid' => 1,
+            'parentPageId' => 10,
+            'title' => 'Landing page',
+        ]));
+
+        self::assertSame($status, $response->getStatusCode());
+        $data = json_decode((string) $response->getBody(), true);
+        self::assertSame($verdict->value, $data['code']);
+        self::assertStringContainsString($verdict->messageKey(), $data['error']);
+    }
+
+    #[Test]
+    public function checkParentPageAcceptsAPageTheUserMayCreateBelow(): void
+    {
+        $response = $this->subject->checkParentPageAction($this->createJsonRequest(['parentPageId' => 10]));
+
+        self::assertSame(200, $response->getStatusCode());
+        $data = json_decode((string) $response->getBody(), true);
+        self::assertTrue($data['success']);
+        self::assertSame(10, $data['data']['uid']);
+    }
+
+    /**
+     * @return array<string, array{int, ParentPageVerdict|null, int, string}>
+     */
+    public static function checkParentPageRefusalProvider(): array
+    {
+        return [
+            'not found' => [10, null, 403, 'notFound'],
+            'no id' => [0, null, 403, 'notFound'],
+            'no permission' => [11, ParentPageVerdict::NoPermission, 403, 'noPermission'],
+            'no subpages' => [12, ParentPageVerdict::NoSubpages, 400, 'noSubpages'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('checkParentPageRefusalProvider')]
+    public function checkParentPageNamesWhyAPageIsRefused(int $pageId, ?ParentPageVerdict $verdict, int $status, string $code): void
+    {
+        $this->unreadablePageIds = [10];
+        if ($verdict !== null) {
+            $this->parentPageVerdicts = [$pageId => $verdict];
+        }
+
+        $response = $this->subject->checkParentPageAction($this->createJsonRequest(['parentPageId' => $pageId]));
+
+        self::assertSame($status, $response->getStatusCode());
+        $data = json_decode((string) $response->getBody(), true);
+        self::assertFalse($data['success']);
+        self::assertSame($code, $data['code']);
+        self::assertNotSame('', $data['error']);
     }
 }

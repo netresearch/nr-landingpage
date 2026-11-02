@@ -142,9 +142,20 @@ Step 5: Placement & Save
 
 Configure where and how the page is created:
 
--  **Parent page** — select or confirm the parent page in the tree
 -  **Page title** — review the final page title
 -  **URL slug** — review the final URL path
+-  **Parent page** — the page the landing page is created below.
+   :guilabel:`Choose page` opens the TYPO3 record browser for pages;
+   the chosen page is shown with its title and id, and
+   :guilabel:`Remove` empties the field again. When you opened the
+   wizard from a page (page tree selection, context menu or
+   :guilabel:`Re-generate`), that page is chosen already.
+
+The chosen parent page is checked right away, and again when the page
+is saved: it must be in your part of the page tree, you need the
+permission to create pages below it, and its page type must allow
+subpages. If one of them is missing, the field is emptied again and a
+message below it says which one and what to do.
 
 Click :guilabel:`Generate Landing Page` and confirm with :guilabel:`OK`
 to create the landing page with all content elements in the TYPO3

@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Controller\Backend;
 
 use Netresearch\NrLandingpage\Domain\Model\GenerationContext;
+use Netresearch\NrLandingpage\Domain\Model\ParentPageVerdict;
 use Netresearch\NrLandingpage\Service\BackendAccessGuard;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
@@ -29,6 +30,7 @@ use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\JsonResponse;
+use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Site\SiteFinder;
 
@@ -61,8 +63,15 @@ final class LandingPageWizardController implements LoggerAwareInterface
         \assert($this->moduleTemplate instanceof ModuleTemplate);
 
         $queryParams = $request->getQueryParams();
-        $rawParentPageId = $queryParams['parentPageId'] ?? 0;
+        // The page the wizard was opened for (context menu), else the page
+        // selected in the module's page tree: the parent page picker starts
+        // with it when the user may see it.
+        $rawParentPageId = $queryParams['parentPageId'] ?? $queryParams['id'] ?? 0;
         $parentPageId = is_numeric($rawParentPageId) ? (int) $rawParentPageId : 0;
+        $parentPageTitle = $this->accessGuard->readablePageTitle($parentPageId);
+        if ($parentPageTitle === null) {
+            $parentPageId = 0;
+        }
         $rawRegeneratePageUid = $queryParams['regeneratePageUid'] ?? 0;
         $regeneratePageUid = is_numeric($rawRegeneratePageUid) ? (int) $rawRegeneratePageUid : 0;
         $autoStartWizard = ($queryParams['autoStartWizard'] ?? 0) === '1' || ($queryParams['autoStartWizard'] ?? 0) === 1;
@@ -88,6 +97,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
         );
 
         $this->moduleTemplate->assign('parentPageId', $parentPageId);
+        $this->moduleTemplate->assign('parentPageTitle', $parentPageTitle ?? '');
         $this->moduleTemplate->assign('regeneratePageUid', $regeneratePageUid);
         $this->moduleTemplate->assign('autoStartWizard', $autoStartWizard);
         $this->moduleTemplate->assign('templates', $templateData);
@@ -376,8 +386,9 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 return new JsonResponse(['success' => false, 'error' => 'Missing title'], 400);
             }
 
-            if (!$this->accessGuard->mayCreatePageBelow($parentPageId)) {
-                return $this->forbiddenResponse();
+            $verdict = $this->accessGuard->checkParentPage($parentPageId);
+            if ($verdict !== ParentPageVerdict::Allowed) {
+                return $this->parentPageRefusedResponse($verdict, $parentPageId);
             }
 
             $template = $this->templateService->loadByUid($templateUid);
@@ -463,6 +474,26 @@ final class LandingPageWizardController implements LoggerAwareInterface
         } catch (Throwable $e) {
             return $this->errorResponse($e);
         }
+    }
+
+    /**
+     * Whether a landing page may be created below the page picked in the
+     * placement step; tells the editor why not right after the pick, before
+     * the save.
+     */
+    public function checkParentPageAction(ServerRequestInterface $request): ResponseInterface
+    {
+        if (!$this->accessGuard->mayUseWizard()) {
+            return $this->forbiddenResponse();
+        }
+
+        $parentPageId = $this->extractIntFromBody($this->parseRequestBody($request), 'parentPageId');
+        $verdict = $this->accessGuard->checkParentPage($parentPageId);
+        if ($verdict !== ParentPageVerdict::Allowed) {
+            return $this->parentPageRefusedResponse($verdict, $parentPageId);
+        }
+
+        return new JsonResponse(['success' => true, 'data' => ['uid' => $parentPageId]]);
     }
 
     public function optimizePromptAction(ServerRequestInterface $request): ResponseInterface
@@ -661,6 +692,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 'generatedAt' => is_numeric($generatedAt) ? (int) $generatedAt : 0,
                 'sourcePageUid' => is_numeric($sourcePageUid) ? (int) $sourcePageUid : 0,
                 'parentPageId' => is_numeric($parentPageId) ? (int) $parentPageId : 0,
+                'parentPageTitle' => is_numeric($parentPageId) ? ($this->accessGuard->readablePageTitle((int) $parentPageId) ?? '') : '',
             ]]);
         } catch (Throwable $e) {
             return $this->errorResponse($e);
@@ -683,10 +715,20 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 'save' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_save'),
                 'generationInfo' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_generation_info'),
                 'optimizePrompt' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_optimize_prompt'),
+                'checkParentPage' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_check_parent_page'),
             ],
             'moduleUrls' => [
                 'editRecord' => (string) $this->uriBuilder->buildUriFromRoute('record_edit'),
                 'pageLayout' => (string) $this->uriBuilder->buildUriFromRoute('web_layout'),
+                // TYPO3's element browser for pages. useEvents makes it report
+                // a pick as an event on its iframe, which needs no FormEngine;
+                // fieldReference must not be empty, or the browser drops the pick.
+                'pageBrowser' => (string) $this->uriBuilder->buildUriFromRoute('wizard_element_browser', [
+                    'mode' => 'db',
+                    'allowedTypes' => 'pages',
+                    'fieldReference' => 'nr-landingpage-parent-page',
+                    'useEvents' => 1,
+                ]),
             ],
         ]);
 
@@ -825,6 +867,37 @@ final class LandingPageWizardController implements LoggerAwareInterface
         } catch (Throwable) {
             return [];
         }
+    }
+
+    /**
+     * A refused parent page, with the reason in the editor's language:
+     * 403 when the page is not the user's to use, 400 when its type cannot
+     * hold subpages.
+     */
+    private function parentPageRefusedResponse(ParentPageVerdict $verdict, int $parentPageId): ResponseInterface
+    {
+        return new JsonResponse([
+            'success' => false,
+            'code' => $verdict->value,
+            'error' => $this->translate($verdict->messageKey(), $parentPageId),
+        ], $verdict === ParentPageVerdict::NoSubpages ? 400 : 403);
+    }
+
+    /**
+     * A label of locallang.xlf in the backend user's language; the key when
+     * no language service is set up (CLI, tests).
+     */
+    private function translate(string $key, int|string ...$arguments): string
+    {
+        $languageService = $GLOBALS['LANG'] ?? null;
+        $text = $languageService instanceof LanguageService
+            ? $languageService->sL('LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:' . $key)
+            : '';
+        if ($text === '') {
+            return $key;
+        }
+
+        return $arguments === [] ? $text : vsprintf($text, $arguments);
     }
 
     private function forbiddenResponse(): ResponseInterface

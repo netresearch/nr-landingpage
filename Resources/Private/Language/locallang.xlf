@@ -185,11 +185,32 @@
             <trans-unit id="wizard.placement.form" resname="wizard.placement.form">
                 <source>Placement form</source>
             </trans-unit>
-            <trans-unit id="wizard.placement.parentPageId" resname="wizard.placement.parentPageId">
-                <source>Parent Page ID</source>
+            <trans-unit id="wizard.placement.parentPage" resname="wizard.placement.parentPage">
+                <source>Parent page</source>
             </trans-unit>
-            <trans-unit id="wizard.placement.parentPageIdPlaceholder" resname="wizard.placement.parentPageIdPlaceholder">
-                <source>Enter the UID of the parent page</source>
+            <trans-unit id="wizard.placement.parentPage.empty" resname="wizard.placement.parentPage.empty">
+                <source>No page chosen</source>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.browse" resname="wizard.placement.parentPage.browse">
+                <source>Choose page</source>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.remove" resname="wizard.placement.parentPage.remove">
+                <source>Remove</source>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.removeLabel" resname="wizard.placement.parentPage.removeLabel">
+                <source>Remove the parent page</source>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.description" resname="wizard.placement.parentPage.description">
+                <source>The landing page is created as a subpage of this page.</source>
+            </trans-unit>
+            <trans-unit id="wizard.parentPage.error.notFound" resname="wizard.parentPage.error.notFound">
+                <source>Page %d does not exist, or it is not in your part of the page tree. Choose another page.</source>
+            </trans-unit>
+            <trans-unit id="wizard.parentPage.error.noPermission" resname="wizard.parentPage.error.noPermission">
+                <source>You may not create pages below page %d. Choose another page, or ask your administrator for the permission to create pages there.</source>
+            </trans-unit>
+            <trans-unit id="wizard.parentPage.error.noSubpages" resname="wizard.parentPage.error.noSubpages">
+                <source>Page %d is of a type that cannot hold subpages. Choose a standard page or a folder.</source>
             </trans-unit>
             <trans-unit id="wizard.summary" resname="wizard.summary">
                 <source>Summary</source>
@@ -279,7 +300,7 @@
                 <source>Parent page required</source>
             </trans-unit>
             <trans-unit id="wizard.notification.parentRequiredMessage" resname="wizard.notification.parentRequiredMessage">
-                <source>Please enter a valid parent page ID.</source>
+                <source>Choose the page below which the landing page is created.</source>
             </trans-unit>
             <trans-unit id="wizard.save.running" resname="wizard.save.running">
                 <source>Creating the landing page. This can take a minute or longer, for example when the page and its content are translated as well. When it is done, the wizard closes and the new page opens.</source>

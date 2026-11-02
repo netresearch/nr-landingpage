@@ -20,6 +20,9 @@ import '@typo3/backend/element/spinner-element.js';
  */
 class LandingPageWizard {
     constructor() {
+        // The title of the page the launcher passes to open() (see the
+        // launcher binding at the end of this file).
+        this.initialParentPageTitle = '';
         // The running save or section regeneration, or null (see isBusy()).
         this._busy = null;
         // True while the confirmation before a save is open (see confirmAndSave()).
@@ -173,7 +176,7 @@ class LandingPageWizard {
         this._confirmOpen = false;
         this._userActed = false;
         if (parentPageId > 0) {
-            WizardState.setParentPageId(parentPageId);
+            WizardState.setParentPage(parentPageId, this.initialParentPageTitle);
         }
         if (regeneratePageUid > 0) {
             WizardState.sourcePageUid = regeneratePageUid;
@@ -473,7 +476,7 @@ class LandingPageWizard {
                 WizardState.setBriefingAnswers(generationInfo.briefingAnswers);
             }
             if (generationInfo.parentPageId > 0 && WizardState.getParentPageId() === 0) {
-                WizardState.setParentPageId(generationInfo.parentPageId);
+                WizardState.setParentPage(generationInfo.parentPageId, generationInfo.parentPageTitle || '');
             }
             return generationInfo;
         } catch (infoError) {
@@ -1638,21 +1641,7 @@ class LandingPageWizard {
         form.appendChild(this.createFormGroup('placement_title', this.label('wizard.pageFields.pageTitle'), 'text', WizardState.getTitle(), true));
         form.appendChild(this.createFormGroup('placement_slug', this.label('wizard.pageFields.urlSlug'), 'text', WizardState.getSlug(), false));
 
-        const parentValue = WizardState.getParentPageId() > 0 ? String(WizardState.getParentPageId()) : '';
-        form.appendChild(this.createFormGroup(
-            'placement_parent',
-            this.label('wizard.placement.parentPageId'),
-            'number',
-            parentValue,
-            true,
-            this.label('wizard.placement.parentPageIdPlaceholder'),
-        ));
-
-        // Set min="1" on parent page input
-        const parentInput = form.querySelector('#placement_parent');
-        if (parentInput) {
-            parentInput.min = '1';
-        }
+        form.appendChild(this.createParentPagePicker());
 
         const titleInput = form.querySelector('#placement_title');
         const slugInput = form.querySelector('#placement_slug');
@@ -1669,6 +1658,178 @@ class LandingPageWizard {
         // Repurpose the Next button as "Generate Landing Page" action
         this.replaceNextButtonWithGenerate(form);
         this.focusStep(container);
+    }
+
+    /**
+     * The parent page field of the placement step: TYPO3's element browser
+     * for pages, the picked page shown with title and id, and a button to
+     * remove it. The page id goes into the hidden #placement_parent, which
+     * confirmAndSave() and saveLandingPage() read.
+     *
+     * A pick is reported as an event on the browser's modal (`useEvents` in
+     * its URL), the way FormEngine listens too; the wizard has no FormEngine.
+     * The server checks the picked page at once (checkParentPage), so a page
+     * the editor may not use is named right away, not after the save.
+     *
+     * @returns {HTMLElement}
+     */
+    createParentPagePicker() {
+        const group = document.createElement('div');
+        group.className = 'mb-3';
+        group.dataset.placementParent = '';
+        // The heading names the group; the buttons keep their visible text
+        // as their name (a <label> on "Choose page" would replace it), and
+        // the shown page describes the browse button.
+        group.setAttribute('role', 'group');
+        group.setAttribute('aria-labelledby', 'placement_parent_label');
+
+        const label = document.createElement('div');
+        label.className = 'form-label';
+        label.id = 'placement_parent_label';
+        label.textContent = this.label('wizard.placement.parentPage');
+        const asterisk = document.createElement('span');
+        asterisk.className = 'text-danger ms-1';
+        asterisk.textContent = '*';
+        asterisk.setAttribute('aria-hidden', 'true');
+        label.appendChild(asterisk);
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.id = 'placement_parent';
+        input.name = 'placement_parent';
+
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'input-group';
+        // A plain element, not <output>: a description is read from its text.
+        const item = document.createElement('div');
+        item.className = 'form-control text-truncate';
+        item.id = 'placement_parent_item';
+        const browse = document.createElement('button');
+        browse.type = 'button';
+        browse.className = 'btn btn-default';
+        browse.id = 'placement_parent_browse';
+        browse.dataset.pickerBrowse = '';
+        browse.setAttribute('aria-describedby', 'placement_parent_item placement_parent_help');
+        browse.setAttribute('aria-required', 'true');
+        browse.textContent = this.label('wizard.placement.parentPage.browse');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-default';
+        remove.dataset.pickerRemove = '';
+        remove.setAttribute('aria-label', this.label('wizard.placement.parentPage.removeLabel'));
+        remove.textContent = this.label('wizard.placement.parentPage.remove');
+        inputGroup.append(item, browse, remove);
+
+        const help = document.createElement('div');
+        help.className = 'form-text';
+        help.id = 'placement_parent_help';
+        help.textContent = this.label('wizard.placement.parentPage.description');
+
+        const error = document.createElement('div');
+        error.className = 'invalid-feedback';
+        error.id = 'placement_parent_error';
+        error.dataset.pickerError = '';
+
+        group.append(label, input, inputGroup, help, error);
+
+        // textContent paths (not innerHTML): page titles and XLF strings are no markup.
+        const show = (id, title) => {
+            input.value = id > 0 ? String(id) : '';
+            item.textContent = id > 0 ? `${title} [${id}]` : this.label('wizard.placement.parentPage.empty');
+            item.classList.toggle('text-variant', id <= 0);
+            remove.hidden = id <= 0;
+            WizardState.setParentPage(id, title);
+        };
+        show(WizardState.getParentPageId(), WizardState.getParentPageTitle());
+
+        browse.addEventListener('click', () => this.browseParentPage(group, show));
+        remove.addEventListener('click', () => {
+            show(0, '');
+            this.showParentPageError(group, '');
+            browse.focus();
+        });
+
+        return group;
+    }
+
+    /**
+     * Open TYPO3's page browser, take the first pick and check it.
+     *
+     * @param {HTMLElement} group  The picker (createParentPagePicker())
+     * @param {function(number, string): void} show  Shows and stores a page
+     */
+    browseParentPage(group, show) {
+        const baseUrl = TYPO3.settings.NrLandingpage?.moduleUrls?.pageBrowser || '';
+        if (!baseUrl) {
+            return;
+        }
+        const current = WizardState.getParentPageId();
+        const modal = Modal.advanced({
+            type: Modal.types.iframe,
+            content: current > 0 ? baseUrl + '&expandPage=' + current : baseUrl,
+            size: Modal.sizes.large,
+        });
+        modal.addEventListener('typo3:element-browser:message', (event) => {
+            const { actionName, value, label } = event.detail ?? {};
+            if (actionName !== 'typo3:elementBrowser:elementAdded') {
+                return;
+            }
+            // "pages_12" from the page browser.
+            const uid = parseInt(String(value).split('_').pop() ?? '', 10);
+            // One parent page: any pick ends the browsing. Closing the modal
+            // gives the focus back to the browse button.
+            modal.hideModal();
+            if (uid > 0) {
+                show(uid, label ?? '');
+                this.showParentPageError(group, '');
+                void this.checkParentPage(group, show, uid);
+            }
+        });
+    }
+
+    /**
+     * Ask the server whether a landing page may be created below the picked
+     * page; on a refusal, remove the page again and say why.
+     *
+     * @param {HTMLElement} group
+     * @param {function(number, string): void} show
+     * @param {number} uid
+     */
+    async checkParentPage(group, show, uid) {
+        try {
+            await this.fetchJson(this.getAjaxUrl('checkParentPage'), { parentPageId: uid });
+        } catch (error) {
+            // Only a refusal says something about the page; a lost
+            // connection leaves the pick, and the save checks it again.
+            if (typeof error.status === 'number' && error.status >= 400 && error.status < 500
+                && WizardState.getParentPageId() === uid && group.isConnected) {
+                show(0, '');
+                this.showParentPageError(group, error.message);
+            }
+        }
+    }
+
+    /**
+     * Show a message below the parent page picker, or remove it ('').
+     *
+     * @param {HTMLElement|null} group
+     * @param {string} message
+     */
+    showParentPageError(group, message) {
+        const error = group?.querySelector('[data-picker-error]');
+        const browse = group?.querySelector('[data-picker-browse]');
+        if (!error || !browse) {
+            return;
+        }
+        error.textContent = message;
+        error.classList.toggle('d-block', message !== '');
+        if (message !== '') {
+            error.setAttribute('role', 'alert');
+            browse.setAttribute('aria-describedby', 'placement_parent_item placement_parent_help placement_parent_error');
+        } else {
+            error.removeAttribute('role');
+            browse.setAttribute('aria-describedby', 'placement_parent_item placement_parent_help');
+        }
     }
 
     /**
@@ -1807,11 +1968,9 @@ class LandingPageWizard {
         }
 
         if (parentPageId <= 0) {
-            Notification.warning(
-                this.label('wizard.notification.parentRequired'),
-                this.label('wizard.notification.parentRequiredMessage'),
-            );
-            parentInput?.focus();
+            const picker = form.querySelector('[data-placement-parent]');
+            this.showParentPageError(picker, this.label('wizard.notification.parentRequiredMessage'));
+            picker?.querySelector('[data-picker-browse]')?.focus();
             return;
         }
 
@@ -2389,6 +2548,7 @@ if (launchButton) {
     const wizard = new LandingPageWizard();
     const parentPageId = parseInt(launchButton.dataset.parentPageId || '0', 10);
     const regeneratePageUid = parseInt(launchButton.dataset.regeneratePageUid || '0', 10);
+    wizard.initialParentPageTitle = launchButton.dataset.parentPageTitle || '';
 
     launchButton.addEventListener('click', () => {
         wizard.open(parentPageId, regeneratePageUid);

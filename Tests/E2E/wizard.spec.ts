@@ -596,10 +596,19 @@ test.describe('Landing Page Wizard', () => {
     }
 
     /** From the content step to the confirmed save. */
+    /**
+     * Put a parent page into the placement step's picker without the element
+     * browser (the picker's own tests use the browser): the hidden field the
+     * save reads.
+     */
+    async function setParentPage(modal: Locator, uid: number): Promise<void> {
+        await modal.locator('.carousel-item.active #placement_parent').evaluate((input: HTMLInputElement, value) => { input.value = String(value); }, uid);
+    }
+
     async function saveFromContent(modal: Locator, page: Page): Promise<void> {
         await clickNext(modal, page);
-        await modal.locator('.carousel-item.active #placement_parent').waitFor({ state: 'visible', timeout: 15000 });
-        await modal.locator('#placement_parent').fill('1');
+        await modal.locator('.carousel-item.active [data-placement-parent]').waitFor({ state: 'visible', timeout: 15000 });
+        await setParentPage(modal, 1);
         await modal.locator('button.btn-success').click();
         const ok = page.locator('dialog:not([data-severity=""])').last().locator('button[name="ok"]');
         await ok.waitFor({ state: 'visible', timeout: 10000 });
@@ -974,8 +983,8 @@ test.describe('Landing Page Wizard', () => {
         const modal = await openWizard(page, await navigateToModule(page));
         await walkToContent(modal, page);
         await clickNext(modal, page);
-        await modal.locator('.carousel-item.active #placement_parent').waitFor({ state: 'visible', timeout: 15000 });
-        await modal.locator('#placement_parent').fill('1');
+        await modal.locator('.carousel-item.active [data-placement-parent]').waitFor({ state: 'visible', timeout: 15000 });
+        await setParentPage(modal, 1);
         await modal.locator('button.btn-success').click();
         const ok = page.locator('dialog:not([data-severity=""])').last().locator('button[name="ok"]');
         await ok.waitFor({ state: 'visible', timeout: 10000 });
@@ -1044,6 +1053,119 @@ test.describe('Landing Page Wizard', () => {
         await expect(failure).toBeVisible({ timeout: 15000 });
         await expect(failure).toHaveAttribute('data-save-failure', 'unknown');
         await expect(failure.locator('[data-failure-part="exists"]')).not.toHaveText('');
+    });
+
+    /** From the template step of an open wizard to the placement step. */
+    async function walkToPlacement(modal: Locator, page: Page): Promise<Locator> {
+        await walkToContent(modal, page);
+        await clickNext(modal, page);
+        const picker = modal.locator('.carousel-item.active [data-placement-parent]');
+        await picker.waitFor({ state: 'visible', timeout: 15000 });
+        await waitForSlideSettled(modal);
+        return picker;
+    }
+
+    /** Pick a page by title in TYPO3's element browser opened from the picker. */
+    async function pickInElementBrowser(page: Page, picker: Locator, title: string): Promise<void> {
+        await picker.locator('[data-picker-browse]').click();
+        const browser = page.frameLocator('dialog iframe').last();
+        const entry = browser.locator('[data-close], a').filter({ hasText: title }).last();
+        await entry.waitFor({ state: 'visible', timeout: 15000 });
+        await entry.click();
+    }
+
+    test('the parent page is a page picker, not a number field, and takes a page from the element browser', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        let checked: Record<string, unknown> | null = null;
+        await page.route('**/nr-landingpage/wizard/check-parent-page**', async (route) => {
+            checked = route.request().postDataJSON();
+            await route.continue();
+        });
+        const modal = await openWizard(page, await navigateToModule(page));
+        const picker = await walkToPlacement(modal, page);
+
+        await expect(picker.locator('input[type="number"]')).toHaveCount(0);
+        const browse = picker.getByRole('button', { name: /choose page|seite ausw/i });
+        await expect(browse).toBeVisible();
+        // The heading names the group; the button keeps its visible text as
+        // its name, and the shown page describes it.
+        await expect(picker).toHaveAttribute('role', 'group');
+        await expect(picker).toHaveAccessibleName(/Parent page|Übergeordnete Seite/);
+        await expect(browse).toHaveAccessibleDescription(/No page chosen|Keine Seite/);
+        await expect(picker.locator('[data-picker-remove]')).toBeHidden();
+
+        await pickInElementBrowser(page, picker, 'Home');
+        await expect(picker.locator('#placement_parent_item')).toHaveText(/Home \[1\]/, { timeout: 15000 });
+        await expect(picker.locator('#placement_parent')).toHaveValue('1');
+        await expect(browse).toHaveAccessibleDescription(/Home \[1\]/);
+        await expect(page.locator('dialog:visible')).toHaveCount(1);
+        await expect(browse).toBeFocused();
+        await expect.poll(() => checked, { timeout: 15000 }).toEqual({ parentPageId: 1 });
+        // The real server accepted the admin's pick: no message.
+        await expect(picker.locator('[data-picker-error]')).toHaveText('');
+
+        await picker.locator('[data-picker-remove]').click();
+        await expect(picker.locator('#placement_parent')).toHaveValue('');
+        await expect(picker.locator('[data-picker-remove]')).toBeHidden();
+        await expect(browse).toBeFocused();
+    });
+
+    test('the picker is used with the keyboard: Enter opens the browser, Escape closes it', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const modal = await openWizard(page, await navigateToModule(page));
+        const picker = await walkToPlacement(modal, page);
+
+        await picker.locator('[data-picker-browse]').focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('dialog:visible')).toHaveCount(2, { timeout: 15000 });
+        await page.frameLocator('dialog iframe').last().locator('body').waitFor({ timeout: 15000 });
+        await page.keyboard.press('Escape');
+        await expect(page.locator('dialog:visible')).toHaveCount(1, { timeout: 15000 });
+        await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', 'landing-page-placement');
+    });
+
+    test('the picker starts with the page selected in the page tree', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        await navigateToModule(page);
+        await page.getByRole('treeitem', { name: 'Home' }).first().click();
+        const frame = getModuleFrame(page);
+        await frame.locator('#nr-landingpage-launch-wizard[data-parent-page-id="1"][data-wizard-ready="1"]').waitFor({ timeout: 15000 });
+        const modal = await openWizard(page, frame);
+        const picker = await walkToPlacement(modal, page);
+
+        await expect(picker.locator('#placement_parent_item')).toHaveText('Home [1]');
+        await expect(picker.locator('#placement_parent')).toHaveValue('1');
+    });
+
+    test('a picked page the editor may not use is removed again, with the reason', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        await page.route('**/nr-landingpage/wizard/check-parent-page**', (route) => route.fulfill({
+            status: 403,
+            contentType: 'application/json',
+            body: JSON.stringify({ success: false, code: 'noPermission', error: 'You may not create pages below page 1.' }),
+        }));
+        const modal = await openWizard(page, await navigateToModule(page));
+        const picker = await walkToPlacement(modal, page);
+
+        await pickInElementBrowser(page, picker, 'Home');
+        await expect(picker.locator('[data-picker-error]')).toHaveText('You may not create pages below page 1.', { timeout: 15000 });
+        await expect(picker.locator('[data-picker-error]')).toHaveAttribute('role', 'alert');
+        await expect(picker.locator('#placement_parent')).toHaveValue('');
+        await expect(picker.locator('[data-picker-browse]')).toHaveAttribute('aria-describedby', /placement_parent_error/);
+    });
+
+    test('Generate without a parent page says so at the picker and sends nothing', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        let saves = 0;
+        await page.route('**/nr-landingpage/wizard/save**', async (route) => { saves++; await route.abort(); });
+        const modal = await openWizard(page, await navigateToModule(page));
+        const picker = await walkToPlacement(modal, page);
+
+        await modal.locator('button.btn-success').click();
+        await expect(picker.locator('[data-picker-error]')).not.toHaveText('');
+        await expect(picker.locator('[data-picker-browse]')).toBeFocused();
+        await expect(page.locator('dialog:visible')).toHaveCount(1);
+        expect(saves).toBe(0);
     });
 
     // A slide renderer whose wizard was closed, and not opened again, gets its
@@ -1981,8 +2103,7 @@ test.describe('Landing Page Wizard', () => {
         // Fill placement form
         const titleInput = modal.locator('#placement_title');
         await titleInput.waitFor({ state: 'visible', timeout: 15000 });
-        const parentInput = modal.locator('#placement_parent');
-        await parentInput.fill('1');
+        await setParentPage(modal, 1);
 
         // Click save button
         const saveBtn = modal.locator('button.btn-success');
