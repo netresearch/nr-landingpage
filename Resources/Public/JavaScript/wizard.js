@@ -9,7 +9,6 @@ import Modal from '@typo3/backend/modal.js';
 import Notification from '@typo3/backend/notification.js';
 import Severity from '@typo3/backend/severity.js';
 import Icons from '@typo3/backend/icons.js';
-import { MessageUtility } from '@typo3/backend/utility/message-utility.js';
 import '@typo3/backend/element/spinner-element.js';
 
 /**
@@ -1816,9 +1815,12 @@ class LandingPageWizard {
         // the wizard, so the modal is closed only if it is still open a moment
         // later.
         const onMessage = (event) => {
+            // Same origin only, the check MessageUtility.verifyOrigin() makes.
+            if (event.origin !== window.origin) {
+                return;
+            }
             const data = event.data ?? {};
-            if (!MessageUtility.verifyOrigin(event.origin)
-                || data.actionName !== 'typo3:elementBrowser:elementAdded'
+            if (data.actionName !== 'typo3:elementBrowser:elementAdded'
                 || data.fieldName !== 'nr-landingpage-parent-page') {
                 return;
             }
