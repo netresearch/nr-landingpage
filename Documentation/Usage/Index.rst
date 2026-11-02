@@ -142,12 +142,46 @@ Step 5: Placement & Save
 
 Configure where and how the page is created:
 
--  **Parent page** — select or confirm the parent page in the tree
 -  **Page title** — review the final page title
 -  **URL slug** — review the final URL path
+-  **Parent page** — the page the landing page is created below.
+   :guilabel:`Choose page` opens the TYPO3 record browser for pages;
+   the chosen page is shown with its title and id, and
+   :guilabel:`Remove` empties the field again. When you opened the
+   wizard from a page (page tree selection or context menu), that page
+   is chosen already; for :guilabel:`Re-generate` it is the parent of
+   the re-generated page.
 
-Click :guilabel:`Save` to create the landing page with all content
-elements in the TYPO3 page tree.
+The parent page is checked when you choose it, when the placement step
+opens with a page already chosen, and again when the page is saved: it
+must be in your part of the page tree, you need the permission to
+modify pages and to create pages below this one, and its page type
+must allow subpages. If one of them is missing when you choose the
+page or when the step opens, the field is emptied again and a message
+below it says which one and what to do; if it is missing when the page
+is saved, the save is refused and says so.
+
+Click :guilabel:`Generate Landing Page` and confirm with :guilabel:`OK`
+to create the landing page with all content elements in the TYPO3
+page tree.
+
+Creating the page can take a minute or longer, for example when the
+installation translates new pages and content elements while they are
+saved. Until it is done, the placement step shows that the page is
+being created, and :guilabel:`Generate Landing Page` and
+:guilabel:`Previous` are locked, so a second click cannot create the
+page twice. When it is done, the wizard closes and the new page opens
+in the Page module.
+
+If the page cannot be created, the placement step says what happened,
+what exists now, what to do next and whom to ask:
+
+-  When the server refused the request (for example a missing
+   permission), no page was created. Correct what the message names
+   and try again.
+-  When the server failed or the connection broke, the page may have
+   been created anyway. Look below the parent page in the page tree
+   before you try again.
 
 .. note::
 

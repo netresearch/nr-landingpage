@@ -20,8 +20,15 @@ import '@typo3/backend/element/spinner-element.js';
  */
 class LandingPageWizard {
     constructor() {
+        // The title of the page the launcher passes to open() (see the
+        // launcher binding at the end of this file).
+        this.initialParentPageTitle = '';
         // The running save or section regeneration, or null (see isBusy()).
         this._busy = null;
+        // True while the confirmation before a save is open (see confirmAndSave()).
+        this._confirmOpen = false;
+        // The number of the latest parent page check per picker (see checkParentPage()).
+        this._parentPageChecks = new WeakMap();
         this._briefingForm = null;
         this._briefingQuestions = null;
         this._pageFieldsForm = null;
@@ -75,13 +82,17 @@ class LandingPageWizard {
     /**
      * Perform a fetch request and return parsed JSON.
      *
+     * The error thrown for a reply carries its HTTP status as `status`; an
+     * error without one means no reply arrived (network, timeout).
+     *
      * @param {string} url
      * @param {Object|null} data
+     * @param {number} timeout  Milliseconds until the request is given up; 0 waits for the reply
      * @returns {Promise<Object>}
      */
-    async fetchJson(url, data = null) {
+    async fetchJson(url, data = null, timeout = 60000) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        const timeoutId = timeout > 0 ? setTimeout(() => controller.abort(), timeout) : null;
 
         const options = {
             method: data ? 'POST' : 'GET',
@@ -104,7 +115,9 @@ class LandingPageWizard {
             }
             throw new Error('Network error: ' + error.message);
         } finally {
-            clearTimeout(timeoutId);
+            if (timeoutId !== null) {
+                clearTimeout(timeoutId);
+            }
         }
 
         if (!response.ok) {
@@ -113,7 +126,9 @@ class LandingPageWizard {
                 const errorJson = await response.json();
                 if (errorJson.error) errorMsg = errorJson.error;
             } catch (_) { /* non-JSON error response, use HTTP status */ }
-            throw new Error(errorMsg);
+            const error = new Error(errorMsg);
+            error.status = response.status;
+            throw error;
         }
 
         let json;
@@ -124,7 +139,9 @@ class LandingPageWizard {
         }
 
         if (!json.success) {
-            throw new Error(json.error || 'Unknown server error');
+            const error = new Error(json.error || 'Unknown server error');
+            error.status = response.status;
+            throw error;
         }
 
         return json.data;
@@ -158,9 +175,10 @@ class LandingPageWizard {
         this._run++;
         this._render++;
         this._busy = null;
+        this._confirmOpen = false;
         this._userActed = false;
         if (parentPageId > 0) {
-            WizardState.setParentPageId(parentPageId);
+            WizardState.setParentPage(parentPageId, this.initialParentPageTitle);
         }
         if (regeneratePageUid > 0) {
             WizardState.sourcePageUid = regeneratePageUid;
@@ -460,7 +478,7 @@ class LandingPageWizard {
                 WizardState.setBriefingAnswers(generationInfo.briefingAnswers);
             }
             if (generationInfo.parentPageId > 0 && WizardState.getParentPageId() === 0) {
-                WizardState.setParentPageId(generationInfo.parentPageId);
+                WizardState.setParentPage(generationInfo.parentPageId, generationInfo.parentPageTitle || '');
             }
             return generationInfo;
         } catch (infoError) {
@@ -1625,21 +1643,7 @@ class LandingPageWizard {
         form.appendChild(this.createFormGroup('placement_title', this.label('wizard.pageFields.pageTitle'), 'text', WizardState.getTitle(), true));
         form.appendChild(this.createFormGroup('placement_slug', this.label('wizard.pageFields.urlSlug'), 'text', WizardState.getSlug(), false));
 
-        const parentValue = WizardState.getParentPageId() > 0 ? String(WizardState.getParentPageId()) : '';
-        form.appendChild(this.createFormGroup(
-            'placement_parent',
-            this.label('wizard.placement.parentPageId'),
-            'number',
-            parentValue,
-            true,
-            this.label('wizard.placement.parentPageIdPlaceholder'),
-        ));
-
-        // Set min="1" on parent page input
-        const parentInput = form.querySelector('#placement_parent');
-        if (parentInput) {
-            parentInput.min = '1';
-        }
+        form.appendChild(this.createParentPagePicker());
 
         const titleInput = form.querySelector('#placement_title');
         const slugInput = form.querySelector('#placement_slug');
@@ -1656,6 +1660,237 @@ class LandingPageWizard {
         // Repurpose the Next button as "Generate Landing Page" action
         this.replaceNextButtonWithGenerate(form);
         this.focusStep(container);
+    }
+
+    /**
+     * The parent page field of the placement step: TYPO3's element browser
+     * for pages, the picked page shown with title and id, and a button to
+     * remove it. The page id goes into the hidden #placement_parent, which
+     * confirmAndSave() and saveLandingPage() read.
+     *
+     * The server checks the page (checkParentPage) when it is picked and when
+     * the step opens with a page already chosen, so a page the editor may not
+     * use is named right away, not after the save.
+     *
+     * @returns {HTMLElement}
+     */
+    createParentPagePicker() {
+        const group = document.createElement('div');
+        group.className = 'mb-3';
+        group.dataset.placementParent = '';
+        // The heading names the group; the buttons keep their visible text
+        // as their name (a <label> on "Choose page" would replace it), and
+        // the shown page describes the browse button.
+        group.setAttribute('role', 'group');
+        group.setAttribute('aria-labelledby', 'placement_parent_label');
+
+        const label = document.createElement('div');
+        label.className = 'form-label';
+        label.id = 'placement_parent_label';
+        label.textContent = this.label('wizard.placement.parentPage');
+        const asterisk = document.createElement('span');
+        asterisk.className = 'text-danger ms-1';
+        asterisk.textContent = '*';
+        asterisk.setAttribute('aria-hidden', 'true');
+        // The asterisk is decoration; this tells a screen reader instead.
+        const required = document.createElement('span');
+        required.className = 'visually-hidden';
+        required.textContent = ' (' + this.label('wizard.placement.parentPage.required') + ')';
+        label.append(asterisk, required);
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.id = 'placement_parent';
+        input.name = 'placement_parent';
+
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'input-group';
+        // A plain element, not <output>: a description is read from its text.
+        const item = document.createElement('div');
+        item.className = 'form-control text-truncate';
+        item.id = 'placement_parent_item';
+        const browse = document.createElement('button');
+        browse.type = 'button';
+        browse.className = 'btn btn-default';
+        browse.id = 'placement_parent_browse';
+        browse.dataset.pickerBrowse = '';
+        browse.setAttribute('aria-describedby', 'placement_parent_item placement_parent_help');
+        browse.textContent = this.label('wizard.placement.parentPage.browse');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-default';
+        remove.dataset.pickerRemove = '';
+        remove.setAttribute('aria-label', this.label('wizard.placement.parentPage.removeLabel'));
+        remove.textContent = this.label('wizard.placement.parentPage.remove');
+        inputGroup.append(item, browse, remove);
+
+        const help = document.createElement('div');
+        help.className = 'form-text';
+        help.id = 'placement_parent_help';
+        help.textContent = this.label('wizard.placement.parentPage.description');
+
+        // The alert role is there before any text: a live region is
+        // announced when its content changes, not when it appears.
+        const error = document.createElement('div');
+        error.className = 'invalid-feedback';
+        error.id = 'placement_parent_error';
+        error.dataset.pickerError = '';
+        error.setAttribute('role', 'alert');
+
+        group.append(label, input, inputGroup, help, error);
+
+        // textContent paths (not innerHTML): page titles and XLF strings are no markup.
+        const show = (id, title) => {
+            input.value = id > 0 ? String(id) : '';
+            item.textContent = id > 0 ? `${title} [${id}]`.trim() : this.label('wizard.placement.parentPage.empty');
+            item.classList.toggle('text-variant', id <= 0);
+            remove.hidden = id <= 0;
+            WizardState.setParentPage(id, title);
+        };
+        show(WizardState.getParentPageId(), WizardState.getParentPageTitle());
+        if (WizardState.getParentPageId() > 0) {
+            void this.checkParentPage(group, show, WizardState.getParentPageId());
+        }
+
+        browse.addEventListener('click', () => this.browseParentPage(group, show));
+        remove.addEventListener('click', () => {
+            show(0, '');
+            this.showParentPageError(group, '');
+            browse.focus();
+        });
+
+        return group;
+    }
+
+    /**
+     * Open TYPO3's page browser, take the first pick and check it.
+     *
+     * TYPO3 14 reports a pick as an event on the browser's modal (`useEvents`
+     * in its URL), the way FormEngine listens too; the wizard has no
+     * FormEngine. TYPO3 13 posts it as a message to this module frame (see
+     * LandingPageWizardController::pageBrowserUrl()). Both carry the same
+     * action name and value.
+     *
+     * @param {HTMLElement} group  The picker (createParentPagePicker())
+     * @param {function(number, string): void} show  Shows and stores a page
+     */
+    browseParentPage(group, show) {
+        const baseUrl = TYPO3.settings.NrLandingpage?.moduleUrls?.pageBrowser || '';
+        if (!baseUrl) {
+            return;
+        }
+        const current = WizardState.getParentPageId();
+        const modal = Modal.advanced({
+            type: Modal.types.iframe,
+            content: current > 0 ? baseUrl + '&expandPage=' + current : baseUrl,
+            size: Modal.sizes.large,
+        });
+        let hidden = false;
+        let picked = false;
+        const take = (value, label) => {
+            if (picked) {
+                return;
+            }
+            picked = true;
+            // "pages_12" from the page browser.
+            const uid = parseInt(String(value).split('_').pop() ?? '', 10);
+            if (uid > 0) {
+                show(uid, label ?? '');
+                this.showParentPageError(group, '');
+                void this.checkParentPage(group, show, uid);
+            }
+        };
+
+        // TYPO3 14: the browser stays open; one parent page, so any pick ends
+        // the browsing.
+        modal.addEventListener('typo3:element-browser:message', (event) => {
+            const { actionName, value, label } = event.detail ?? {};
+            if (actionName !== 'typo3:elementBrowser:elementAdded') {
+                return;
+            }
+            modal.hideModal();
+            take(value, label);
+        });
+
+        // TYPO3 13: the browser may close itself right after the message (it
+        // dismisses the topmost modal). Hiding it here as well would then hide
+        // the wizard, so the modal is closed only if it is still open a moment
+        // later.
+        const onMessage = (event) => {
+            // Same origin only, the check MessageUtility.verifyOrigin() makes.
+            if (event.origin !== window.origin) {
+                return;
+            }
+            const data = event.data ?? {};
+            if (data.actionName !== 'typo3:elementBrowser:elementAdded'
+                || data.fieldName !== 'nr-landingpage-parent-page') {
+                return;
+            }
+            take(data.value, data.label);
+            setTimeout(() => {
+                if (!hidden) {
+                    modal.hideModal();
+                }
+            }, 150);
+        };
+        window.addEventListener('message', onMessage);
+        modal.addEventListener('typo3-modal-hidden', () => {
+            hidden = true;
+            window.removeEventListener('message', onMessage);
+            // TYPO3 14's <dialog> gives the focus back on its own; TYPO3 13's
+            // browser focuses the module frame behind the wizard instead.
+            const browse = group.querySelector('[data-picker-browse]');
+            if (group.isConnected && browse) {
+                browse.focus();
+            }
+        });
+    }
+
+    /**
+     * Ask the server whether a landing page may be created below the picked
+     * page; on a refusal, remove the page again and say why.
+     *
+     * @param {HTMLElement} group
+     * @param {function(number, string): void} show
+     * @param {number} uid
+     */
+    async checkParentPage(group, show, uid) {
+        // Only the latest check speaks: the same page picked again must not
+        // be removed by the refusal of an earlier check of it.
+        const check = (this._parentPageChecks.get(group) ?? 0) + 1;
+        this._parentPageChecks.set(group, check);
+        try {
+            await this.fetchJson(this.getAjaxUrl('checkParentPage'), { parentPageId: uid });
+        } catch (error) {
+            // Only a refusal says something about the page; a lost
+            // connection leaves the pick, and the save checks it again.
+            if (typeof error.status === 'number' && error.status >= 400 && error.status < 500
+                && this._parentPageChecks.get(group) === check
+                && WizardState.getParentPageId() === uid && group.isConnected) {
+                show(0, '');
+                this.showParentPageError(group, error.message);
+            }
+        }
+    }
+
+    /**
+     * Show a message below the parent page picker, or remove it ('').
+     *
+     * @param {HTMLElement|null} group
+     * @param {string} message
+     */
+    showParentPageError(group, message) {
+        const error = group?.querySelector('[data-picker-error]');
+        const browse = group?.querySelector('[data-picker-browse]');
+        if (!error || !browse) {
+            return;
+        }
+        error.textContent = message;
+        error.classList.toggle('d-block', message !== '');
+        browse.setAttribute(
+            'aria-describedby',
+            message !== '' ? 'placement_parent_item placement_parent_help placement_parent_error' : 'placement_parent_item placement_parent_help',
+        );
     }
 
     /**
@@ -1754,11 +1989,31 @@ class LandingPageWizard {
     }
 
     /**
+     * The wizard modal's Next (on the last step: Generate) and Previous
+     * buttons, as jQuery collections; empty when the wizard is closed.
+     *
+     * @returns {{next: JQuery|undefined, prev: JQuery|undefined}}
+     */
+    wizardButtons() {
+        const modal = MultiStepWizard.getComponent()?.closest('.modal');
+        return {
+            next: modal?.find('button[name="next"]'),
+            prev: modal?.find('button[name="prev"]'),
+        };
+    }
+
+    /**
      * Show confirmation modal before saving.
+     *
+     * Generate pressed again while the confirmation is open, or while the
+     * save runs, does nothing: one landing page per press of OK.
      *
      * @param {HTMLFormElement} form
      */
     confirmAndSave(form) {
+        if (this.isBusy() || this._confirmOpen) {
+            return;
+        }
         const titleInput = form.querySelector('#placement_title');
         const parentInput = form.querySelector('#placement_parent');
         const title = titleInput?.value?.trim() || '';
@@ -1774,33 +2029,52 @@ class LandingPageWizard {
         }
 
         if (parentPageId <= 0) {
-            Notification.warning(
-                this.label('wizard.notification.parentRequired'),
-                this.label('wizard.notification.parentRequiredMessage'),
-            );
-            parentInput?.focus();
+            const picker = form.querySelector('[data-placement-parent]');
+            this.showParentPageError(picker, this.label('wizard.notification.parentRequiredMessage'));
+            picker?.querySelector('[data-picker-browse]')?.focus();
             return;
         }
 
         const confirmTitleKey = WizardState.regenerateMode ? 'wizard.confirm.regenerateTitle' : 'wizard.confirm.title';
         const confirmMsgKey = WizardState.regenerateMode ? 'wizard.confirm.regenerateMessage' : 'wizard.confirm.message';
+        this._confirmOpen = true;
         const modal = Modal.confirm(
             this.label(confirmTitleKey),
             this.label(confirmMsgKey),
             Modal.sizes.small,
         );
+        modal.addEventListener('typo3-modal-hidden', () => {
+            this._confirmOpen = false;
+        });
+        // A double click on OK fires this twice before the modal is gone. The
+        // second one must not hide the modal again: a second hideModal() on
+        // the closing confirmation leaves the wizard unable to close itself
+        // after the save.
+        let answered = false;
         modal.addEventListener('confirm.button.ok', () => {
+            if (answered) {
+                return;
+            }
+            answered = true;
+            this._confirmOpen = false;
             modal.hideModal();
             // saveLandingPage() reports its own errors; nothing awaits it.
             void this.saveLandingPage(form);
         });
         modal.addEventListener('confirm.button.cancel', () => {
+            this._confirmOpen = false;
             modal.hideModal();
         });
     }
 
     /**
      * Save the landing page via AJAX.
+     *
+     * Creating the page and its content can take half a minute or more (an
+     * installation may translate every new record while it is saved), so the
+     * placement step shows that the work runs, and Generate and Previous are
+     * locked until the reply. The request has no client timeout: giving up
+     * would not stop the server, which would create the page anyway.
      *
      * @param {HTMLFormElement} form
      */
@@ -1828,7 +2102,10 @@ class LandingPageWizard {
 
         const owner = this.takeBusy(null);
         const run = this._run;
+        const container = form.parentElement;
+        this.showSaveProgress(container);
 
+        let failure = null;
         try {
             const result = await this.fetchJson(this.getAjaxUrl('save'), {
                 templateUid: template.uid,
@@ -1839,7 +2116,7 @@ class LandingPageWizard {
                 contentSections: WizardState.getContentSections(),
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 sourcePageUid: WizardState.sourcePageUid || 0,
-            });
+            }, 0);
 
             // The page exists whether or not this wizard is still open, so
             // the notification and the page tree refresh stay. Closing the
@@ -1865,13 +2142,148 @@ class LandingPageWizard {
                 }
             }
         } catch (error) {
-            Notification.error(
-                this.label('wizard.error.save', error.message),
-                '',
-            );
+            failure = error;
         } finally {
             this.releaseBusy(owner);
         }
+
+        if (failure === null) {
+            return;
+        }
+        if (!this.isStaleRun(run) && container?.isConnected) {
+            this.hideSaveProgress(container);
+            this.showSaveFailure(container, failure);
+        } else {
+            // The wizard was closed (and maybe opened again) during the save:
+            // no step to explain it in, but the editor must still learn it,
+            // and, unless the server refused, that the page may exist anyway.
+            const refused = typeof failure.status === 'number' && failure.status >= 400 && failure.status < 500;
+            const kind = refused ? 'refused' : 'unknown';
+            // Its content is gone with it: open() starts a new wizard empty.
+            Notification.error(
+                this.label('wizard.error.save', failure.message),
+                this.label('wizard.saveFailed.closed.' + kind),
+            );
+        }
+    }
+
+    /**
+     * Lock Generate and Previous and show, below the placement form, that the
+     * page is being created.
+     *
+     * @param {HTMLElement|null} container  The placement step's element
+     */
+    showSaveProgress(container) {
+        const { next, prev } = this.wizardButtons();
+        next?.prop('disabled', true);
+        prev?.prop('disabled', true);
+        if (!container) {
+            return;
+        }
+        container.querySelector('[data-save-failure]')?.remove();
+        container.querySelector('[data-save-status]')?.remove();
+
+        // The modal lives in the top document, not in this module's frame:
+        // a custom element made in the frame's document cannot attach its
+        // styles there.
+        const doc = container.ownerDocument;
+        const status = doc.createElement('div');
+        status.className = 'callout callout-info mt-3';
+        status.dataset.saveStatus = '';
+        status.setAttribute('role', 'status');
+        const content = doc.createElement('div');
+        content.className = 'callout-content d-flex align-items-center gap-2';
+        const spinner = doc.createElement('typo3-backend-spinner');
+        spinner.setAttribute('size', 'small');
+        spinner.setAttribute('aria-hidden', 'true');
+        const text = doc.createElement('span');
+        content.append(spinner, text);
+        status.appendChild(content);
+        const form = container.querySelector('form');
+        if (form) {
+            form.after(status);
+        } else {
+            container.appendChild(status);
+        }
+        // The text arrives a frame after the status region is in the
+        // document: a live region is announced when its content changes,
+        // not when it appears. textContent path (not innerHTML): XLF strings
+        // are no markup.
+        requestAnimationFrame(() => {
+            text.textContent = this.label('wizard.save.running');
+        });
+    }
+
+    /**
+     * Remove the progress notice and unlock Generate and Previous again.
+     *
+     * @param {HTMLElement} container  The placement step's element
+     */
+    hideSaveProgress(container) {
+        container.querySelector('[data-save-status]')?.remove();
+        const { next, prev } = this.wizardButtons();
+        next?.prop('disabled', false);
+        prev?.prop('disabled', false);
+    }
+
+    /**
+     * Explain a failed save the way the editor needs it: what happened, what
+     * exists now, what to do next and whom to ask.
+     *
+     * A refusal (HTTP 4xx: input, permission, missing template) created
+     * nothing. Any other failure — a server error, a lost connection — may
+     * have come after the page was written, so the editor looks in the page
+     * tree before pressing Generate again, or the page exists twice.
+     *
+     * @param {HTMLElement} container  The placement step's element
+     * @param {Error & {status?: number}} error
+     */
+    showSaveFailure(container, error) {
+        const refused = typeof error.status === 'number' && error.status >= 400 && error.status < 500;
+        const kind = refused ? 'refused' : 'unknown';
+
+        const doc = container.ownerDocument;
+        const box = doc.createElement('div');
+        box.className = 'callout callout-danger mt-3';
+        box.dataset.saveFailure = kind;
+        box.setAttribute('role', 'alert');
+        box.tabIndex = -1;
+
+        const content = doc.createElement('div');
+        content.className = 'callout-content';
+        const title = doc.createElement('div');
+        title.className = 'callout-title';
+        title.textContent = this.label('wizard.saveFailed.title');
+        content.appendChild(title);
+
+        const body = doc.createElement('div');
+        body.className = 'callout-body';
+        const parts = [
+            ['happened', this.label('wizard.saveFailed.happened', error.message)],
+            ['exists', this.label('wizard.saveFailed.exists.' + kind)],
+            ['todo', this.label('wizard.saveFailed.todo.' + kind)],
+            ['ask', this.label('wizard.saveFailed.ask')],
+        ];
+        for (const [part, text] of parts) {
+            const heading = doc.createElement('h3');
+            heading.className = 'h6 fw-bold mb-1';
+            heading.textContent = this.label('wizard.saveFailed.heading.' + part);
+            const paragraph = doc.createElement('p');
+            paragraph.className = 'mb-2';
+            paragraph.dataset.failurePart = part;
+            paragraph.textContent = text;
+            body.append(heading, paragraph);
+        }
+        content.appendChild(body);
+        box.appendChild(content);
+
+        const form = container.querySelector('form');
+        if (form) {
+            form.after(box);
+        } else {
+            container.appendChild(box);
+        }
+        box.focus();
     }
 
     // ── UI helpers ──────────────────────────────────────────────
@@ -2216,6 +2628,7 @@ if (launchButton) {
     const wizard = new LandingPageWizard();
     const parentPageId = parseInt(launchButton.dataset.parentPageId || '0', 10);
     const regeneratePageUid = parseInt(launchButton.dataset.regeneratePageUid || '0', 10);
+    wizard.initialParentPageTitle = launchButton.dataset.parentPageTitle || '';
 
     launchButton.addEventListener('click', () => {
         wizard.open(parentPageId, regeneratePageUid);

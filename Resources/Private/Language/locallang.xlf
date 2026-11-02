@@ -185,11 +185,35 @@
             <trans-unit id="wizard.placement.form" resname="wizard.placement.form">
                 <source>Placement form</source>
             </trans-unit>
-            <trans-unit id="wizard.placement.parentPageId" resname="wizard.placement.parentPageId">
-                <source>Parent Page ID</source>
+            <trans-unit id="wizard.placement.parentPage" resname="wizard.placement.parentPage">
+                <source>Parent page</source>
             </trans-unit>
-            <trans-unit id="wizard.placement.parentPageIdPlaceholder" resname="wizard.placement.parentPageIdPlaceholder">
-                <source>Enter the UID of the parent page</source>
+            <trans-unit id="wizard.placement.parentPage.required" resname="wizard.placement.parentPage.required">
+                <source>required</source>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.empty" resname="wizard.placement.parentPage.empty">
+                <source>No page chosen</source>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.browse" resname="wizard.placement.parentPage.browse">
+                <source>Choose page</source>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.remove" resname="wizard.placement.parentPage.remove">
+                <source>Remove</source>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.removeLabel" resname="wizard.placement.parentPage.removeLabel">
+                <source>Remove the parent page</source>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.description" resname="wizard.placement.parentPage.description">
+                <source>The landing page is created as a subpage of this page.</source>
+            </trans-unit>
+            <trans-unit id="wizard.parentPage.error.notFound" resname="wizard.parentPage.error.notFound">
+                <source>Page %d does not exist, or it is not in your part of the page tree. Choose another page.</source>
+            </trans-unit>
+            <trans-unit id="wizard.parentPage.error.noPermission" resname="wizard.parentPage.error.noPermission">
+                <source>You may not create pages below page %d. Choose another page, or ask your administrator for the permission to create pages there.</source>
+            </trans-unit>
+            <trans-unit id="wizard.parentPage.error.noSubpages" resname="wizard.parentPage.error.noSubpages">
+                <source>Page %d is of a type that cannot hold subpages. Choose a standard page or a folder.</source>
             </trans-unit>
             <trans-unit id="wizard.summary" resname="wizard.summary">
                 <source>Summary</source>
@@ -275,11 +299,50 @@
             <trans-unit id="wizard.notification.pageTitleRequired" resname="wizard.notification.pageTitleRequired">
                 <source>Please enter a page title.</source>
             </trans-unit>
-            <trans-unit id="wizard.notification.parentRequired" resname="wizard.notification.parentRequired">
-                <source>Parent page required</source>
-            </trans-unit>
             <trans-unit id="wizard.notification.parentRequiredMessage" resname="wizard.notification.parentRequiredMessage">
-                <source>Please enter a valid parent page ID.</source>
+                <source>Choose the page below which the landing page is created.</source>
+            </trans-unit>
+            <trans-unit id="wizard.save.running" resname="wizard.save.running">
+                <source>Creating the landing page. This can take a minute or longer, for example when the page and its content are translated as well. When it is done, the wizard closes and the new page opens.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.title" resname="wizard.saveFailed.title">
+                <source>The landing page could not be created</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.happened" resname="wizard.saveFailed.heading.happened">
+                <source>What happened</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.exists" resname="wizard.saveFailed.heading.exists">
+                <source>What exists now</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.todo" resname="wizard.saveFailed.heading.todo">
+                <source>What you can do</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.ask" resname="wizard.saveFailed.heading.ask">
+                <source>Whom to ask</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.happened" resname="wizard.saveFailed.happened">
+                <source>The server reported: %s</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.exists.refused" resname="wizard.saveFailed.exists.refused">
+                <source>No page was created. Your content is still in this wizard.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.exists.unknown" resname="wizard.saveFailed.exists.unknown">
+                <source>The page may have been created anyway: the server can finish its work after the answer was lost. Your content is still in this wizard.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.todo.refused" resname="wizard.saveFailed.todo.refused">
+                <source>Correct what the message names, then press “Generate Landing Page” again.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.todo.unknown" resname="wizard.saveFailed.todo.unknown">
+                <source>Look below the parent page in the page tree first. If the page is there, close this wizard and open the page. If it is not, press “Generate Landing Page” again.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.ask" resname="wizard.saveFailed.ask">
+                <source>If it keeps failing, ask your administrator. The TYPO3 log holds the full error under the time of your attempt.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.closed.refused" resname="wizard.saveFailed.closed.refused">
+                <source>No page was created. Start the wizard again to create it.</source>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.closed.unknown" resname="wizard.saveFailed.closed.unknown">
+                <source>The page may have been created anyway. Look below the parent page in the page tree before you start the wizard again.</source>
             </trans-unit>
             <trans-unit id="wizard.notification.created" resname="wizard.notification.created">
                 <source>Landing page created</source>

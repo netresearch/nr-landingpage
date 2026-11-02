@@ -9,9 +9,11 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Service;
 
+use Netresearch\NrLandingpage\Domain\Model\ParentPageVerdict;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\DataHandling\PageDoktypeRegistry;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 
 /**
@@ -29,6 +31,7 @@ class BackendAccessGuard
 
     public function __construct(
         private readonly ModuleProvider $moduleProvider,
+        private readonly PageDoktypeRegistry $pageDoktypeRegistry,
     ) {}
 
     /**
@@ -66,7 +69,84 @@ class BackendAccessGuard
      */
     public function mayCreatePageBelow(int $pageId): bool
     {
-        return $this->hasPagePermission($pageId, Permission::PAGE_NEW);
+        return $this->checkParentPage($pageId) === ParentPageVerdict::Allowed;
+    }
+
+    /**
+     * Whether the current user may create a landing page below the given
+     * page, and if not, why. The page checks DataHandler makes when it
+     * inserts a page: the page is in the user's page tree (web mount and
+     * "show"), the user may modify the pages table and has "create page" on
+     * this page itself (hasNewPagePermission()), and the page's type holds
+     * subpages. A page the user cannot see counts as not found.
+     */
+    public function checkParentPage(int $pageId): ParentPageVerdict
+    {
+        $page = $this->readablePage($pageId);
+        $backendUser = $this->getBackendUser();
+        if ($page === null || $backendUser === null) {
+            return ParentPageVerdict::NotFound;
+        }
+        if (!$backendUser->check('tables_modify', 'pages') || !$this->hasNewPagePermission($page, $backendUser)) {
+            return ParentPageVerdict::NoPermission;
+        }
+        $doktype = $page['doktype'] ?? 0;
+        if (!$this->pageDoktypeRegistry->isRecordTypeAllowedForDoktype('pages', is_numeric($doktype) ? (int) $doktype : 0)) {
+            return ParentPageVerdict::NoSubpages;
+        }
+
+        return ParentPageVerdict::Allowed;
+    }
+
+    /**
+     * "Create page" on the page itself, computed the way
+     * DataHandler::hasPageContextPermission() does in 13.4 and 14.3: from
+     * the permissions for everybody, for the owner and for the owning group.
+     * BackendUserAuthentication::calcPerms() is stricter (it grants nothing
+     * to a user without a backend group), DataHandler is the authority.
+     *
+     * @param array<string, mixed> $page
+     */
+    private function hasNewPagePermission(array $page, BackendUserAuthentication $backendUser): bool
+    {
+        if ($backendUser->isAdmin()) {
+            return true;
+        }
+        $permission = Permission::PAGE_NEW;
+        $value = static fn(string $field): int => is_numeric($page[$field] ?? null) ? (int) $page[$field] : 0;
+        $groups = array_map(static fn(mixed $uid): int => is_numeric($uid) ? (int) $uid : 0, $backendUser->userGroupsUID);
+
+        return ($value('perms_everybody') & $permission) === $permission
+            || ($value('perms_userid') === (int) $backendUser->getUserId() && ($value('perms_user') & $permission) === $permission)
+            || ($groups !== [] && in_array($value('perms_groupid'), $groups, true) && ($value('perms_group') & $permission) === $permission);
+    }
+
+    /**
+     * The title of the page, when the current user may see it.
+     */
+    public function readablePageTitle(int $pageId): ?string
+    {
+        $title = $this->readablePage($pageId)['title'] ?? null;
+
+        return is_string($title) ? $title : null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function readablePage(int $pageId): ?array
+    {
+        $backendUser = $this->getBackendUser();
+        if ($backendUser === null || $pageId <= 0) {
+            return null;
+        }
+        $page = BackendUtility::readPageAccess($pageId, $backendUser->getPagePermsClause(Permission::PAGE_SHOW));
+        if (!is_array($page) || ($page['uid'] ?? null) === null) {
+            return null;
+        }
+
+        /** @var array<string, mixed> $page */
+        return $page;
     }
 
     private function hasPagePermission(int $pageId, int $permission): bool

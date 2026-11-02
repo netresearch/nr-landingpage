@@ -596,10 +596,19 @@ test.describe('Landing Page Wizard', () => {
     }
 
     /** From the content step to the confirmed save. */
+    /**
+     * Put a parent page into the placement step's picker without the element
+     * browser (the picker's own tests use the browser): the hidden field the
+     * save reads.
+     */
+    async function setParentPage(modal: Locator, uid: number): Promise<void> {
+        await modal.locator('.carousel-item.active #placement_parent').evaluate((input: HTMLInputElement, value) => { input.value = String(value); }, uid);
+    }
+
     async function saveFromContent(modal: Locator, page: Page): Promise<void> {
         await clickNext(modal, page);
-        await modal.locator('.carousel-item.active #placement_parent').waitFor({ state: 'visible', timeout: 15000 });
-        await modal.locator('#placement_parent').fill('1');
+        await modal.locator('.carousel-item.active [data-placement-parent]').waitFor({ state: 'visible', timeout: 15000 });
+        await setParentPage(modal, 1);
         await modal.locator('button.btn-success').click();
         const ok = page.locator('dialog:not([data-severity=""])').last().locator('button[name="ok"]');
         await ok.waitFor({ state: 'visible', timeout: 10000 });
@@ -926,15 +935,355 @@ test.describe('Landing Page Wizard', () => {
         // running: the open wizard must still count as busy.
         releases[0]();
         await expect.poll(() => parsedReplies(page, 'save'), { timeout: 15000 }).toBe(1);
-        // Not busy, this confirmed Save would send its request at once —
-        // before the open wizard's own request is released below.
-        await modal.locator('button.btn-success').click();
-        const ok = page.locator('dialog:not([data-severity=""])').last().locator('button[name="ok"]');
-        await ok.waitFor({ state: 'visible', timeout: 10000 });
-        await ok.click();
+        // Its own save still runs: Generate stays locked and the progress
+        // stays. Unlocked by force, Generate must neither ask nor send —
+        // not busy, it would send a request at once, before the open
+        // wizard's own request is released below.
+        const generate = modal.locator('button[name="next"]');
+        await expect(generate).toBeDisabled();
+        await expect(modal.locator('.carousel-item.active [data-save-status]')).toBeVisible();
+        await generate.evaluate((button: HTMLButtonElement) => { button.disabled = false; });
+        await generate.click();
+        await page.waitForTimeout(500);
+        await expect(page.locator('dialog:visible')).toHaveCount(1);
+        expect(count()).toBe(2);
         releases[1]();
         await expect.poll(() => parsedReplies(page, 'save'), { timeout: 15000 }).toBe(2);
         expect(count()).toBe(2);
+    });
+
+    // Creating the page runs DataHandler for the page and every section, and
+    // an installation that translates new records on save makes that take
+    // half a minute or more. OK must show that work is going on at once.
+    test('OK shows that the page is being created until the save replies', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', { pageUid: 0 });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+        await save.first;
+
+        const status = modal.locator('.carousel-item.active [data-save-status]');
+        await expect(status).toBeVisible();
+        await expect(status).toHaveAttribute('role', 'status');
+        await expect(status.locator('typo3-backend-spinner')).toHaveCount(1);
+        await expect(status).not.toHaveText('');
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+        await expect(modal.locator('button[name="prev"]')).toBeDisabled();
+
+        save.release();
+        await expect(page.locator('dialog:visible')).toHaveCount(0, { timeout: 15000 });
+    });
+
+    test('a double click on OK, and Generate pressed again, during a save send one request', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', { pageUid: 0 });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await clickNext(modal, page);
+        await modal.locator('.carousel-item.active [data-placement-parent]').waitFor({ state: 'visible', timeout: 15000 });
+        await setParentPage(modal, 1);
+        await modal.locator('button.btn-success').click();
+        const ok = page.locator('dialog:not([data-severity=""])').last().locator('button[name="ok"]');
+        await ok.waitFor({ state: 'visible', timeout: 10000 });
+        await ok.dblclick();
+        await save.first;
+        await expect(page.locator('dialog:visible')).toHaveCount(1, { timeout: 10000 });
+        // Generate is locked while the save runs. Unlocked by force, a press
+        // must still neither ask again nor send a second save.
+        const generate = modal.locator('button[name="next"]');
+        await expect(generate).toBeDisabled();
+        await generate.evaluate((button: HTMLButtonElement) => { button.disabled = false; });
+        await generate.click();
+        await page.waitForTimeout(500);
+        await expect(page.locator('dialog:visible')).toHaveCount(1);
+        expect(save.count()).toBe(1);
+        save.release();
+        await expect(page.locator('dialog:visible')).toHaveCount(0, { timeout: 15000 });
+        expect(save.count()).toBe(1);
+    });
+
+    test('a failed save says what happened, what exists, what to do and whom to ask', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', {}, 500);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+        await save.first;
+        save.release();
+
+        const failure = modal.locator('.carousel-item.active [data-save-failure]');
+        await expect(failure).toBeVisible({ timeout: 15000 });
+        await expect(failure).toContainText('Held reply failed');
+        await expect(failure).toHaveAttribute('data-save-failure', 'unknown');
+        for (const part of ['happened', 'exists', 'todo', 'ask']) {
+            await expect(failure.locator(`[data-failure-part="${part}"]`)).not.toHaveText('');
+        }
+        await expect(modal.locator('.carousel-item.active [data-save-status]')).toHaveCount(0);
+        await expect(modal.locator('button[name="next"]')).toBeEnabled();
+    });
+
+    test('a save that fails after the wizard was closed is still reported', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', {}, 500);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+        await save.first;
+        await expect(page.locator('dialog:visible')).toHaveCount(1, { timeout: 10000 });
+        await closeWizard(page);
+        save.release();
+
+        const notification = page.locator('typo3-notification-message, .alert').filter({ hasText: 'Held reply failed' }).first();
+        await expect(notification).toBeVisible({ timeout: 15000 });
+        // A 500: the page may exist anyway, so the editor looks before trying again.
+        await expect(notification).toContainText(/may have been created anyway|möglicherweise trotzdem angelegt/);
+        // The closed wizard's content is gone: no "still in this wizard".
+        await expect(notification).not.toContainText(/still in this wizard|weiterhin in diesem Assistenten/);
+    });
+
+    test('a refused save says that no page was created', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const save = await holdFirstReply(page, '/nr-landingpage/wizard/save', {}, 403);
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+        await save.first;
+        save.release();
+
+        const failure = modal.locator('.carousel-item.active [data-save-failure]');
+        await expect(failure).toBeVisible({ timeout: 15000 });
+        await expect(failure).toHaveAttribute('data-save-failure', 'refused');
+    });
+
+    test('a save whose connection breaks says the page may exist and to look in the page tree first', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        await page.route('**/nr-landingpage/wizard/save**', (route) => route.abort('failed'));
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await walkToContent(modal, page);
+        await saveFromContent(modal, page);
+
+        const failure = modal.locator('.carousel-item.active [data-save-failure]');
+        await expect(failure).toBeVisible({ timeout: 15000 });
+        await expect(failure).toHaveAttribute('data-save-failure', 'unknown');
+        await expect(failure.locator('[data-failure-part="exists"]')).not.toHaveText('');
+    });
+
+    /** From the template step of an open wizard to the placement step. */
+    async function walkToPlacement(modal: Locator, page: Page): Promise<Locator> {
+        await walkToContent(modal, page);
+        await clickNext(modal, page);
+        const picker = modal.locator('.carousel-item.active [data-placement-parent]');
+        await picker.waitFor({ state: 'visible', timeout: 15000 });
+        await waitForSlideSettled(modal);
+        return picker;
+    }
+
+    /** The page the picker tests choose; created once, at the root, when it does not exist. */
+    const PARENT_TITLE = 'E2E parent page';
+
+    /**
+     * The uid of the PARENT_TITLE page. The CI instance is set up without a
+     * site, so it has no page to pick; this creates one through the backend's
+     * own AJAX DataHandler route (as the logged-in admin) and refreshes the
+     * page tree.
+     */
+    async function ensureParentPage(page: Page): Promise<number> {
+        const uid = await page.evaluate(async (title: string) => {
+            const urls = (window as any).TYPO3.settings.ajaxUrls;
+            const find = async (): Promise<number> => {
+                const reply = await (await fetch(urls.livesearch + '&query=' + encodeURIComponent(title), { credentials: 'same-origin' })).json();
+                for (const result of reply.results ?? []) {
+                    const edit = (result.actions ?? []).find((action: any) => action.identifier === 'edit');
+                    const match = result.itemTitle === title ? /pages%5D%5B(\d+)%5D/.exec(edit?.url ?? '') : null;
+                    if (match) {
+                        return parseInt(match[1], 10);
+                    }
+                }
+                return 0;
+            };
+            const found = await find();
+            if (found > 0) {
+                return found;
+            }
+            const body = new URLSearchParams();
+            body.set('data[pages][NEW1][pid]', '0');
+            body.set('data[pages][NEW1][title]', title);
+            body.set('data[pages][NEW1][hidden]', '0');
+            await fetch(urls.record_process, { method: 'POST', body, credentials: 'same-origin' });
+            return find();
+        }, PARENT_TITLE);
+        expect(uid).toBeGreaterThan(0);
+        await page.evaluate(() => document.dispatchEvent(new CustomEvent('typo3:pagetree:refresh')));
+        return uid;
+    }
+
+    /** Pick a page by title in TYPO3's element browser opened from the picker. */
+    async function pickInElementBrowser(page: Page, picker: Locator, title: string): Promise<void> {
+        await picker.locator('[data-picker-browse]').click();
+        const browser = page.frameLocator('dialog iframe').last();
+        const entry = browser.locator('[data-close], a').filter({ hasText: title }).last();
+        await entry.waitFor({ state: 'visible', timeout: 15000 });
+        // The record list can be rendered before the browser's script has
+        // bound its click handler; a click in that window does nothing. A
+        // pick closes the browser, so click until it is gone.
+        await expect(async () => {
+            if (await entry.isVisible()) {
+                await entry.click({ timeout: 2000 });
+            }
+            await expect(page.locator('dialog:visible')).toHaveCount(1, { timeout: 2000 });
+        }).toPass({ timeout: 30000 });
+    }
+
+    test('the parent page is a page picker, not a number field, and takes a page from the element browser', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        let checked: Record<string, unknown> | null = null;
+        await page.route('**/nr-landingpage/wizard/check-parent-page**', async (route) => {
+            checked = route.request().postDataJSON();
+            await route.continue();
+        });
+        const uid = await ensureParentPage(page);
+        const modal = await openWizard(page, await navigateToModule(page));
+        const picker = await walkToPlacement(modal, page);
+
+        await expect(picker.locator('input[type="number"]')).toHaveCount(0);
+        const browse = picker.getByRole('button', { name: /choose page|seite ausw/i });
+        await expect(browse).toBeVisible();
+        // The heading names the group; the button keeps its visible text as
+        // its name, and the shown page describes it.
+        await expect(picker).toHaveAttribute('role', 'group');
+        await expect(picker).toHaveAccessibleName(/Parent page|Übergeordnete Seite/);
+        await expect(browse).toHaveAccessibleDescription(/No page chosen|Keine Seite/);
+        await expect(picker.locator('[data-picker-remove]')).toBeHidden();
+
+        await pickInElementBrowser(page, picker, PARENT_TITLE);
+        await expect(picker.locator('#placement_parent_item')).toHaveText(`${PARENT_TITLE} [${uid}]`, { timeout: 15000 });
+        await expect(picker.locator('#placement_parent')).toHaveValue(String(uid));
+        await expect(browse).toHaveAccessibleDescription(/E2E parent page \[\d+\]/);
+        await expect(page.locator('dialog:visible')).toHaveCount(1);
+        await expect(browse).toBeFocused();
+        await expect.poll(() => checked, { timeout: 15000 }).toEqual({ parentPageId: uid });
+        // The real server accepted the admin's pick: no message.
+        await expect(picker.locator('[data-picker-error]')).toHaveText('');
+
+        await picker.locator('[data-picker-remove]').click();
+        await expect(picker.locator('#placement_parent')).toHaveValue('');
+        await expect(picker.locator('[data-picker-remove]')).toBeHidden();
+        await expect(browse).toBeFocused();
+    });
+
+    test('the picker is used with the keyboard: Enter opens the browser, Escape closes it', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const modal = await openWizard(page, await navigateToModule(page));
+        const picker = await walkToPlacement(modal, page);
+
+        await picker.locator('[data-picker-browse]').focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('dialog:visible')).toHaveCount(2, { timeout: 15000 });
+        await page.frameLocator('dialog iframe').last().locator('body').waitFor({ timeout: 15000 });
+        await page.keyboard.press('Escape');
+        await expect(page.locator('dialog:visible')).toHaveCount(1, { timeout: 15000 });
+        await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', 'landing-page-placement');
+    });
+
+    test('the picker starts with the page selected in the page tree', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        const uid = await ensureParentPage(page);
+        await navigateToModule(page);
+        await page.getByRole('treeitem', { name: PARENT_TITLE }).first().click();
+        const frame = getModuleFrame(page);
+        await frame.locator(`#nr-landingpage-launch-wizard[data-parent-page-id="${uid}"][data-wizard-ready="1"]`).waitFor({ timeout: 15000 });
+        const modal = await openWizard(page, frame);
+        const picker = await walkToPlacement(modal, page);
+
+        await expect(picker.locator('#placement_parent_item')).toHaveText(`${PARENT_TITLE} [${uid}]`);
+        await expect(picker.locator('#placement_parent')).toHaveValue(String(uid));
+    });
+
+    test('a picked page the editor may not use is removed again, with the reason', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        await page.route('**/nr-landingpage/wizard/check-parent-page**', (route) => route.fulfill({
+            status: 403,
+            contentType: 'application/json',
+            body: JSON.stringify({ success: false, code: 'noPermission', error: 'You may not create pages below page 1.' }),
+        }));
+        await ensureParentPage(page);
+        const modal = await openWizard(page, await navigateToModule(page));
+        const picker = await walkToPlacement(modal, page);
+
+        await pickInElementBrowser(page, picker, PARENT_TITLE);
+        await expect(picker.locator('[data-picker-error]')).toHaveText('You may not create pages below page 1.', { timeout: 15000 });
+        await expect(picker.locator('[data-picker-error]')).toHaveAttribute('role', 'alert');
+        await expect(picker.locator('#placement_parent')).toHaveValue('');
+        await expect(picker.locator('[data-picker-browse]')).toHaveAttribute('aria-describedby', /placement_parent_error/);
+    });
+
+    test('a refusal of an earlier check does not remove the same page picked again', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => { release = resolve; });
+        let checks = 0;
+        await page.route('**/nr-landingpage/wizard/check-parent-page**', async (route) => {
+            if (++checks === 1) {
+                await held;
+                await route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ success: false, code: 'noPermission', error: 'Earlier refusal' }) });
+                return;
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: {} }) });
+        });
+        const uid = await ensureParentPage(page);
+        const modal = await openWizard(page, await navigateToModule(page));
+        const picker = await walkToPlacement(modal, page);
+
+        await pickInElementBrowser(page, picker, PARENT_TITLE);
+        await expect.poll(() => checks).toBe(1);
+        await picker.locator('[data-picker-remove]').click();
+        await pickInElementBrowser(page, picker, PARENT_TITLE);
+        await expect.poll(() => checks).toBe(2);
+        release();
+        await page.waitForTimeout(1000);
+
+        await expect(picker.locator('#placement_parent')).toHaveValue(String(uid));
+        await expect(picker.locator('[data-picker-error]')).toHaveText('');
+    });
+
+    test('a preselected page the editor may not use is removed when the step opens, with the reason', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        await page.route('**/nr-landingpage/wizard/check-parent-page**', (route) => route.fulfill({
+            status: 400,
+            contentType: 'application/json',
+            body: JSON.stringify({ success: false, code: 'noSubpages', error: 'Page 1 is of a type that cannot hold subpages.' }),
+        }));
+        const uid = await ensureParentPage(page);
+        await navigateToModule(page);
+        await page.getByRole('treeitem', { name: PARENT_TITLE }).first().click();
+        const frame = getModuleFrame(page);
+        await frame.locator(`#nr-landingpage-launch-wizard[data-parent-page-id="${uid}"][data-wizard-ready="1"]`).waitFor({ timeout: 15000 });
+        const modal = await openWizard(page, frame);
+        const picker = await walkToPlacement(modal, page);
+
+        await expect(picker.locator('[data-picker-error]')).toHaveText('Page 1 is of a type that cannot hold subpages.', { timeout: 15000 });
+        await expect(picker.locator('#placement_parent')).toHaveValue('');
+    });
+
+    test('Generate without a parent page says so at the picker and sends nothing', async ({ authenticatedPage: page }) => {
+        await mockUpToContent(page);
+        let saves = 0;
+        await page.route('**/nr-landingpage/wizard/save**', async (route) => { saves++; await route.abort(); });
+        const modal = await openWizard(page, await navigateToModule(page));
+        const picker = await walkToPlacement(modal, page);
+
+        await modal.locator('button.btn-success').click();
+        await expect(picker.locator('[data-picker-error]')).not.toHaveText('');
+        await expect(picker.locator('[data-picker-browse]')).toBeFocused();
+        await expect(page.locator('dialog:visible')).toHaveCount(1);
+        expect(saves).toBe(0);
     });
 
     // A slide renderer whose wizard was closed, and not opened again, gets its
@@ -1872,8 +2221,7 @@ test.describe('Landing Page Wizard', () => {
         // Fill placement form
         const titleInput = modal.locator('#placement_title');
         await titleInput.waitFor({ state: 'visible', timeout: 15000 });
-        const parentInput = modal.locator('#placement_parent');
-        await parentInput.fill('1');
+        await setParentPage(modal, 1);
 
         // Click save button
         const saveBtn = modal.locator('button.btn-success');

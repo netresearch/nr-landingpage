@@ -245,13 +245,45 @@
                 <source>Placement form</source>
                 <target>Platzierungs-Formular</target>
             </trans-unit>
-            <trans-unit id="wizard.placement.parentPageId" resname="wizard.placement.parentPageId">
-                <source>Parent Page ID</source>
-                <target>Übergeordnete Seiten-ID</target>
+            <trans-unit id="wizard.placement.parentPage" resname="wizard.placement.parentPage">
+                <source>Parent page</source>
+                <target>Übergeordnete Seite</target>
             </trans-unit>
-            <trans-unit id="wizard.placement.parentPageIdPlaceholder" resname="wizard.placement.parentPageIdPlaceholder">
-                <source>Enter the UID of the parent page</source>
-                <target>UID der übergeordneten Seite eingeben</target>
+            <trans-unit id="wizard.placement.parentPage.required" resname="wizard.placement.parentPage.required">
+                <source>required</source>
+                <target>Pflichtfeld</target>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.empty" resname="wizard.placement.parentPage.empty">
+                <source>No page chosen</source>
+                <target>Keine Seite ausgewählt</target>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.browse" resname="wizard.placement.parentPage.browse">
+                <source>Choose page</source>
+                <target>Seite auswählen</target>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.remove" resname="wizard.placement.parentPage.remove">
+                <source>Remove</source>
+                <target>Entfernen</target>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.removeLabel" resname="wizard.placement.parentPage.removeLabel">
+                <source>Remove the parent page</source>
+                <target>Übergeordnete Seite entfernen</target>
+            </trans-unit>
+            <trans-unit id="wizard.placement.parentPage.description" resname="wizard.placement.parentPage.description">
+                <source>The landing page is created as a subpage of this page.</source>
+                <target>Die Landing Page wird als Unterseite dieser Seite angelegt.</target>
+            </trans-unit>
+            <trans-unit id="wizard.parentPage.error.notFound" resname="wizard.parentPage.error.notFound">
+                <source>Page %d does not exist, or it is not in your part of the page tree. Choose another page.</source>
+                <target>Seite %d existiert nicht oder liegt nicht in Ihrem Bereich des Seitenbaums. Wählen Sie eine andere Seite.</target>
+            </trans-unit>
+            <trans-unit id="wizard.parentPage.error.noPermission" resname="wizard.parentPage.error.noPermission">
+                <source>You may not create pages below page %d. Choose another page, or ask your administrator for the permission to create pages there.</source>
+                <target>Sie dürfen unter Seite %d keine Seiten anlegen. Wählen Sie eine andere Seite oder bitten Sie Ihre Administration um die Berechtigung, dort Seiten anzulegen.</target>
+            </trans-unit>
+            <trans-unit id="wizard.parentPage.error.noSubpages" resname="wizard.parentPage.error.noSubpages">
+                <source>Page %d is of a type that cannot hold subpages. Choose a standard page or a folder.</source>
+                <target>Seite %d hat einen Seitentyp, unter dem keine Unterseiten möglich sind. Wählen Sie eine Standardseite oder einen Ordner.</target>
             </trans-unit>
             <trans-unit id="wizard.summary" resname="wizard.summary">
                 <source>Summary</source>
@@ -365,13 +397,65 @@
                 <source>Please enter a page title.</source>
                 <target>Bitte geben Sie einen Seitentitel ein.</target>
             </trans-unit>
-            <trans-unit id="wizard.notification.parentRequired" resname="wizard.notification.parentRequired">
-                <source>Parent page required</source>
-                <target>Übergeordnete Seite erforderlich</target>
-            </trans-unit>
             <trans-unit id="wizard.notification.parentRequiredMessage" resname="wizard.notification.parentRequiredMessage">
-                <source>Please enter a valid parent page ID.</source>
-                <target>Bitte geben Sie eine gültige Seiten-ID ein.</target>
+                <source>Choose the page below which the landing page is created.</source>
+                <target>Wählen Sie die Seite, unter der die Landing Page angelegt wird.</target>
+            </trans-unit>
+            <trans-unit id="wizard.save.running" resname="wizard.save.running">
+                <source>Creating the landing page. This can take a minute or longer, for example when the page and its content are translated as well. When it is done, the wizard closes and the new page opens.</source>
+                <target>Die Landing Page wird angelegt. Das kann eine Minute oder länger dauern, zum Beispiel wenn die Seite und ihre Inhalte zugleich übersetzt werden. Danach schließt sich der Assistent und die neue Seite öffnet sich.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.title" resname="wizard.saveFailed.title">
+                <source>The landing page could not be created</source>
+                <target>Die Landing Page konnte nicht angelegt werden</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.happened" resname="wizard.saveFailed.heading.happened">
+                <source>What happened</source>
+                <target>Was passiert ist</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.exists" resname="wizard.saveFailed.heading.exists">
+                <source>What exists now</source>
+                <target>Was jetzt existiert</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.todo" resname="wizard.saveFailed.heading.todo">
+                <source>What you can do</source>
+                <target>Was Sie tun können</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.heading.ask" resname="wizard.saveFailed.heading.ask">
+                <source>Whom to ask</source>
+                <target>Wen Sie fragen können</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.happened" resname="wizard.saveFailed.happened">
+                <source>The server reported: %s</source>
+                <target>Der Server meldet: %s</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.exists.refused" resname="wizard.saveFailed.exists.refused">
+                <source>No page was created. Your content is still in this wizard.</source>
+                <target>Es wurde keine Seite angelegt. Ihre Inhalte sind weiterhin in diesem Assistenten.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.exists.unknown" resname="wizard.saveFailed.exists.unknown">
+                <source>The page may have been created anyway: the server can finish its work after the answer was lost. Your content is still in this wizard.</source>
+                <target>Die Seite wurde möglicherweise trotzdem angelegt: Der Server kann seine Arbeit beenden, auch wenn die Antwort verloren gegangen ist. Ihre Inhalte sind weiterhin in diesem Assistenten.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.todo.refused" resname="wizard.saveFailed.todo.refused">
+                <source>Correct what the message names, then press “Generate Landing Page” again.</source>
+                <target>Korrigieren Sie, was die Meldung nennt, und klicken Sie dann erneut auf „Landing Page generieren“.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.todo.unknown" resname="wizard.saveFailed.todo.unknown">
+                <source>Look below the parent page in the page tree first. If the page is there, close this wizard and open the page. If it is not, press “Generate Landing Page” again.</source>
+                <target>Sehen Sie zuerst im Seitenbaum unter der übergeordneten Seite nach. Ist die Seite dort, schließen Sie den Assistenten und öffnen Sie die Seite. Ist sie nicht dort, klicken Sie erneut auf „Landing Page generieren“.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.ask" resname="wizard.saveFailed.ask">
+                <source>If it keeps failing, ask your administrator. The TYPO3 log holds the full error under the time of your attempt.</source>
+                <target>Wenn es weiterhin fehlschlägt, wenden Sie sich an Ihre Administration. Das TYPO3-Log enthält den vollständigen Fehler unter dem Zeitpunkt Ihres Versuchs.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.closed.refused" resname="wizard.saveFailed.closed.refused">
+                <source>No page was created. Start the wizard again to create it.</source>
+                <target>Es wurde keine Seite angelegt. Starten Sie den Assistenten erneut, um sie anzulegen.</target>
+            </trans-unit>
+            <trans-unit id="wizard.saveFailed.closed.unknown" resname="wizard.saveFailed.closed.unknown">
+                <source>The page may have been created anyway. Look below the parent page in the page tree before you start the wizard again.</source>
+                <target>Die Seite wurde möglicherweise trotzdem angelegt. Sehen Sie im Seitenbaum unter der übergeordneten Seite nach, bevor Sie den Assistenten erneut starten.</target>
             </trans-unit>
             <trans-unit id="wizard.notification.created" resname="wizard.notification.created">
                 <source>Landing page created</source>

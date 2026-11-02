@@ -21,6 +21,7 @@ class WizardState {
         this.contentSections = [];
         this.images = [];
         this.parentPageId = 0;
+        this.parentPageTitle = '';
         this.sourcePageUid = 0;
         this.regenerateMode = false;
         this.title = '';
@@ -72,11 +73,26 @@ class WizardState {
     }
 
     setParentPageId(id) {
+        this.setParentPage(id, '');
+    }
+
+    /**
+     * The page the landing page is created below; 0 and '' for none.
+     *
+     * @param {number} id
+     * @param {string} title
+     */
+    setParentPage(id, title) {
         this.parentPageId = id;
+        this.parentPageTitle = id > 0 ? title : '';
     }
 
     getParentPageId() {
         return this.parentPageId;
+    }
+
+    getParentPageTitle() {
+        return this.parentPageTitle;
     }
 
     setTitle(title) {
