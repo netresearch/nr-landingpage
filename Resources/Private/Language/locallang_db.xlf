@@ -108,13 +108,22 @@
                 <source>Select which layout columns should be filled with generated content. Leave empty to use all columns.</source>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task" resname="tx_nrlandingpage_domain_model_template.image_task">
-                <source>Image Source</source>
+                <source>Images: media library or AI image prompt</source>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.description" resname="tx_nrlandingpage_domain_model_template.image_task.description">
-                <source>How to find images for the page. "Media Library only" searches existing files. With an AI task selected, missing images are generated automatically.</source>
+                <source>"Media Library only" uses existing files. An image prompt switches on AI image generation: every section with an image gets a generated image next to the media library matches. The prompt is used for a section the content model gave no image prompt of its own; {{input}} becomes the section heading. The image model is the default image model in nr-llm, not the task's configuration. Listed are the tasks marked "Landing page: image prompt" in nr-llm.</source>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.none" resname="tx_nrlandingpage_domain_model_template.image_task.none">
                 <source>-- Media Library only (no AI) --</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.group.marked" resname="tx_nrlandingpage_domain_model_template.image_task.group.marked">
+                <source>AI image prompts</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.group.unmarked" resname="tx_nrlandingpage_domain_model_template.image_task.group.unmarked">
+                <source>Not marked as an image prompt</source>
+            </trans-unit>
+            <trans-unit id="tx_nrllm_task.placements.landingpage_image" resname="tx_nrllm_task.placements.landingpage_image">
+                <source>Landing page: image prompt</source>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.prompt_optimizer_context" resname="tx_nrlandingpage_domain_model_template.prompt_optimizer_context">
                 <source>Optimization Context</source>

@@ -134,16 +134,28 @@
                 <target>-- Von übergeordneter Seite erben --</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task" resname="tx_nrlandingpage_domain_model_template.image_task">
-                <source>Image Source</source>
-                <target>Bildquelle</target>
+                <source>Images: media library or AI image prompt</source>
+                <target>Bilder: Mediathek oder KI-Bildprompt</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.description" resname="tx_nrlandingpage_domain_model_template.image_task.description">
-                <source>How to find images for the page. "Media Library only" searches existing files. With an AI task selected, missing images are generated automatically.</source>
-                <target>Wie Bilder für die Seite gefunden werden. „Nur Mediathek“ durchsucht vorhandene Dateien. Mit einem KI-Task werden fehlende Bilder automatisch generiert.</target>
+                <source>"Media Library only" uses existing files. An image prompt switches on AI image generation: every section with an image gets a generated image next to the media library matches. The prompt is used for a section the content model gave no image prompt of its own; {{input}} becomes the section heading. The image model is the default image model in nr-llm, not the task's configuration. Listed are the tasks marked "Landing page: image prompt" in nr-llm.</source>
+                <target>„Nur Mediathek“ verwendet vorhandene Dateien. Ein Bildprompt schaltet die KI-Bilderzeugung ein: Jede Section mit Bild erhält zusätzlich zu den Treffern aus der Mediathek ein erzeugtes Bild. Der Prompt gilt für Sections, für die das Inhaltsmodell keinen eigenen Bildprompt geliefert hat; {{input}} wird durch die Überschrift der Section ersetzt. Das Bildmodell ist das Standard-Bildmodell in nr-llm, nicht die Konfiguration der Aufgabe. Angeboten werden die Aufgaben, die in nr-llm als „Landingpage: Bildprompt“ markiert sind.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.none" resname="tx_nrlandingpage_domain_model_template.image_task.none">
                 <source>-- Media Library only (no AI) --</source>
                 <target>-- Nur Mediathek (keine KI) --</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.group.marked" resname="tx_nrlandingpage_domain_model_template.image_task.group.marked">
+                <source>AI image prompts</source>
+                <target>KI-Bildprompts</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.group.unmarked" resname="tx_nrlandingpage_domain_model_template.image_task.group.unmarked">
+                <source>Not marked as an image prompt</source>
+                <target>Nicht als Bildprompt markiert</target>
+            </trans-unit>
+            <trans-unit id="tx_nrllm_task.placements.landingpage_image" resname="tx_nrllm_task.placements.landingpage_image">
+                <source>Landing page: image prompt</source>
+                <target>Landingpage: Bildprompt</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.prompt_optimizer_context" resname="tx_nrlandingpage_domain_model_template.prompt_optimizer_context">
                 <source>Optimization Context</source>
