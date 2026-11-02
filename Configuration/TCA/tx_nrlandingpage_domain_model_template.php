@@ -39,10 +39,9 @@ return [
                 'animation_enabled',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.wizard',
                 'briefing_mode,publish_mode',
-                '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.access',
-                'be_groups',
+                // One "Access" tab: who may use the template, and whether it is offered at all.
                 '--div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access',
-                'hidden',
+                'hidden,be_groups',
             ]),
         ],
     ],
@@ -106,7 +105,9 @@ return [
                 'foreign_table' => 'tx_nrllm_configuration',
                 'foreign_table_where' => 'AND {#tx_nrllm_configuration}.{#deleted} = 0 ORDER BY tx_nrllm_configuration.name',
                 'items' => [
-                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.llm_configuration.default', 'value' => 0],
+                    // The records come with an icon; without one here, the
+                    // selected default would show an empty icon box.
+                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.llm_configuration.default', 'value' => 0, 'icon' => 'actions-cog'],
                 ],
                 'default' => 0,
             ],
@@ -230,7 +231,7 @@ return [
                 'foreign_table' => 'tx_nrllm_task',
                 'foreign_table_where' => 'AND {#tx_nrllm_task}.{#deleted} = 0 AND {#tx_nrllm_task}.{#hidden} = 0 ORDER BY tx_nrllm_task.category, tx_nrllm_task.name',
                 'items' => [
-                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_task.none', 'value' => 0],
+                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_task.none', 'value' => 0, 'icon' => 'apps-filetree-folder-media'],
                 ],
                 'default' => 0,
             ],

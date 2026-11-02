@@ -22,8 +22,8 @@
                 <target>Beschreibung</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.llm_configuration" resname="tx_nrlandingpage_domain_model_template.llm_configuration">
-                <source>AI Model</source>
-                <target>KI-Modell</target>
+                <source>LLM Configuration</source>
+                <target>LLM-Konfiguration</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.system_prompt" resname="tx_nrlandingpage_domain_model_template.system_prompt">
                 <source>AI Instructions</source>
@@ -90,12 +90,12 @@
                 <target>-- Standard verwenden --</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.llm_configuration.description" resname="tx_nrlandingpage_domain_model_template.llm_configuration.description">
-                <source>Which AI model generates the content. Leave on "Default" to use the globally configured model.</source>
-                <target>Welches KI-Modell die Inhalte generiert. Auf „Standard" belassen, um das global konfigurierte Modell zu nutzen.</target>
+                <source>Which LLM configuration (provider, model and settings) generates the content. Leave on "Use Default" to use the LLM configuration marked as default.</source>
+                <target>Welche LLM-Konfiguration (Anbieter, Modell und Einstellungen) die Inhalte generiert. Auf „Standard verwenden“ belassen, um die als Standard markierte LLM-Konfiguration zu nutzen.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.system_prompt.description" resname="tx_nrlandingpage_domain_model_template.system_prompt.description">
                 <source>Instructions that tell the AI how to write: tone, style, length, language, and constraints. Example: "Write in formal German, max 200 words per section, include a call-to-action." Tip: Use "Auto-optimize" to generate instructions from your template settings, or "Preview" to test the full output.</source>
-                <target>Anweisungen, die der KI sagen, wie sie schreiben soll: Tonalität, Stil, Länge, Sprache und Vorgaben. Beispiel: „Schreibe in formellem Deutsch, max. 200 Wörter pro Abschnitt, mit Call-to-Action." Tipp: „Auto-optimieren" generiert Anweisungen aus Ihren Vorlageneinstellungen, „Vorschau" testet die komplette Ausgabe.</target>
+                <target>Anweisungen, die der KI sagen, wie sie schreiben soll: Tonalität, Stil, Länge, Sprache und Vorgaben. Beispiel: „Schreibe in formellem Deutsch, max. 200 Wörter pro Abschnitt, mit Call-to-Action.“ Tipp: „Auto-optimieren“ generiert Anweisungen aus Ihren Vorlageneinstellungen, „Vorschau“ testet die komplette Ausgabe.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.allowed_ctypes.description" resname="tx_nrlandingpage_domain_model_template.allowed_ctypes.description">
                 <source>Which content elements the AI may use on the page (e.g. text, image, header). Only checked types will appear in generated pages.</source>
@@ -139,7 +139,7 @@
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.description" resname="tx_nrlandingpage_domain_model_template.image_task.description">
                 <source>How to find images for the page. "Media Library only" searches existing files. With an AI task selected, missing images are generated automatically.</source>
-                <target>Wie Bilder für die Seite gefunden werden. „Nur Mediathek" durchsucht vorhandene Dateien. Mit einem KI-Task werden fehlende Bilder automatisch generiert.</target>
+                <target>Wie Bilder für die Seite gefunden werden. „Nur Mediathek“ durchsucht vorhandene Dateien. Mit einem KI-Task werden fehlende Bilder automatisch generiert.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.image_task.none" resname="tx_nrlandingpage_domain_model_template.image_task.none">
                 <source>-- Media Library only (no AI) --</source>
@@ -167,7 +167,7 @@
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.generation_mode.description" resname="tx_nrlandingpage_domain_model_template.generation_mode.description">
                 <source>How the AI creates page content. "Structured" uses TYPO3 content elements (text, image, etc.). "Creative HTML" gives the AI full design freedom with HTML and CSS per layout block — ideal for visually rich, unique landing pages.</source>
-                <target>Wie die KI Seiteninhalte erstellt. „Strukturiert" nutzt TYPO3-Inhaltselemente (Text, Bild etc.). „Kreatives HTML" gibt der KI volle Gestaltungsfreiheit mit HTML und CSS pro Layout-Block — ideal für visuell ansprechende, einzigartige Landing Pages.</target>
+                <target>Wie die KI Seiteninhalte erstellt. „Strukturiert“ nutzt TYPO3-Inhaltselemente (Text, Bild etc.). „Kreatives HTML“ gibt der KI volle Gestaltungsfreiheit mit HTML und CSS pro Layout-Block — ideal für visuell ansprechende, einzigartige Landing Pages.</target>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.generation_mode.structured" resname="tx_nrlandingpage_domain_model_template.generation_mode.structured">
                 <source>Structured — TYPO3 content elements</source>
@@ -188,10 +188,6 @@
             <trans-unit id="tabs.wizard" resname="tabs.wizard">
                 <source>Wizard</source>
                 <target>Assistent</target>
-            </trans-unit>
-            <trans-unit id="tabs.access" resname="tabs.access">
-                <source>Access</source>
-                <target>Zugriff</target>
             </trans-unit>
             <trans-unit id="palette.prompt_optimizer" resname="palette.prompt_optimizer">
                 <source>Prompt Optimization</source>

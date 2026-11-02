@@ -18,7 +18,7 @@
                 <source>Description</source>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.llm_configuration" resname="tx_nrlandingpage_domain_model_template.llm_configuration">
-                <source>AI Model</source>
+                <source>LLM Configuration</source>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.system_prompt" resname="tx_nrlandingpage_domain_model_template.system_prompt">
                 <source>AI Instructions</source>
@@ -69,7 +69,7 @@
                 <source>-- Use Default --</source>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.llm_configuration.description" resname="tx_nrlandingpage_domain_model_template.llm_configuration.description">
-                <source>Which AI model generates the content. Leave on "Default" to use the globally configured model.</source>
+                <source>Which LLM configuration (provider, model and settings) generates the content. Leave on "Use Default" to use the LLM configuration marked as default.</source>
             </trans-unit>
             <trans-unit id="tx_nrlandingpage_domain_model_template.system_prompt.description" resname="tx_nrlandingpage_domain_model_template.system_prompt.description">
                 <source>Instructions that tell the AI how to write: tone, style, length, language, and constraints. Example: "Write in formal German, max 200 words per section, include a call-to-action." Tip: Use "Auto-optimize" to generate instructions from your template settings, or "Preview" to test the full output.</source>
@@ -148,9 +148,6 @@
             </trans-unit>
             <trans-unit id="tabs.wizard" resname="tabs.wizard">
                 <source>Wizard</source>
-            </trans-unit>
-            <trans-unit id="tabs.access" resname="tabs.access">
-                <source>Access</source>
             </trans-unit>
             <trans-unit id="palette.prompt_optimizer" resname="palette.prompt_optimizer">
                 <source>Prompt Optimization</source>

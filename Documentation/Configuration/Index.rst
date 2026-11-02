@@ -11,8 +11,8 @@ The extension uses two levels of configuration:
 
 1.  **Site settings** — global defaults per TYPO3 site (e.g. brand
     colors), configured via :guilabel:`Site Management > Settings`
-2.  **Template records** — per-template configuration for AI model,
-    content types, layout, and optional color overrides
+2.  **Template records** — per-template configuration for the LLM
+    configuration, content types, layout, and optional color overrides
 
 Templates inherit site-level defaults and can override them
 individually.
@@ -215,15 +215,21 @@ General Tab
 AI Configuration Tab
 --------------------
 
-.. confval:: AI Model
+.. confval:: LLM Configuration
 
    :type: select
-   :default: Default (system-wide model)
+   :default: Use Default (the LLM configuration marked as default)
 
-   Which LLM model generates the content. Select "Default" to use
-   the globally configured model, or choose a specific configuration
-   if this template needs a different model (e.g. GPT-4 for complex
-   content, GPT-3.5 for simple pages).
+   Which LLM configuration of the LLM extension generates the content.
+   A configuration bundles provider, model and settings such as
+   temperature. Select "Use Default" to use the LLM configuration
+   marked as default, or choose a specific configuration if this
+   template needs another provider, model or settings.
+
+   "Use Default" works only while the default configuration has a model
+   assigned and is not restricted to backend groups; otherwise the
+   generation stops with the message that no default provider is
+   configured.
 
 .. confval:: Image Task
 
@@ -537,6 +543,13 @@ Wizard Tab
 
 Access Tab
 ----------
+
+.. confval:: Hidden
+
+   :type: check
+   :default: off
+
+   A hidden template is not offered in the wizard.
 
 .. confval:: Backend User Groups
 
