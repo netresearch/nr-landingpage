@@ -512,9 +512,10 @@ class LandingPageWizard {
      * disables the button that has focus, and moves focus nowhere; a step that
      * then waits for a reply leaves it on the body. Like core's modal, which
      * focuses a control of the dialog once it has opened, this focuses the
-     * step's first field. A step without one (an error, no content) gets
-     * Next when it is enabled, otherwise Previous (a required briefing that
-     * failed to load keeps Next locked), otherwise Cancel. Only when the focus
+     * step's first field; a step that failed to load counts its Retry button
+     * as that field (Next stays locked, see showSlideError()). A step without
+     * either (no content) gets Next when it is enabled, otherwise Previous,
+     * otherwise Cancel. Only when the focus
      * has been lost (see focusIfLost()): call it after the step has locked or
      * unlocked Next.
      *
@@ -536,7 +537,7 @@ class LandingPageWizard {
     focusStep(container) {
         const field = container.querySelector(
             'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])',
-        );
+        ) ?? container.querySelector('button[data-step-retry]');
         const modal = container.closest('.modal');
         const button = (name) => modal?.querySelector('button[name="' + name + '"]:not([disabled])') ?? null;
         const target = field ?? button('next') ?? button('prev') ?? button('cancel');
@@ -730,7 +731,8 @@ class LandingPageWizard {
             if (this.isStaleRender(token, container)) {
                 return;
             }
-            this.showSlideError(container, this.label('wizard.error.templates', error.message));
+            this.showSlideError(container, this.label('wizard.error.templates', error.message), () => this.renderTemplateSlide($slide));
+            this.focusStep(container);
         }
     }
 
@@ -847,10 +849,7 @@ class LandingPageWizard {
             if (this.isStaleRender(token, container)) {
                 return;
             }
-            this.showSlideError(container, this.label('wizard.error.briefing', error.message));
-            if (template.briefingMode !== 'required') {
-                MultiStepWizard.unlockNextStep();
-            }
+            this.showSlideError(container, this.label('wizard.error.briefing', error.message), () => this.renderBriefingSlide($slide));
             this.focusStep(container);
         }
     }
@@ -972,8 +971,7 @@ class LandingPageWizard {
             if (this.isStaleRender(token, container)) {
                 return;
             }
-            this.showSlideError(container, this.label('wizard.error.pageFields', error.message));
-            MultiStepWizard.unlockNextStep();
+            this.showSlideError(container, this.label('wizard.error.pageFields', error.message), () => this.renderPageFieldsSlide($slide));
             this.focusStep(container);
         }
     }
@@ -1029,8 +1027,7 @@ class LandingPageWizard {
             if (this.isStaleRender(token, container)) {
                 return;
             }
-            this.showSlideError(container, this.label('wizard.error.content', error.message));
-            MultiStepWizard.unlockNextStep();
+            this.showSlideError(container, this.label('wizard.error.content', error.message), () => this.renderContentSlide($slide));
             this.focusStep(container);
         }
     }
@@ -2333,18 +2330,32 @@ class LandingPageWizard {
     }
 
     /**
-     * Show an error message inside a slide container.
+     * Show the error of a step that failed to load, and a Retry button that
+     * loads it again. The caller keeps Next locked: a step that failed cannot
+     * be skipped, or the wizard would save a page from what is missing (#107).
      *
      * @param {HTMLElement} container
      * @param {string} message
+     * @param {Function} retry  Renders the step again
      */
-    showSlideError(container, message) {
-        container.innerHTML = '';
+    showSlideError(container, message, retry) {
+        container.replaceChildren();
         const alert = document.createElement('div');
         alert.className = 'alert alert-danger';
+        alert.id = 'nr-landingpage-step-error-' + this._render;
         alert.setAttribute('role', 'alert');
         alert.textContent = message;
         container.appendChild(alert);
+
+        // Next stays locked after a failure, so Retry is the way on. The
+        // caller's focusStep() puts the focus on it, and it carries the
+        // message as its description: the message is read out with the
+        // focused button, also where a screen reader misses the inserted
+        // alert.
+        const button = this.createButton(this.label('wizard.button.retry'), 'btn btn-default', retry);
+        button.dataset.stepRetry = '';
+        button.setAttribute('aria-describedby', alert.id);
+        container.appendChild(button);
     }
 
     /**

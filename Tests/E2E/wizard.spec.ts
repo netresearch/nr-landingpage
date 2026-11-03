@@ -1302,7 +1302,6 @@ test.describe('Landing Page Wizard', () => {
                     'page-fields': ['generate-page-fields', { title: 'T', slug: 't' }],
                     'content': ['generate-content', sampleContentSections],
                 };
-                // Briefing mode "optional": a briefing error still unlocks Next.
                 await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
                 for (const [name, [endpoint, data]] of Object.entries(replies)) {
                     if (name !== step) {
@@ -1592,10 +1591,10 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal.locator('.carousel-item.active #placement_title')).toBeFocused({ timeout: 15000 });
     });
 
-    test('a required briefing that fails to load puts focus on Previous', async ({ authenticatedPage: page }) => {
+    test('a required briefing that fails to load puts focus on Retry', async ({ authenticatedPage: page }) => {
         await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [templateWithRequiredBriefing]);
-        // Required: the step shows the error and keeps Next locked. The reply
-        // arrives late, after Chromium has moved the focus off the locked Next.
+        // The step shows the error and keeps Next locked. The reply arrives
+        // late, after Chromium has moved the focus off the locked Next.
         await page.route('**/nr-landingpage/wizard/generate-briefing**', async (route) => {
             await new Promise((resolve) => setTimeout(resolve, 500));
             await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Step failed' }) });
@@ -1607,7 +1606,7 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal.locator('.carousel-item.active .alert-danger')).toBeVisible({ timeout: 15000 });
         await waitForSlideSettled(modal);
         await expect(modal.locator('button[name="next"]')).toBeDisabled();
-        await expect(modal.locator('button[name="prev"]')).toBeFocused();
+        await expect(modal.locator('.carousel-item.active button[data-step-retry]')).toBeFocused();
     });
 
     // Re-generate mode: the template step advances by itself, and the focus
@@ -1694,25 +1693,75 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal.locator('.carousel-item.active #pf_title')).toBeFocused({ timeout: 15000 });
     });
 
-    // A step that fails to load shows the error and unlocks Next (briefing
-    // mode "optional"), and has no field. The failure arrives late, as a slow
-    // server's would: Chromium has moved the focus off the disabled Next by
-    // then. (A reply within a few milliseconds can still find it there; the
-    // test above covers that case.)
-    for (const step of ['briefing', 'page-fields', 'content'] as const) {
-        test(`Next to a ${step} step that fails to load puts focus on Next`, async ({ authenticatedPage: page }) => {
-            const endpoints = { 'briefing': 'generate-briefing', 'page-fields': 'generate-page-fields', 'content': 'generate-content' };
-            await mockUpToContent(page);
-            await page.route('**/nr-landingpage/wizard/' + endpoints[step] + '**', async (route) => {
+    test('a template list that fails to load offers Retry, and Retry loads it again', async ({ authenticatedPage: page }) => {
+        let requests = 0;
+        await page.route('**/nr-landingpage/wizard/templates**', async (route) => {
+            if (++requests === 1) {
                 await new Promise((resolve) => setTimeout(resolve, 500));
                 await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Step failed' }) });
+                return;
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: [sampleTemplate] }) });
+        });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await expect(modal.locator('.carousel-item.active .alert-danger')).toContainText('Step failed', { timeout: 15000 });
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+        const retry = modal.locator('.carousel-item.active button[data-step-retry]');
+        await expect(retry).toBeFocused();
+
+        await page.keyboard.press('Enter');
+        await expect(modal.locator('.carousel-item.active .template-card')).toHaveCount(1, { timeout: 15000 });
+        expect(requests).toBe(2);
+        await expect(modal.locator('.carousel-item.active .alert-danger')).toHaveCount(0);
+        // Nothing is checked yet: Next stays locked until a template is.
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+    });
+
+    // A step that fails to load cannot be skipped (#107): Next stays locked,
+    // also for briefing mode "optional", and Retry loads the step again. A
+    // failed content step that could be skipped saved a page without content.
+    // The failure arrives late, as a slow server's would: Chromium has moved
+    // the focus off the disabled Next by then.
+    for (const step of ['briefing', 'page-fields', 'content'] as const) {
+        test(`a ${step} step that fails to load keeps Next locked, and Retry loads it again`, async ({ authenticatedPage: page }) => {
+            const steps = {
+                'briefing': { endpoint: 'generate-briefing', slide: 'landing-page-briefing', field: '#briefing_title' },
+                'page-fields': { endpoint: 'generate-page-fields', slide: 'landing-page-fields', field: '#pf_title' },
+                'content': { endpoint: 'generate-content', slide: 'landing-page-content', field: '#section-card-0 .section-header' },
+            };
+            const replies = { 'briefing': [], 'page-fields': { title: 'T', slug: 't' }, 'content': sampleContentSections };
+            await mockUpToContent(page);
+            let requests = 0;
+            await page.route('**/nr-landingpage/wizard/' + steps[step].endpoint + '**', async (route) => {
+                if (++requests === 1) {
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                    await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Step failed' }) });
+                    return;
+                }
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: replies[step] }) });
             });
 
             const modal = await openWizard(page, await navigateToModule(page));
             await nextToStep(modal, page, step);
-            await expect(modal.locator('.carousel-item.active .alert-danger')).toBeVisible({ timeout: 15000 });
+            const alert = modal.locator('.carousel-item.active .alert-danger');
+            await expect(alert).toContainText('Step failed', { timeout: 15000 });
+            await expect(alert).toHaveAttribute('role', 'alert');
             await waitForSlideSettled(modal);
-            await expect(modal.locator('button[name="next"]')).toBeFocused();
+            await expect(modal.locator('button[name="next"]')).toBeDisabled();
+
+            // Retry has the focus and is described by the message.
+            const retry = modal.locator('.carousel-item.active button[data-step-retry]');
+            await expect(retry).toBeFocused();
+            await expect(retry).toHaveAttribute('aria-describedby', (await alert.getAttribute('id')) ?? 'missing id');
+
+            // Enter on Retry loads the step again and does not press Next.
+            await page.keyboard.press('Enter');
+            await expect(modal.locator('.carousel-item.active ' + steps[step].field)).toBeFocused({ timeout: 15000 });
+            expect(requests).toBe(2);
+            await expect(modal.locator('.carousel-item.active')).toHaveAttribute('data-bs-slide', steps[step].slide);
+            await expect(modal.locator('.carousel-item.active .alert-danger')).toHaveCount(0);
+            await expect(modal.locator('button[name="next"]')).toBeEnabled();
         });
     }
 
@@ -1897,6 +1946,8 @@ test.describe('Landing Page Wizard', () => {
 
         await expect(modal.locator('.alert-info')).toBeVisible();
         await expect(modal.locator('[id^="section-card-"]')).toHaveCount(0);
+        // No content is a result, not a failure: the editor can go on (#107).
+        await expect(modal.locator('button[name="next"]')).toBeEnabled();
     });
 
     test('content sections have editable header and bodytext fields', async ({ authenticatedPage: page }) => {

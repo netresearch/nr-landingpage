@@ -30,7 +30,10 @@ Content Generation Fails
 =========================
 
 **Symptom:** The wizard shows an error during content or page field
-generation.
+generation, and :guilabel:`Next` is locked.
+
+The step cannot be skipped. Correct the cause, then press
+:guilabel:`Retry` in the step to load it again.
 
 **Causes and solutions:**
 
