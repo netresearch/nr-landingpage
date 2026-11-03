@@ -1693,6 +1693,31 @@ test.describe('Landing Page Wizard', () => {
         await expect(modal.locator('.carousel-item.active #pf_title')).toBeFocused({ timeout: 15000 });
     });
 
+    test('a template list that fails to load offers Retry, and Retry loads it again', async ({ authenticatedPage: page }) => {
+        let requests = 0;
+        await page.route('**/nr-landingpage/wizard/templates**', async (route) => {
+            if (++requests === 1) {
+                await new Promise((resolve) => setTimeout(resolve, 500));
+                await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Step failed' }) });
+                return;
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: [sampleTemplate] }) });
+        });
+
+        const modal = await openWizard(page, await navigateToModule(page));
+        await expect(modal.locator('.carousel-item.active .alert-danger')).toContainText('Step failed', { timeout: 15000 });
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+        const retry = modal.locator('.carousel-item.active button[data-step-retry]');
+        await expect(retry).toBeFocused();
+
+        await page.keyboard.press('Enter');
+        await expect(modal.locator('.carousel-item.active .template-card')).toHaveCount(1, { timeout: 15000 });
+        expect(requests).toBe(2);
+        await expect(modal.locator('.carousel-item.active .alert-danger')).toHaveCount(0);
+        // Nothing is checked yet: Next stays locked until a template is.
+        await expect(modal.locator('button[name="next"]')).toBeDisabled();
+    });
+
     // A step that fails to load cannot be skipped (#107): Next stays locked,
     // also for briefing mode "optional", and Retry loads the step again. A
     // failed content step that could be skipped saved a page without content.
