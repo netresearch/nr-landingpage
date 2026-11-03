@@ -104,6 +104,16 @@ return [
                 'renderType' => 'selectSingle',
                 'foreign_table' => 'tx_nrllm_configuration',
                 'foreign_table_where' => 'AND {#tx_nrllm_configuration}.{#deleted} = 0 ORDER BY tx_nrllm_configuration.name',
+                // nr-llm's help under the select (the chosen configuration's
+                // purpose and model) and its create / manage controls, shown
+                // only to users who may use them (nr-llm ADR-255).
+                'fieldWizard' => [
+                    'nrllmChoiceHelp' => ['renderType' => 'nrllmChoiceHelp'],
+                ],
+                'fieldControl' => [
+                    'addRecord' => ['renderType' => 'nrllmAddRecord', 'disabled' => false, 'options' => ['setValue' => 'set']],
+                    'listModule' => ['renderType' => 'nrllmManageRecords', 'disabled' => false, 'options' => ['module' => 'nrllm_configurations', 'title' => 'LLL:EXT:nr_llm/Resources/Private/Language/locallang_tca.xlf:choiceHelp.manage.configurations']],
+                ],
                 'items' => [
                     // The records come with an icon; without one here, the
                     // selected default would show an empty icon box.
@@ -230,6 +240,16 @@ return [
                 'renderType' => 'selectSingle',
                 'foreign_table' => 'tx_nrllm_task',
                 'foreign_table_where' => 'AND {#tx_nrllm_task}.{#deleted} = 0 AND {#tx_nrllm_task}.{#hidden} = 0 ORDER BY tx_nrllm_task.name',
+                // nr-llm's help under the select (what the chosen task does and
+                // the configuration it runs on) and its manage control (nr-llm
+                // ADR-255). No create control: an image prompt is built in the
+                // tasks module, where it can be marked for this field.
+                'fieldWizard' => [
+                    'nrllmChoiceHelp' => ['renderType' => 'nrllmChoiceHelp'],
+                ],
+                'fieldControl' => [
+                    'listModule' => ['renderType' => 'nrllmManageRecords', 'disabled' => false, 'options' => ['module' => 'nrllm_tasks', 'title' => 'LLL:EXT:nr_llm/Resources/Private/Language/locallang_tca.xlf:choiceHelp.manage.tasks']],
+                ],
                 'items' => [
                     ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_task.none', 'value' => 0, 'icon' => 'apps-filetree-folder-media'],
                 ],
