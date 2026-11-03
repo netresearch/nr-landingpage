@@ -34,6 +34,14 @@ The Wizard
 The wizard guides you through five steps. You can navigate back to
 previous steps at any time.
 
+When a step fails to load (for example the LLM provider is not
+reachable), the step shows the error and a :guilabel:`Retry` button,
+and :guilabel:`Next` stays locked: a failed step cannot be skipped,
+also with briefing mode ``optional``. :guilabel:`Retry` loads the step
+again; :guilabel:`Previous` goes back to change an earlier step. A
+content step that loaded and returned no sections is not a failure:
+it says so, and :guilabel:`Next` leads on to the placement step.
+
 Step 1: Template Selection
 --------------------------
 
