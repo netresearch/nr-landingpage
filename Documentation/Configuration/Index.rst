@@ -226,6 +226,13 @@ AI Configuration Tab
    marked as default, or choose a specific configuration if this
    template needs another provider, model or settings.
 
+   The text under the field says what the chosen configuration is for and
+   which model and provider it runs on (or that it picks its model by
+   criteria); with "Use Default" it stays empty. Next to it, a button creates a new
+   configuration and another opens the list of all configurations; each is
+   shown only to users who may use it (nr-llm manual, chapter "Choosing a
+   record from a list").
+
    "Use Default" works only while the default configuration has a model
    assigned and is not restricted to backend groups; otherwise the
    generation stops with the message that no default provider is
@@ -277,6 +284,10 @@ services of nr-llm use the same key and model for every site.
    matched by keywords. Choosing an image prompt switches on AI image
    generation: every section is offered a generated image next to its media
    library matches, one generated image per section.
+
+   The text under the field says what the chosen task does and which
+   configuration it runs on (empty for "Media Library only"); a button next to it opens the list of all tasks
+   for users who may use it.
 
    The chosen task supplies an image prompt, nothing else. Its prompt
    template is used for a section the content model returned without an image

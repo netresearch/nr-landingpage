@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Tests\Unit\Configuration;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 
@@ -44,6 +45,37 @@ final class TcaConfigurationTest extends UnitTestCase
         self::assertSame(0, $config['default'], 'Default should be 0 (use default config)');
         self::assertNotEmpty($config['items'], 'Must have at least one item (the default option)');
         self::assertSame(0, $config['items'][0]['value'], 'First item must be the default (value=0)');
+    }
+
+    /**
+     * @return iterable<string, array{string, string, bool}>
+     */
+    public static function recordSelects(): iterable
+    {
+        yield 'llm configuration' => ['llm_configuration', 'nrllm_configurations', true];
+        yield 'image task' => ['image_task', 'nrllm_tasks', false];
+    }
+
+    /**
+     * The two selects of nr-llm records use nr-llm's help text under the
+     * select and its access-checked controls (nr-llm ADR-255).
+     */
+    #[Test]
+    #[DataProvider('recordSelects')]
+    public function anLlmRecordSelectExplainsTheChosenRecord(string $field, string $module, bool $create): void
+    {
+        $config = $this->templateTca['columns'][$field]['config'] ?? [];
+
+        self::assertSame('nrllmChoiceHelp', $config['fieldWizard']['nrllmChoiceHelp']['renderType'] ?? null);
+        self::assertSame('nrllmManageRecords', $config['fieldControl']['listModule']['renderType'] ?? null);
+        self::assertFalse($config['fieldControl']['listModule']['disabled'] ?? true);
+        self::assertSame($module, $config['fieldControl']['listModule']['options']['module'] ?? null);
+        if ($create) {
+            self::assertSame('nrllmAddRecord', $config['fieldControl']['addRecord']['renderType'] ?? null);
+            self::assertFalse($config['fieldControl']['addRecord']['disabled'] ?? true);
+        } else {
+            self::assertArrayNotHasKey('addRecord', $config['fieldControl']);
+        }
     }
 
     #[Test]

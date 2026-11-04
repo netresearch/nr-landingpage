@@ -16,7 +16,7 @@ Requirements
 
 -  PHP 8.2 or higher
 -  TYPO3 13.4 LTS or 14.3 LTS
--  ``netresearch/nr-llm`` ^0.43.5 (installed automatically as
+-  ``netresearch/nr-llm`` ^0.43.10 (installed automatically as
    dependency)
 
 Composer Installation
