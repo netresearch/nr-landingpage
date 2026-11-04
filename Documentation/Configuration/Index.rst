@@ -227,7 +227,8 @@ AI Configuration Tab
    template needs another provider, model or settings.
 
    The text under the field says what the chosen configuration is for and
-   which model and provider it runs on. Next to it, a button creates a new
+   which model and provider it runs on (or that it picks its model by
+   criteria); with "Use Default" it stays empty. Next to it, a button creates a new
    configuration and another opens the list of all configurations; each is
    shown only to users who may use it (nr-llm manual, chapter "Choosing a
    record from a list").
@@ -285,7 +286,7 @@ services of nr-llm use the same key and model for every site.
    library matches, one generated image per section.
 
    The text under the field says what the chosen task does and which
-   configuration it runs on; a button next to it opens the list of all tasks
+   configuration it runs on (empty for "Media Library only"); a button next to it opens the list of all tasks
    for users who may use it.
 
    The chosen task supplies an image prompt, nothing else. Its prompt
