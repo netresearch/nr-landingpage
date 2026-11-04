@@ -72,6 +72,7 @@ final class TcaConfigurationTest extends UnitTestCase
         self::assertSame($module, $config['fieldControl']['listModule']['options']['module'] ?? null);
         if ($create) {
             self::assertSame('nrllmAddRecord', $config['fieldControl']['addRecord']['renderType'] ?? null);
+            self::assertFalse($config['fieldControl']['addRecord']['disabled'] ?? true);
         } else {
             self::assertArrayNotHasKey('addRecord', $config['fieldControl']);
         }
