@@ -188,7 +188,7 @@ LLM prompt regardless of the prompt language.
 ## Changelog
 
 - Changes are recorded in [`CHANGELOG.md`](CHANGELOG.md), [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), newest first, below `## [Unreleased]`. The sections up to 0.3.26 are the GitHub release notes, copied when the file was created.
-- The release PR `chore(release): X.Y.Z` (branch `release/vX.Y.Z`) writes the version's section as `## [X.Y.Z] - YYYY-MM-DD` with `### Added`, `### Changed`, `### Fixed` as needed, and adds its compare link at the end of the file.
+- The release PR `chore(release): X.Y.Z` (branch `release/vX.Y.Z`) writes the version's section as `## [X.Y.Z] - YYYY-MM-DD` with `### Added`, `### Changed`, `### Fixed` as needed, adds its compare link at the end of the file and moves the `[Unreleased]` link to compare from the new tag.
 
 ## Useful Commands
 
