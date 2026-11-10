@@ -13,6 +13,10 @@ level lower.
 
 ## [Unreleased]
 
+### Fixed
+
+- `Build/Scripts/runTests.sh` mounts the git directory of a git worktree into its containers, so git works there when the extension is checked out as a worktree, for example of a bare repository; before, every git call in a container failed with `fatal: not a git repository`. A plain clone gets no extra mount ([#116](https://github.com/netresearch/nr-landingpage/pull/116) by @CybotTM).
+
 ## [0.3.26] - 2026-11-04
 
 ### Highlights
