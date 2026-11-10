@@ -241,6 +241,25 @@ cd "$THIS_SCRIPT_DIR" || exit 1
 cd ../../ || exit 1
 ROOT_DIR="${PWD}"
 
+# In a git worktree (and a --separate-git-dir clone) `.git` is a file whose
+# `gitdir:` line names a directory outside the extension, e.g.
+# <repo>/.bare/worktrees/<name>. The containers mount only ROOT_DIR, so every
+# git call inside them failed with `fatal: not a git repository`. Mount the
+# shared git directory — and the worktree's own one, should it lie elsewhere —
+# at the identical absolute path, so the pointer resolves. A plain clone keeps
+# `.git` inside ROOT_DIR and needs nothing.
+GIT_DIR_MOUNTS=""
+if [[ -f "${ROOT_DIR}/.git" ]] && type git >/dev/null 2>&1; then
+    GIT_COMMON_DIR="$(git -C "${ROOT_DIR}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+    GIT_OWN_DIR="$(git -C "${ROOT_DIR}" rev-parse --path-format=absolute --git-dir 2>/dev/null)"
+    if [[ -d "${GIT_COMMON_DIR}" ]] && [[ "${GIT_COMMON_DIR}/" != "${ROOT_DIR}/"* ]]; then
+        GIT_DIR_MOUNTS="-v ${GIT_COMMON_DIR}:${GIT_COMMON_DIR}"
+    fi
+    if [[ -d "${GIT_OWN_DIR}" ]] && [[ "${GIT_OWN_DIR}/" != "${GIT_COMMON_DIR}/"* ]] && [[ "${GIT_OWN_DIR}/" != "${ROOT_DIR}/"* ]]; then
+        GIT_DIR_MOUNTS="${GIT_DIR_MOUNTS} -v ${GIT_OWN_DIR}:${GIT_OWN_DIR}"
+    fi
+fi
+
 # Create cache directories
 mkdir -p .Build/.cache
 mkdir -p .Build/Web/typo3temp/var/tests
@@ -283,10 +302,10 @@ if ! ${CONTAINER_BIN} network create ${NETWORK} >/dev/null 2>&1; then
 fi
 
 if [ ${CONTAINER_BIN} = "docker" ]; then
-    CONTAINER_COMMON_PARAMS="${CONTAINER_INTERACTIVE} --rm --network ${NETWORK} --add-host "${CONTAINER_HOST}:host-gateway" ${USERSET} -v ${ROOT_DIR}:${ROOT_DIR} -w ${ROOT_DIR}"
+    CONTAINER_COMMON_PARAMS="${CONTAINER_INTERACTIVE} --rm --network ${NETWORK} --add-host "${CONTAINER_HOST}:host-gateway" ${USERSET} -v ${ROOT_DIR}:${ROOT_DIR} ${GIT_DIR_MOUNTS} -w ${ROOT_DIR}"
 else
     CONTAINER_HOST="host.containers.internal"
-    CONTAINER_COMMON_PARAMS="${CONTAINER_INTERACTIVE} ${CI_PARAMS} --rm --network ${NETWORK} -v ${ROOT_DIR}:${ROOT_DIR} -w ${ROOT_DIR}"
+    CONTAINER_COMMON_PARAMS="${CONTAINER_INTERACTIVE} ${CI_PARAMS} --rm --network ${NETWORK} -v ${ROOT_DIR}:${ROOT_DIR} ${GIT_DIR_MOUNTS} -w ${ROOT_DIR}"
 fi
 
 if [ ${PHP_XDEBUG_ON} -eq 0 ]; then
