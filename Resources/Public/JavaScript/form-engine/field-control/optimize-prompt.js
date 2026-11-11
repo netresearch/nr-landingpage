@@ -60,8 +60,6 @@ class OptimizePrompt {
 
   callOptimizer(templateUid) {
     this.controlElement.classList.add('disabled');
-    this.hintsElement?.remove();
-    this.hintsElement = null;
 
     // Replace button icon with spinner
     const icon = this.controlElement.querySelector('.icon');
@@ -96,6 +94,9 @@ class OptimizePrompt {
             this.textareaElement.value = data.data.prompt;
             this.textareaElement.dispatchEvent(new Event('change'));
           }
+          // The hints belong to the text they came with; a failed run keeps both.
+          this.hintsElement?.remove();
+          this.hintsElement = null;
           this.showHints(data.guardrailHints);
           Notification.success(
             TYPO3.lang['fieldControl.optimizePrompt.success'] || 'Instructions optimized',
