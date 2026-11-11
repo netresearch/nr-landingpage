@@ -62,6 +62,8 @@ async function hintsOf(scope: Locator): Promise<{ count: number; items: string[]
     if (count === 0) {
         return { count, items: [], elementChildren: 0, role: null, after: null };
     }
+    // The messages are added after the warning is inserted.
+    await alert.locator('li').first().waitFor();
     return {
         count,
         items: await alert.locator('li').allTextContents(),
@@ -137,20 +139,35 @@ test.describe('Guardrail hints in the template form controls', () => {
             document.body.appendChild(modal);
             await new TestGenerate('no-such-control').runTestGenerate(modal, 1, 'Topic');
             const alert = modal.querySelector('.modal-body [data-guardrail-hints]');
+            const itemsOnInsert = alert?.querySelectorAll('li').length ?? -1;
+            // The messages are added after the warning is inserted.
+            for (let i = 0; i < 100 && alert && !alert.querySelector('li'); i++) {
+                await new Promise((resolve) => setTimeout(resolve, 20));
+            }
             return {
+                itemsOnInsert,
                 items: Array.from(alert?.querySelectorAll('li') ?? []).map((li) => li.textContent),
                 elementChildren: alert?.querySelectorAll('li *').length ?? -1,
                 role: alert?.getAttribute('role') ?? null,
             };
         });
 
-        expect(result).toEqual({ items: [markupHint.message], elementChildren: 0, role: 'status' });
+        // The status region is in the document before its messages arrive.
+        expect(result).toEqual({ itemsOnInsert: 0, items: [markupHint.message], elementChildren: 0, role: 'status' });
     });
 
-    test('the prompt optimizer shows the hints of the reply below the field and drops them on the next run', async ({ authenticatedPage: page }) => {
+    test('the prompt optimizer shows the hints of the reply below the field, keeps them when a run fails and drops them on the next new text', async ({ authenticatedPage: page }) => {
         let replies = 0;
         await page.route('**/nr-landingpage/wizard/optimize-prompt**', async (route) => {
             replies++;
+            if (replies === 2) {
+                await route.fulfill({
+                    status: 500,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ success: false, error: 'Provider down' }),
+                });
+                return;
+            }
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -181,17 +198,36 @@ test.describe('Guardrail hints in the template form controls', () => {
                 }
             };
 
+            // The messages are added after the warning is inserted.
+            const items = async (): Promise<string[]> => {
+                for (let i = 0; i < 100 && field.querySelector('[data-guardrail-hints]') && !field.querySelector('[data-guardrail-hints] li'); i++) {
+                    await new Promise((resolve) => setTimeout(resolve, 20));
+                }
+                return Array.from(field.querySelectorAll('[data-guardrail-hints] li')).map((li) => li.textContent ?? '');
+            };
+
             control.callOptimizer(1);
             await settled('Optimized 1');
-            const first = Array.from(field.querySelectorAll('[data-guardrail-hints] li')).map((li) => li.textContent);
+            const first = await items();
             const role = field.querySelector('[data-guardrail-hints]')?.getAttribute('role') ?? null;
 
+            // The second reply fails: the text stays, and so do its hints.
             control.callOptimizer(1);
-            await settled('Optimized 2');
-            const second = field.querySelectorAll('[data-guardrail-hints]').length;
-            return { first, role, second, value: textarea.value };
+            await settled('Optimized 1');
+            const afterFailure = await items();
+
+            control.callOptimizer(1);
+            await settled('Optimized 3');
+            const third = field.querySelectorAll('[data-guardrail-hints]').length;
+            return { first, role, afterFailure, third, value: textarea.value };
         });
 
-        expect(result).toEqual({ first: [unavailableHint.message], role: 'status', second: 0, value: 'Optimized 2' });
+        expect(result).toEqual({
+            first: [unavailableHint.message],
+            role: 'status',
+            afterFailure: [unavailableHint.message],
+            third: 0,
+            value: 'Optimized 3',
+        });
     });
 });
