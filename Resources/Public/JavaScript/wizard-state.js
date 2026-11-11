@@ -27,6 +27,10 @@ class WizardState {
         this.title = '';
         this.slug = '';
         this.imageErrors = [];
+        // Hints of nr-llm's guardrails for the generated content, and per
+        // section for one regenerated on its own (index => hints).
+        this.contentHints = [];
+        this.sectionHints = {};
         this.hasImageTask = false;
         this.aiGenerationAvailable = false;
         this.generationMode = 'structured';

@@ -8,6 +8,7 @@ import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 import Icons from '@typo3/backend/icons.js';
 import Notification from '@typo3/backend/notification.js';
 import Modal from '@typo3/backend/modal.js';
+import { guardrailHintsElement } from '@netresearch/nr-landingpage/guardrail-hints.js';
 
 class OptimizePrompt {
   constructor(controlElementId) {
@@ -93,6 +94,10 @@ class OptimizePrompt {
             this.textareaElement.value = data.data.prompt;
             this.textareaElement.dispatchEvent(new Event('change'));
           }
+          // The hints belong to the text they came with; a failed run keeps both.
+          this.hintsElement?.remove();
+          this.hintsElement = null;
+          this.showHints(data.guardrailHints);
           Notification.success(
             TYPO3.lang['fieldControl.optimizePrompt.success'] || 'Instructions optimized',
             '',
@@ -138,6 +143,24 @@ class OptimizePrompt {
         // Dismiss persistent info notifications
         document.querySelectorAll('typo3-notification-message[notification-severity="info"]').forEach((el) => el.clear());
       });
+  }
+
+  /**
+   * Show the hints of nr-llm's guardrails for the generated instructions
+   * below the field; the instructions are in the field anyway.
+   */
+  showHints(hints) {
+    const alert = guardrailHintsElement(
+      hints,
+      TYPO3.lang['fieldControl.guardrailHints.title'] || 'Notes on the generated text',
+    );
+    const field = this.textareaElement?.closest('.formengine-field-item') || this.controlElement?.parentElement;
+    if (!alert || !field) {
+      return;
+    }
+    alert.classList.add('mt-2');
+    field.appendChild(alert);
+    this.hintsElement = alert;
   }
 }
 

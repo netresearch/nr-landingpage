@@ -4,6 +4,7 @@
  */
 
 import WizardState from '@netresearch/nr-landingpage/wizard-state.js';
+import { guardrailHintsElement } from '@netresearch/nr-landingpage/guardrail-hints.js';
 import MultiStepWizard from '@typo3/backend/multi-step-wizard.js';
 import Modal from '@typo3/backend/modal.js';
 import Notification from '@typo3/backend/notification.js';
@@ -91,6 +92,19 @@ class LandingPageWizard {
      * @returns {Promise<Object>}
      */
     async fetchJson(url, data = null, timeout = 60000) {
+        return (await this.fetchReply(url, data, timeout)).data;
+    }
+
+    /**
+     * Like fetchJson(), but return the whole reply: a generation step carries
+     * the hints of nr-llm's guardrails beside its data, as `guardrailHints`.
+     *
+     * @param {string} url
+     * @param {Object|null} data
+     * @param {number} timeout
+     * @returns {Promise<{data: *, guardrailHints?: Array}>}
+     */
+    async fetchReply(url, data = null, timeout = 60000) {
         const controller = new AbortController();
         const timeoutId = timeout > 0 ? setTimeout(() => controller.abort(), timeout) : null;
 
@@ -144,7 +158,18 @@ class LandingPageWizard {
             throw error;
         }
 
-        return json.data;
+        return json;
+    }
+
+    /**
+     * The warning with the hints of nr-llm's guardrails for a generated text,
+     * or null when there are none.
+     *
+     * @param {Array|undefined} hints
+     * @returns {HTMLDivElement|null}
+     */
+    guardrailHints(hints) {
+        return guardrailHintsElement(hints, TYPO3.lang?.['wizard.guardrailHints.title'] || 'Notes on the generated text');
     }
 
     /**
@@ -758,10 +783,11 @@ class LandingPageWizard {
         MultiStepWizard.lockNextStep();
 
         try {
-            const questions = await this.fetchJson(this.getAjaxUrl('generateBriefing'), {
+            const reply = await this.fetchReply(this.getAjaxUrl('generateBriefing'), {
                 templateUid: template.uid,
                 parentPageId: WizardState.getParentPageId(),
             });
+            const questions = reply.data;
             if (this.isStaleRender(token, container)) {
                 return;
             }
@@ -772,6 +798,11 @@ class LandingPageWizard {
             description.className = 'text-variant mb-3';
             description.textContent = this.label('wizard.briefing.description');
             container.appendChild(description);
+
+            const briefingHints = this.guardrailHints(reply.guardrailHints);
+            if (briefingHints) {
+                container.appendChild(briefingHints);
+            }
 
             const form = document.createElement('form');
             form.addEventListener('submit', (e) => e.preventDefault());
@@ -904,11 +935,12 @@ class LandingPageWizard {
             if (!template?.uid) {
                 throw new Error('No template selected');
             }
-            const fields = await this.fetchJson(this.getAjaxUrl('generatePageFields'), {
+            const reply = await this.fetchReply(this.getAjaxUrl('generatePageFields'), {
                 templateUid: template.uid,
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
             });
+            const fields = reply.data;
             if (this.isStaleRender(token, container)) {
                 return;
             }
@@ -919,6 +951,11 @@ class LandingPageWizard {
             description.className = 'text-variant mb-3';
             description.textContent = this.label('wizard.pageFields.description');
             container.appendChild(description);
+
+            const pageFieldHints = this.guardrailHints(reply.guardrailHints);
+            if (pageFieldHints) {
+                container.appendChild(pageFieldHints);
+            }
 
             const form = document.createElement('form');
             form.addEventListener('submit', (e) => e.preventDefault());
@@ -992,11 +1029,12 @@ class LandingPageWizard {
             if (!template?.uid) {
                 throw new Error('No template selected');
             }
-            const result = await this.fetchJson(this.getAjaxUrl('generateContent'), {
+            const reply = await this.fetchReply(this.getAjaxUrl('generateContent'), {
                 templateUid: template.uid,
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
             });
+            const result = reply.data;
             if (this.isStaleRender(token, container)) {
                 return;
             }
@@ -1012,6 +1050,8 @@ class LandingPageWizard {
             WizardState.setContentSections(sections);
             WizardState.setImages(images);
             WizardState.imageErrors = imageErrors;
+            WizardState.contentHints = reply.guardrailHints || [];
+            WizardState.sectionHints = {};
             WizardState.hasImageTask = hasImageTask;
             WizardState.aiGenerationAvailable = aiAvailable;
             WizardState.generationMode = generationMode;
@@ -1073,6 +1113,7 @@ class LandingPageWizard {
 
             const cardBody = document.createElement('div');
             cardBody.className = 'card-body';
+            this.appendSectionHints(cardBody, index);
 
             if (section.header) {
                 const header = document.createElement('input');
@@ -1186,6 +1227,7 @@ class LandingPageWizard {
 
             const cardBody = document.createElement('div');
             cardBody.className = 'card-body';
+            this.appendSectionHints(cardBody, index);
 
             // HTML preview (sandboxed in iframe)
             const preview = document.createElement('div');
@@ -1249,6 +1291,12 @@ class LandingPageWizard {
         description.className = 'text-variant mb-3';
         description.textContent = this.label(descriptionKey);
         container.appendChild(description);
+
+        // Kept in the state, so a re-render after a regenerated section shows them again.
+        const contentHints = this.guardrailHints(WizardState.contentHints);
+        if (contentHints) {
+            container.appendChild(contentHints);
+        }
 
         if (!sections || sections.length === 0) {
             const alert = document.createElement('div');
@@ -1554,6 +1602,20 @@ class LandingPageWizard {
     }
 
     /**
+     * The hints of nr-llm's guardrails for a section that was regenerated on
+     * its own, at the top of its card.
+     *
+     * @param {HTMLElement} cardBody
+     * @param {number} index
+     */
+    appendSectionHints(cardBody, index) {
+        const hints = this.guardrailHints(WizardState.sectionHints?.[index]);
+        if (hints) {
+            cardBody.appendChild(hints);
+        }
+    }
+
+    /**
      * Re-render content sections using the appropriate renderer for the current generation mode.
      *
      * @param {HTMLElement} container
@@ -1594,7 +1656,7 @@ class LandingPageWizard {
             if (!template?.uid) {
                 throw new Error('No template selected');
             }
-            const newSection = await this.fetchJson(this.getAjaxUrl('regenerateSection'), {
+            const reply = await this.fetchReply(this.getAjaxUrl('regenerateSection'), {
                 templateUid: template.uid,
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
@@ -1604,7 +1666,8 @@ class LandingPageWizard {
                 return;
             }
 
-            WizardState.updateContentSection(index, newSection);
+            WizardState.updateContentSection(index, reply.data);
+            WizardState.sectionHints[index] = reply.guardrailHints || [];
             Notification.success(
                 this.label('wizard.notification.sectionRegenerated'),
                 this.label('wizard.notification.sectionRegeneratedMessage', index + 1),

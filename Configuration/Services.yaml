@@ -37,3 +37,10 @@ services:
 
   Netresearch\NrLandingpage\Service\PromptOptimizerService:
     public: true
+
+  # Takes nr-llm's GuardrailHintCollector from the container: a new instance
+  # would not be the one nr-llm's guardrail middleware records into.
+  Netresearch\NrLandingpage\Service\GuardrailHintCapture:
+    public: true
+    arguments:
+      $container: '@service_container'

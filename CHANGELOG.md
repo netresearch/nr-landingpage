@@ -13,6 +13,10 @@ level lower.
 
 ## [Unreleased]
 
+### Added
+
+- The wizard shows the notes of nr-llm's rule-set judge in report mode next to the generated text: each rule the text breaks, or that it could not be checked. They appear below the intro of the briefing, page-fields and content steps, in the card of a section regenerated on its own, above the preview of the template's full page generation and below the field of the prompt optimizer. The log keeps a refusal of nr-llm's guardrails without the passage it quotes. Needs the nr-llm release with the rule-set judge; before it nothing changes ([#118](https://github.com/netresearch/nr-landingpage/pull/118) by @CybotTM).
+
 ### Fixed
 
 - `Build/Scripts/runTests.sh` mounts the git directory of a git worktree into its containers, so git works there when the extension is checked out as a worktree, for example of a bare repository; before, every git call in a container failed with `fatal: not a git repository`. A plain clone gets no extra mount ([#116](https://github.com/netresearch/nr-landingpage/pull/116) by @CybotTM).

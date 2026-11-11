@@ -42,6 +42,33 @@ again; :guilabel:`Previous` goes back to change an earlier step. A
 content step that loaded and returned no sections is not a failure:
 it says so, and :guilabel:`Next` leads on to the placement step.
 
+.. _usage-guardrail-hints:
+
+Notes on the generated text
+---------------------------
+
+nr-llm can check a generated text against a rule set with a second model
+(nr-llm manual, chapter "Rule-set judge"). In the mode ``report`` the text is
+delivered, and the wizard shows a warning :guilabel:`Notes on the generated
+text` next to it, with one line per rule the text breaks, or a line saying that
+the text could not be checked. The warning does not stop the wizard: read it,
+edit the text or regenerate it, and go on.
+
+*   The briefing and page-fields steps show the notes below their intro.
+*   The content step shows the notes of the generated content below its intro,
+    and a section regenerated on its own shows its notes in its card. Notes
+    about a passage that is in another section of that answer are left out.
+*   In the template record, the preview of a full page generation shows the
+    notes above the preview, and the optimizer of the AI instructions shows
+    them below the instructions field.
+
+In the mode ``block`` the text is not delivered: the step fails with nr-llm's
+message, which names the rule and the passage, as for a term list. The log of
+the extension keeps that message without the passage.
+
+The notes need an nr-llm version with the rule-set judge; before it, nothing
+changes.
+
 Step 1: Template Selection
 --------------------------
 

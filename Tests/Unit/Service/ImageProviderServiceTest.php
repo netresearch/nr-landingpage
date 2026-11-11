@@ -12,10 +12,12 @@ namespace Netresearch\NrLandingpage\Tests\Unit\Service;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Service\ImageProviderService;
 use Netresearch\NrLandingpage\Service\ImageSearchService;
+use Netresearch\NrLandingpage\Tests\Unit\Service\Fixtures\StorableMessageException;
 use Netresearch\NrLlm\Specialized\Image\ImageGenerationResult;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
@@ -286,6 +288,27 @@ final class ImageProviderServiceTest extends UnitTestCase
         $result = $this->subject->generateImageForSection($template, 'A hero image', 'Welcome');
 
         self::assertNull($result);
+    }
+
+    #[Test]
+    public function generateImageForSectionLogsARefusalWithoutThePassage(): void
+    {
+        $template = $this->createTemplate(5);
+        $this->subject->registerGenerator(
+            'guarded',
+            fn(string $prompt, array $options) => throw new StorableMessageException('Rule 1 is broken by "the passage".', 'Rule 1 is broken.'),
+            fn() => true,
+        );
+        $this->mockTaskPromptTemplate(5, '');
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with(
+            'Image generation failed with guarded',
+            self::callback(static fn(array $context): bool => $context['error'] === 'Rule 1 is broken.'),
+        );
+        $this->subject->setLogger($logger);
+
+        self::assertNull($this->subject->generateImageForSection($template, 'A hero image', 'Welcome'));
     }
 
     #[Test]

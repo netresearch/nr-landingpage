@@ -8,6 +8,7 @@ import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 import Notification from '@typo3/backend/notification.js';
 import Modal from '@typo3/backend/modal.js';
 import '@typo3/backend/element/spinner-element.js';
+import { guardrailHintsElement } from '@netresearch/nr-landingpage/guardrail-hints.js';
 
 class TestGenerate {
   /**
@@ -144,7 +145,7 @@ class TestGenerate {
       const data = await response.resolve();
 
       if (data.success && data.data) {
-        this.renderPreview(contentArea, data.data, sampleTitle);
+        this.renderPreview(contentArea, data.data, sampleTitle, data.guardrailHints);
       } else {
         this.setContent(contentArea, this.el('div', { className: 'alert alert-danger' }, [
           this.el('strong', { text: this.lang('fieldControl.testGenerate.error.failed', 'Generation failed:') }),
@@ -169,7 +170,7 @@ class TestGenerate {
     }
   }
 
-  renderPreview(container, data, sampleTitle) {
+  renderPreview(container, data, sampleTitle, hints = []) {
     const sections = data.sections || [];
     const images = data.images || [];
     const aiAvailable = data.aiGenerationAvailable || false;
@@ -182,6 +183,11 @@ class TestGenerate {
       badges.appendChild(this.el('span', { className: 'badge badge-info', text: this.lang('fieldControl.testGenerate.badge.aiImages', 'AI image generation available') }));
     }
     nodes.push(badges);
+
+    const hintsAlert = guardrailHintsElement(hints, this.lang('fieldControl.guardrailHints.title', 'Notes on the generated text'));
+    if (hintsAlert) {
+      nodes.push(hintsAlert);
+    }
 
     nodes.push(this.el('p', { className: 'text-variant small', text: this.lang('fieldControl.testGenerate.preview.sampleTopic', 'Sample topic: ') }, [
       this.el('strong', { text: sampleTitle }),

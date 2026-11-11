@@ -155,9 +155,11 @@ class PromptOptimizerService implements LoggerAwareInterface
 
             return $this->completeTextWithTemplate($template, $prompt, 'optimizePrompt', $site);
         } catch (Throwable $e) {
+            // A refusal of nr-llm's guardrails is logged without the generated
+            // passage it quotes; the editor reads it whole from the exception.
             $this->logger?->error('Prompt optimization failed', [
                 'template' => $template->identifier,
-                'error' => $e->getMessage(),
+                'error' => GuardrailHintCapture::storableMessage($e),
             ]);
             throw $e;
         }
