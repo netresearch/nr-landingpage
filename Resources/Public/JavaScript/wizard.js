@@ -169,7 +169,7 @@ class LandingPageWizard {
      * @returns {HTMLDivElement|null}
      */
     guardrailHints(hints) {
-        return guardrailHintsElement(hints, this.label('wizard.guardrailHints.title'));
+        return guardrailHintsElement(hints, TYPO3.lang?.['wizard.guardrailHints.title'] || 'Notes on the generated text');
     }
 
     /**
