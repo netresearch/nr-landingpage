@@ -30,9 +30,7 @@ final class GuardrailHintCaptureTest extends UnitTestCase
         $collector = new FakeGuardrailHintCollector($hints);
         $container = $this->createMock(ContainerInterface::class);
         $container->method('has')->willReturnCallback(static fn(string $id): bool => $id === FakeGuardrailHintCollector::class);
-        $container->method('get')->willReturnCallback(
-            static fn(string $id): object => $id === FakeGuardrailHintCollector::class ? $collector : throw new RuntimeException('unknown ' . $id),
-        );
+        $container->method('get')->with(FakeGuardrailHintCollector::class)->willReturn($collector);
 
         return new GuardrailHintCapture($container, FakeGuardrailHintCollector::class);
     }

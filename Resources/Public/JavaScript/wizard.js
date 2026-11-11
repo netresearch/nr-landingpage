@@ -1609,7 +1609,7 @@ class LandingPageWizard {
      * @param {number} index
      */
     appendSectionHints(cardBody, index) {
-        const hints = this.guardrailHints((WizardState.sectionHints || {})[index]);
+        const hints = this.guardrailHints(WizardState.sectionHints?.[index]);
         if (hints) {
             cardBody.appendChild(hints);
         }

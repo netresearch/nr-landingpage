@@ -63,6 +63,9 @@ final class LandingPageWizardControllerTest extends UnitTestCase
     /** @var list<mixed> The constructor arguments of $subject, for a second subject with another hint capture */
     private array $controllerArguments = [];
 
+    /** The refusal a guardrail test reports, without its passage. */
+    private const RULE_BROKEN = 'Rule 1 is broken.';
+
     private bool $moduleAccess = true;
 
     private bool $templateEditAccess = true;
@@ -1547,13 +1550,13 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         );
 
         $data = $this->decode($this->subjectReporting([
-            ['kind' => 'violation', 'message' => 'Rule 1 is broken.'],
+            ['kind' => 'violation', 'message' => self::RULE_BROKEN],
         ])->testGenerateAction($this->createJsonRequest(['templateUid' => 1, 'sampleTitle' => 'Topic'])));
 
         self::assertSame('SEO', $data['data']['pageFields']['seo_title']);
         // One capture per generation call: content, then page fields.
         self::assertSame(
-            [['kind' => 'violation', 'message' => 'Rule 1 is broken.'], ['kind' => 'violation', 'message' => 'Rule 1 is broken.']],
+            [['kind' => 'violation', 'message' => self::RULE_BROKEN], ['kind' => 'violation', 'message' => self::RULE_BROKEN]],
             $data['guardrailHints'],
         );
     }
@@ -1563,12 +1566,12 @@ final class LandingPageWizardControllerTest extends UnitTestCase
     {
         $this->mockLoadByUid($this->templateRow());
         $this->promptOptimizerService->method('generateOptimizedPrompt')
-            ->willThrowException(new StorableMessageException('Rule 1 is broken by "the passage".', 'Rule 1 is broken.'));
+            ->willThrowException(new StorableMessageException('Rule 1 is broken by "the passage".', self::RULE_BROKEN));
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::once())->method('error')->with(
             'Wizard action failed',
-            self::callback(static fn(array $context): bool => $context['exception'] === 'Rule 1 is broken.'),
+            self::callback(static fn(array $context): bool => $context['exception'] === self::RULE_BROKEN),
         );
         $this->subject->setLogger($logger);
 
