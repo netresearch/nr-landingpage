@@ -164,6 +164,9 @@
             <trans-unit id="wizard.error.imageGenerate" resname="wizard.error.imageGenerate">
                 <source>Image generation failed</source>
             </trans-unit>
+            <trans-unit id="wizard.guardrailHints.title" resname="wizard.guardrailHints.title">
+                <source>Notes on the generated text</source>
+            </trans-unit>
             <trans-unit id="wizard.content.imageGenerationError" resname="wizard.content.imageGenerationError">
                 <source>AI image generation failed:</source>
             </trans-unit>
@@ -449,6 +452,9 @@
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.noImages" resname="fieldControl.testGenerate.preview.noImages">
                 <source>No FAL images found for this section.</source>
+            </trans-unit>
+            <trans-unit id="fieldControl.guardrailHints.title" resname="fieldControl.guardrailHints.title">
+                <source>Notes on the generated text</source>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.noSections" resname="fieldControl.testGenerate.preview.noSections">
                 <source>No sections were generated. Check your AI instructions and content type settings.</source>

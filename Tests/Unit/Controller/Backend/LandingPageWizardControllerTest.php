@@ -17,11 +17,14 @@ use Netresearch\NrLandingpage\Service\BackendLayoutService;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
 use Netresearch\NrLandingpage\Service\CTypeMetadataService;
+use Netresearch\NrLandingpage\Service\GuardrailHintCapture;
 use Netresearch\NrLandingpage\Service\ImageProviderService;
 use Netresearch\NrLandingpage\Service\ImageSearchService;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
 use Netresearch\NrLandingpage\Service\PromptOptimizerService;
 use Netresearch\NrLandingpage\Service\TemplateService;
+use Netresearch\NrLandingpage\Tests\Unit\Service\Fixtures\FakeGuardrailHintCollector;
+use Netresearch\NrLandingpage\Tests\Unit\Service\Fixtures\StorableMessageException;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Service\Feature\CompletionServiceInterface;
 use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
@@ -29,7 +32,9 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 use ReflectionClass;
 use RuntimeException;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
@@ -54,6 +59,9 @@ final class LandingPageWizardControllerTest extends UnitTestCase
     private PromptOptimizerService&MockObject $promptOptimizerService;
     private BackendAccessGuard&MockObject $accessGuard;
     private LandingPageWizardController $subject;
+
+    /** @var list<mixed> The constructor arguments of $subject, for a second subject with another hint capture */
+    private array $controllerArguments = [];
 
     private bool $moduleAccess = true;
 
@@ -118,7 +126,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
                 : $this->parentPageVerdicts[$pageId] ?? ParentPageVerdict::Allowed,
         );
 
-        $this->subject = new LandingPageWizardController(
+        $this->controllerArguments = [
             $moduleTemplateFactory,
             $pageRenderer,
             $uriBuilder,
@@ -133,7 +141,37 @@ final class LandingPageWizardControllerTest extends UnitTestCase
             new \Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer(),
             $this->accessGuard,
             $this->promptOptimizerService,
+        ];
+        $this->subject = new LandingPageWizardController(...$this->controllerArguments);
+    }
+
+    /**
+     * A controller whose generation calls report the given hints, as nr-llm's
+     * GuardrailHintCollector would.
+     *
+     * @param list<mixed> $hints
+     */
+    private function subjectReporting(array $hints): LandingPageWizardController
+    {
+        $collector = new FakeGuardrailHintCollector($hints);
+        $container = $this->createMock(ContainerInterface::class);
+        $container->method('has')->willReturn(true);
+        $container->method('get')->willReturn($collector);
+
+        return new LandingPageWizardController(
+            ...[...$this->controllerArguments, new GuardrailHintCapture($container, FakeGuardrailHintCollector::class)],
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decode(\Psr\Http\Message\ResponseInterface $response): array
+    {
+        $data = json_decode((string) $response->getBody(), true);
+        self::assertIsArray($data);
+
+        return $data;
     }
 
     private function createJsonRequest(array $body): ServerRequestInterface
@@ -1386,5 +1424,151 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         self::assertFalse($data['success']);
         self::assertSame($code, $data['code']);
         self::assertNotSame('', $data['error']);
+    }
+
+    #[Test]
+    public function generationAnswersCarryNoHintsWithoutACollector(): void
+    {
+        // The released nr-llm has no GuardrailHintCollector: the answer stays as it was.
+        $this->mockLoadByUid($this->templateRow());
+        $this->completionService->method('completeJson')->willReturn(['seo_title' => 'Title']);
+
+        $data = $this->decode($this->subject->generatePageFieldsAction($this->createJsonRequest(['templateUid' => 1])));
+
+        self::assertSame(['success' => true, 'data' => ['seo_title' => 'Title']], $data);
+    }
+
+    #[Test]
+    public function generationAnswersLeaveTheKeyOutWhenNoHintWasReported(): void
+    {
+        $this->mockLoadByUid($this->templateRow());
+        $this->completionService->method('completeJson')->willReturn(['seo_title' => 'Title']);
+
+        $data = $this->decode($this->subjectReporting([])->generatePageFieldsAction($this->createJsonRequest(['templateUid' => 1])));
+
+        self::assertArrayNotHasKey('guardrailHints', $data);
+    }
+
+    #[Test]
+    public function generateBriefingActionReturnsTheHintsBesideTheQuestions(): void
+    {
+        $this->mockLoadByUid($this->templateRow());
+        $this->completionService->method('completeJson')->willReturn([
+            ['id' => 'audience', 'label' => 'Zielgruppe', 'type' => 'text', 'required' => true, 'placeholder' => ''],
+        ]);
+
+        $data = $this->decode($this->subjectReporting([
+            ['guardrail' => 'judge', 'kind' => 'violation', 'message' => 'Rule 1 is broken by "du".', 'rule' => 'Sie', 'passage' => 'du'],
+        ])->generateBriefingAction($this->createJsonRequest(['templateUid' => 1])));
+
+        self::assertTrue($data['success']);
+        self::assertSame('audience', $data['data'][0]['id']);
+        self::assertSame([['kind' => 'violation', 'message' => 'Rule 1 is broken by "du".']], $data['guardrailHints']);
+    }
+
+    #[Test]
+    public function generatePageFieldsActionReturnsTheHints(): void
+    {
+        $this->mockLoadByUid($this->templateRow());
+        $this->completionService->method('completeJson')->willReturn(['seo_title' => 'Title']);
+
+        $data = $this->decode($this->subjectReporting([
+            ['kind' => 'unavailable', 'message' => 'The text was not checked.'],
+        ])->generatePageFieldsAction($this->createJsonRequest(['templateUid' => 1])));
+
+        self::assertSame('Title', $data['data']['seo_title']);
+        self::assertSame([['kind' => 'unavailable', 'message' => 'The text was not checked.']], $data['guardrailHints']);
+    }
+
+    #[Test]
+    public function generateContentActionReturnsTheHints(): void
+    {
+        $this->mockLoadByUid($this->templateRow());
+        $this->completionService->method('completeJson')->willReturn([
+            ['section' => 'Hero', 'ctype' => 'text', 'header' => 'Welcome', 'subheader' => '', 'bodytext' => '<p>Hello</p>'],
+        ]);
+
+        $data = $this->decode($this->subjectReporting([
+            ['kind' => 'violation', 'message' => 'Rule 1 is broken by "Hello".', 'passage' => 'Hello'],
+        ])->generateContentAction($this->createJsonRequest(['templateUid' => 1])));
+
+        self::assertSame('Hero', $data['data']['sections'][0]['section']);
+        self::assertSame([['kind' => 'violation', 'message' => 'Rule 1 is broken by "Hello".']], $data['guardrailHints']);
+    }
+
+    #[Test]
+    public function regenerateSectionActionReturnsOnlyTheHintsOfTheReturnedSection(): void
+    {
+        $this->mockLoadByUid($this->templateRow());
+        $this->completionService->method('completeJson')->willReturn([
+            ['section' => 'Hero', 'ctype' => 'text', 'header' => 'H1', 'subheader' => '', 'bodytext' => '<p>Kauf jetzt</p>'],
+            ['section' => 'Features', 'ctype' => 'text', 'header' => 'H2', 'subheader' => '', 'bodytext' => '<p>Du sparst</p>'],
+        ]);
+
+        $data = $this->decode($this->subjectReporting([
+            ['kind' => 'violation', 'message' => 'in Hero', 'passage' => 'Kauf jetzt'],
+            ['kind' => 'violation', 'message' => 'in Features', 'passage' => 'du sparst'],
+            ['kind' => 'unavailable', 'message' => 'not checked'],
+        ])->regenerateSectionAction($this->createJsonRequest(['templateUid' => 1, 'sectionIndex' => 1])));
+
+        self::assertSame('Features', $data['data']['section']);
+        self::assertSame(
+            [['kind' => 'violation', 'message' => 'in Features'], ['kind' => 'unavailable', 'message' => 'not checked']],
+            $data['guardrailHints'],
+        );
+    }
+
+    #[Test]
+    public function optimizePromptActionReturnsTheHints(): void
+    {
+        $this->mockLoadByUid($this->templateRow());
+        $this->promptOptimizerService->method('generateOptimizedPrompt')->willReturn('Optimized');
+
+        $data = $this->decode($this->subjectReporting([
+            ['kind' => 'violation', 'message' => 'Rule 3 is broken.'],
+        ])->optimizePromptAction($this->createJsonRequest(['templateUid' => 1])));
+
+        self::assertSame('Optimized', $data['data']['prompt']);
+        self::assertSame([['kind' => 'violation', 'message' => 'Rule 3 is broken.']], $data['guardrailHints']);
+    }
+
+    #[Test]
+    public function testGenerateActionReturnsTheHintsOfContentAndPageFields(): void
+    {
+        $this->mockLoadByUid($this->templateRow());
+        $this->completionService->method('completeJson')->willReturnOnConsecutiveCalls(
+            [['section' => 'Hero', 'ctype' => 'text', 'header' => 'H', 'subheader' => '', 'bodytext' => '<p>B</p>']],
+            ['seo_title' => 'SEO'],
+        );
+
+        $data = $this->decode($this->subjectReporting([
+            ['kind' => 'violation', 'message' => 'Rule 1 is broken.'],
+        ])->testGenerateAction($this->createJsonRequest(['templateUid' => 1, 'sampleTitle' => 'Topic'])));
+
+        self::assertSame('SEO', $data['data']['pageFields']['seo_title']);
+        // One capture per generation call: content, then page fields.
+        self::assertSame(
+            [['kind' => 'violation', 'message' => 'Rule 1 is broken.'], ['kind' => 'violation', 'message' => 'Rule 1 is broken.']],
+            $data['guardrailHints'],
+        );
+    }
+
+    #[Test]
+    public function errorResponseLogsTheRefusalWithoutThePassageAndShowsItWhole(): void
+    {
+        $this->mockLoadByUid($this->templateRow());
+        $this->promptOptimizerService->method('generateOptimizedPrompt')
+            ->willThrowException(new StorableMessageException('Rule 1 is broken by "the passage".', 'Rule 1 is broken.'));
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with(
+            'Wizard action failed',
+            self::callback(static fn(array $context): bool => $context['exception'] === 'Rule 1 is broken.'),
+        );
+        $this->subject->setLogger($logger);
+
+        $data = $this->decode($this->subject->optimizePromptAction($this->createJsonRequest(['templateUid' => 1])));
+
+        self::assertSame('Rule 1 is broken by "the passage".', $data['error']);
     }
 }

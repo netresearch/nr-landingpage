@@ -13,6 +13,7 @@ use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Service\BackendLayoutService;
 use Netresearch\NrLandingpage\Service\LlmCallerSource;
 use Netresearch\NrLandingpage\Service\PromptOptimizerService;
+use Netresearch\NrLandingpage\Tests\Unit\Service\Fixtures\StorableMessageException;
 use Netresearch\NrLlm\Domain\Model\CompletionResponse;
 use Netresearch\NrLlm\Domain\Model\LlmConfiguration;
 use Netresearch\NrLlm\Domain\Model\UsageStatistics;
@@ -355,6 +356,28 @@ final class PromptOptimizerServiceTest extends UnitTestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('LLM failed');
+
+        $service->generateOptimizedPrompt($this->createTemplate());
+    }
+
+    #[Test]
+    public function generateOptimizedPromptLogsARefusalWithoutThePassageAndRethrowsItWhole(): void
+    {
+        $refusal = new StorableMessageException('Rule 1 is broken by "the passage".', 'Rule 1 is broken.');
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->method('complete')->willThrowException($refusal);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('error')
+            ->with('Prompt optimization failed', self::callback(
+                fn(array $context): bool => $context['error'] === 'Rule 1 is broken.',
+            ));
+
+        $service = $this->createService(completionService: $completionService);
+        $service->setLogger($logger);
+
+        $this->expectExceptionObject($refusal);
 
         $service->generateOptimizedPrompt($this->createTemplate());
     }

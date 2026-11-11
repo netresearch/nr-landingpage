@@ -201,6 +201,10 @@
                 <source>Image search failed</source>
                 <target>Bildsuche fehlgeschlagen</target>
             </trans-unit>
+            <trans-unit id="wizard.guardrailHints.title" resname="wizard.guardrailHints.title">
+                <source>Notes on the generated text</source>
+                <target>Hinweise zum generierten Text</target>
+            </trans-unit>
             <trans-unit id="wizard.content.imageGenerationError" resname="wizard.content.imageGenerationError">
                 <source>AI image generation failed:</source>
                 <target>KI-Bildgenerierung fehlgeschlagen:</target>
@@ -597,6 +601,10 @@
             <trans-unit id="fieldControl.testGenerate.preview.noImages" resname="fieldControl.testGenerate.preview.noImages">
                 <source>No FAL images found for this section.</source>
                 <target>Keine FAL-Bilder für diesen Abschnitt gefunden.</target>
+            </trans-unit>
+            <trans-unit id="fieldControl.guardrailHints.title" resname="fieldControl.guardrailHints.title">
+                <source>Notes on the generated text</source>
+                <target>Hinweise zum generierten Text</target>
             </trans-unit>
             <trans-unit id="fieldControl.testGenerate.preview.noSections" resname="fieldControl.testGenerate.preview.noSections">
                 <source>No sections were generated. Check your AI instructions and content type settings.</source>

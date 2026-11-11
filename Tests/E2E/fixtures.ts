@@ -95,12 +95,14 @@ export async function navigateToNewTemplateRecord(page: Page): Promise<FrameLoca
 /**
  * Mock AJAX response helper for intercepting wizard AJAX calls.
  * Works by intercepting fetch requests matching the given URL path fragment.
+ * `extra` adds keys beside `data`, such as `guardrailHints`.
  */
 export async function mockAjaxRoute(
     page: Page,
     urlPath: string,
     responseData: unknown,
     success: boolean = true,
+    extra: Record<string, unknown> = {},
 ): Promise<void> {
     await page.route(`**${urlPath}**`, async (route) => {
         await route.fulfill({
@@ -110,6 +112,7 @@ export async function mockAjaxRoute(
                 success,
                 data: responseData,
                 ...(success ? {} : { error: typeof responseData === 'string' ? responseData : 'Error' }),
+                ...extra,
             }),
         });
     });

@@ -15,6 +15,7 @@ use Netresearch\NrLandingpage\Service\BackendAccessGuard;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
 use Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer;
+use Netresearch\NrLandingpage\Service\GuardrailHintCapture;
 use Netresearch\NrLandingpage\Service\ImageProviderService;
 use Netresearch\NrLandingpage\Service\ImageSearchService;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
@@ -60,6 +61,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
         private readonly CreativeHtmlSanitizer $creativeHtmlSanitizer,
         private readonly BackendAccessGuard $accessGuard,
         private readonly ?PromptOptimizerService $promptOptimizerService = null,
+        private readonly GuardrailHintCapture $hintCapture = new GuardrailHintCapture(),
     ) {}
 
     public function indexAction(ServerRequestInterface $request): ResponseInterface
@@ -164,9 +166,11 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 return $this->forbiddenResponse();
             }
 
-            $questions = $this->briefingService->generateQuestions($template, $this->resolveSiteIdentifier($parentPageId));
+            $captured = $this->hintCapture->capture(
+                fn(): array => $this->briefingService->generateQuestions($template, $this->resolveSiteIdentifier($parentPageId)),
+            );
 
-            return new JsonResponse(['success' => true, 'data' => $questions]);
+            return $this->generatedResponse($captured['result'], $captured['hints']);
         } catch (Throwable $e) {
             return $this->errorResponse($e);
         }
@@ -201,9 +205,11 @@ final class LandingPageWizardController implements LoggerAwareInterface
             }
             $outputLanguage = $this->resolveOutputLanguage($parentPageId);
 
-            $pageFields = $this->contentGeneratorService->generatePageFields($template, $stringAnswers, $outputLanguage, $this->resolveSiteIdentifier($parentPageId));
+            $captured = $this->hintCapture->capture(
+                fn(): array => $this->contentGeneratorService->generatePageFields($template, $stringAnswers, $outputLanguage, $this->resolveSiteIdentifier($parentPageId)),
+            );
 
-            return new JsonResponse(['success' => true, 'data' => $pageFields]);
+            return $this->generatedResponse($captured['result'], $captured['hints']);
         } catch (Throwable $e) {
             return $this->errorResponse($e);
         }
@@ -239,19 +245,22 @@ final class LandingPageWizardController implements LoggerAwareInterface
             $outputLanguage = $this->resolveOutputLanguage($parentPageId);
             $template = $template->withResolvedColors($this->resolveColorDefaults($parentPageId));
 
-            $contentSections = $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage, $parentPageId, $this->resolveSiteIdentifier($parentPageId));
+            $captured = $this->hintCapture->capture(
+                fn(): array => $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage, $parentPageId, $this->resolveSiteIdentifier($parentPageId)),
+            );
+            $contentSections = $captured['result'];
 
             $images = $this->imageProviderService->resolveImagesForSections($template, $contentSections);
             $imageErrors = $this->imageProviderService->getImageErrors();
 
-            return new JsonResponse(['success' => true, 'data' => [
+            return $this->generatedResponse([
                 'sections' => $contentSections,
                 'images' => $images,
                 'imageErrors' => $imageErrors,
                 'hasImageTask' => $template->hasImageTask(),
                 'aiGenerationAvailable' => $this->imageProviderService->isAiGenerationAvailable(),
                 'generationMode' => $template->generationMode,
-            ]]);
+            ], $captured['hints']);
         } catch (Throwable $e) {
             return $this->errorResponse($e);
         }
@@ -294,13 +303,20 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
             // Regenerate ALL content and return only the section at the given index.
             // The LLM cannot regenerate just one section — we regenerate all and pick the one the user wanted refreshed.
-            $contentSections = $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage, $parentPageId, $this->resolveSiteIdentifier($parentPageId));
+            $captured = $this->hintCapture->capture(
+                fn(): array => $this->contentGeneratorService->generateContent($template, $stringAnswers, $outputLanguage, $parentPageId, $this->resolveSiteIdentifier($parentPageId)),
+            );
+            $contentSections = $captured['result'];
 
             if (!isset($contentSections[$sectionIndex])) {
                 return new JsonResponse(['success' => false, 'error' => 'Section index out of range'], 400);
             }
 
-            return new JsonResponse(['success' => true, 'data' => $contentSections[$sectionIndex]]);
+            // The hints cover every section generated; the editor sees only this one.
+            return $this->generatedResponse(
+                $contentSections[$sectionIndex],
+                GuardrailHintCapture::concerning($captured['hints'], $contentSections[$sectionIndex]),
+            );
         } catch (Throwable $e) {
             return $this->errorResponse($e);
         }
@@ -535,13 +551,16 @@ final class LandingPageWizardController implements LoggerAwareInterface
             }
             $outputLanguage = $parentPageId > 0 ? $this->resolveOutputLanguage($parentPageId) : '';
 
-            $optimizedPrompt = $this->promptOptimizerService->generateOptimizedPrompt(
-                $template->withResolvedColors([]),
-                $outputLanguage,
-                $this->resolveSiteIdentifier($parentPageId),
+            $promptOptimizerService = $this->promptOptimizerService;
+            $captured = $this->hintCapture->capture(
+                fn(): string => $promptOptimizerService->generateOptimizedPrompt(
+                    $template->withResolvedColors([]),
+                    $outputLanguage,
+                    $this->resolveSiteIdentifier($parentPageId),
+                ),
             );
 
-            return new JsonResponse(['success' => true, 'data' => ['prompt' => $optimizedPrompt]]);
+            return $this->generatedResponse(['prompt' => $captured['result']], $captured['hints']);
         } catch (Throwable $e) {
             return $this->errorResponse($e);
         }
@@ -578,23 +597,31 @@ final class LandingPageWizardController implements LoggerAwareInterface
 
             $template = $template->withResolvedColors([]);
             $briefingAnswers = ['title' => $sampleTitle];
-            $contentSections = $this->contentGeneratorService->generateContent($template, $briefingAnswers);
+            $captured = $this->hintCapture->capture(
+                fn(): array => $this->contentGeneratorService->generateContent($template, $briefingAnswers),
+            );
+            $contentSections = $captured['result'];
             $images = $this->imageProviderService->resolveImagesForSections($template, $contentSections);
             $imageErrors = $this->imageProviderService->getImageErrors();
 
             $pageFields = [];
+            $pageFieldHints = [];
             if ($template->pageFields !== []) {
-                $pageFields = $this->contentGeneratorService->generatePageFields($template, $briefingAnswers);
+                $capturedFields = $this->hintCapture->capture(
+                    fn(): array => $this->contentGeneratorService->generatePageFields($template, $briefingAnswers),
+                );
+                $pageFields = $capturedFields['result'];
+                $pageFieldHints = $capturedFields['hints'];
             }
 
-            return new JsonResponse(['success' => true, 'data' => [
+            return $this->generatedResponse([
                 'sections' => $contentSections,
                 'images' => $images,
                 'imageErrors' => $imageErrors,
                 'pageFields' => $pageFields,
                 'aiGenerationAvailable' => $this->imageProviderService->isAiGenerationAvailable(),
                 'generationMode' => $template->generationMode,
-            ]]);
+            ], [...$captured['hints'], ...$pageFieldHints]);
         } catch (Throwable $e) {
             return $this->errorResponse($e);
         }
@@ -950,10 +977,29 @@ final class LandingPageWizardController implements LoggerAwareInterface
         return new JsonResponse(['success' => false, 'error' => 'Access denied'], 403);
     }
 
+    /**
+     * The answer of a generation step. The hints of nr-llm's guardrails go
+     * beside the data, as the data of a step can be a list; without hints the
+     * answer is the one the wizard always got.
+     *
+     * @param list<array{kind: string, message: string, passage: string}> $hints
+     */
+    private function generatedResponse(mixed $data, array $hints): ResponseInterface
+    {
+        $payload = ['success' => true, 'data' => $data];
+        if ($hints !== []) {
+            $payload['guardrailHints'] = GuardrailHintCapture::forResponse($hints);
+        }
+
+        return new JsonResponse($payload);
+    }
+
     private function errorResponse(Throwable $e): ResponseInterface
     {
+        // The log outlives the request, so it gets nr-llm's refusal without
+        // the generated passage it quotes; the editor still reads it whole.
         $this->logger?->error('Wizard action failed', [
-            'exception' => $e->getMessage(),
+            'exception' => GuardrailHintCapture::storableMessage($e),
             'trace' => $e->getTraceAsString(),
         ]);
 

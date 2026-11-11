@@ -12,6 +12,7 @@ namespace Netresearch\NrLandingpage\Tests\Functional;
 use Netresearch\NrLandingpage\Controller\Backend\LandingPageWizardController;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
+use Netresearch\NrLandingpage\Service\GuardrailHintCapture;
 use Netresearch\NrLandingpage\Service\ImageProviderService;
 use Netresearch\NrLandingpage\Service\ImageSearchService;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
@@ -115,6 +116,21 @@ final class DependencyInjectionTest extends FunctionalTestCase
                 ),
             );
         }
+    }
+
+    /**
+     * The capture has to reach nr-llm's collector through the container; built
+     * without one it runs every call and never reports a hint.
+     */
+    #[Test]
+    public function hintCaptureIsBuiltWithTheContainer(): void
+    {
+        $capture = $this->get(GuardrailHintCapture::class);
+        self::assertInstanceOf(GuardrailHintCapture::class, $capture);
+        self::assertNotNull((new ReflectionClass($capture))->getProperty('container')->getValue($capture));
+
+        $controller = $this->get(LandingPageWizardController::class);
+        self::assertSame($capture, (new ReflectionClass($controller))->getProperty('hintCapture')->getValue($controller));
     }
 
     #[Test]
