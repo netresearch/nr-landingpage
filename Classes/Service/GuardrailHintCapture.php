@@ -69,24 +69,42 @@ final class GuardrailHintCapture
     }
 
     /**
-     * The hints that concern one section of a generated answer. A violation
-     * quotes the passage it found; when that passage is not in the section,
-     * the editor would be warned about text that is not on the screen. A hint
-     * without a passage, such as "the text was not checked", always concerns it.
+     * The hints that concern one section of a generated answer of several.
+     *
+     * A violation quotes the passage it found. A hint is left out only when
+     * its passage is in another section and not in this one: the editor would
+     * be warned about text that is not on the screen. A passage found in no
+     * section stays, as the judge read the text before the sections were
+     * sanitised, and a hint without a passage ("the text was not checked")
+     * concerns every section.
      *
      * @param list<array{kind: string, message: string, passage: string}> $hints
-     * @param array<mixed> $section
+     * @param array<array-key, array<mixed>> $sections
      *
      * @return list<array{kind: string, message: string, passage: string}>
      */
-    public static function concerning(array $hints, array $section): array
+    public static function concerning(array $hints, array $sections, int|string $index): array
     {
-        $text = self::normalize(implode(' ', self::strings($section)));
+        $texts = array_map(
+            static fn(array $section): string => self::normalize(implode(' ', self::strings($section))),
+            $sections,
+        );
 
         return array_values(array_filter(
             $hints,
-            static fn(array $hint): bool => $hint['passage'] === ''
-                || str_contains($text, self::normalize($hint['passage'])),
+            static function (array $hint) use ($texts, $index): bool {
+                $passage = self::normalize($hint['passage']);
+                if ($passage === '' || str_contains($texts[$index] ?? '', $passage)) {
+                    return true;
+                }
+                foreach ($texts as $other => $text) {
+                    if ($other !== $index && str_contains($text, $passage)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            },
         ));
     }
 

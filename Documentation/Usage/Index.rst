@@ -56,8 +56,8 @@ edit the text or regenerate it, and go on.
 
 *   The briefing and page-fields steps show the notes below their intro.
 *   The content step shows the notes of the generated content below its intro,
-    and a section regenerated on its own shows its notes in its card. A
-    regenerated section's notes name only what was found in that section.
+    and a section regenerated on its own shows its notes in its card. Notes
+    about a passage that is in another section of that answer are left out.
 *   In the template record, the preview of a full page generation shows the
     notes above the preview, and the optimizer of the AI instructions shows
     them below the instructions field.

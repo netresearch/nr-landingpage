@@ -83,18 +83,23 @@ final class GuardrailHintCaptureTest extends UnitTestCase
     }
 
     #[Test]
-    public function concerningKeepsTheHintsWhosePassageIsInTheSection(): void
+    public function concerningLeavesOutOnlyTheHintsWhosePassageIsInAnotherSection(): void
     {
         $hints = [
             ['kind' => 'violation', 'message' => 'in this section', 'passage' => "Kauf  JETZT\nein"],
             ['kind' => 'violation', 'message' => 'in another section', 'passage' => 'Schnäppchen'],
+            ['kind' => 'violation', 'message' => 'in no section', 'passage' => '<script>alert(1)</script>'],
+            ['kind' => 'violation', 'message' => 'in both', 'passage' => 'Angebot'],
             ['kind' => 'unavailable', 'message' => 'not checked', 'passage' => ''],
         ];
-        $section = ['section' => 'Hero', 'header' => 'Angebot', 'bodytext' => '<p>Kauf <strong>jetzt</strong> ein &amp; spare</p>', 'imageKeywords' => ['sale']];
+        $sections = [
+            ['section' => 'Intro', 'header' => 'Angebot', 'bodytext' => '<p>Das Schnäppchen</p>'],
+            ['section' => 'Hero', 'header' => 'Angebot', 'bodytext' => '<p>Kauf <strong>jetzt</strong> ein &amp; spare</p>', 'imageKeywords' => ['sale']],
+        ];
 
         self::assertSame(
-            ['in this section', 'not checked'],
-            array_column(GuardrailHintCapture::concerning($hints, $section), 'message'),
+            ['in this section', 'in no section', 'in both', 'not checked'],
+            array_column(GuardrailHintCapture::concerning($hints, $sections, 1), 'message'),
         );
     }
 

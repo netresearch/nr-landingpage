@@ -1508,12 +1508,17 @@ final class LandingPageWizardControllerTest extends UnitTestCase
         $data = $this->decode($this->subjectReporting([
             ['kind' => 'violation', 'message' => 'in Hero', 'passage' => 'Kauf jetzt'],
             ['kind' => 'violation', 'message' => 'in Features', 'passage' => 'du sparst'],
+            ['kind' => 'violation', 'message' => 'changed by the sanitizer', 'passage' => 'Jetzt kaufen!'],
             ['kind' => 'unavailable', 'message' => 'not checked'],
         ])->regenerateSectionAction($this->createJsonRequest(['templateUid' => 1, 'sectionIndex' => 1])));
 
         self::assertSame('Features', $data['data']['section']);
         self::assertSame(
-            [['kind' => 'violation', 'message' => 'in Features'], ['kind' => 'unavailable', 'message' => 'not checked']],
+            [
+                ['kind' => 'violation', 'message' => 'in Features'],
+                ['kind' => 'violation', 'message' => 'changed by the sanitizer'],
+                ['kind' => 'unavailable', 'message' => 'not checked'],
+            ],
             $data['guardrailHints'],
         );
     }

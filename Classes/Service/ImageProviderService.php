@@ -126,7 +126,8 @@ class ImageProviderService implements LoggerAwareInterface
             } catch (Throwable $e) {
                 $this->lastImageError = 'Image generation failed';
                 $this->logger?->error('Image generation failed with ' . $name, [
-                    'error' => $e->getMessage(),
+                    // A refusal of nr-llm's guardrails without the passage it quotes.
+                    'error' => GuardrailHintCapture::storableMessage($e),
                     'section' => $sectionHeader,
                 ]);
             }

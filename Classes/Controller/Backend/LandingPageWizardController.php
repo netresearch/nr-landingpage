@@ -315,7 +315,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
             // The hints cover every section generated; the editor sees only this one.
             return $this->generatedResponse(
                 $contentSections[$sectionIndex],
-                GuardrailHintCapture::concerning($captured['hints'], $contentSections[$sectionIndex]),
+                GuardrailHintCapture::concerning($captured['hints'], $contentSections, $sectionIndex),
             );
         } catch (Throwable $e) {
             return $this->errorResponse($e);
