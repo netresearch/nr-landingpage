@@ -13,6 +13,8 @@ level lower.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-12
+
 ### Added
 
 - The wizard shows the notes of nr-llm's rule-set judge in report mode next to the generated text: each rule the text breaks, or that it could not be checked. They appear below the intro of the briefing, page-fields and content steps, in the card of a section regenerated on its own, above the preview of the template's full page generation and below the field of the prompt optimizer. The log keeps a refusal of nr-llm's guardrails without the passage it quotes. Needs the nr-llm release with the rule-set judge; before it nothing changes ([#118](https://github.com/netresearch/nr-landingpage/pull/118) by @CybotTM).
@@ -391,7 +393,8 @@ Additive/non-breaking 0.x patch. See [#7](https://github.com/netresearch/nr-land
 ### Changes
 Initial release
 
-[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.3.26...HEAD
+[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/netresearch/nr-landingpage/compare/v0.3.26...v0.4.0
 [0.3.26]: https://github.com/netresearch/nr-landingpage/compare/v0.3.25...v0.3.26
 [0.3.25]: https://github.com/netresearch/nr-landingpage/compare/v0.3.24...v0.3.25
 [0.3.24]: https://github.com/netresearch/nr-landingpage/compare/v0.3.23...v0.3.24
