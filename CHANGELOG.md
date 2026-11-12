@@ -13,6 +13,10 @@ level lower.
 
 ## [Unreleased]
 
+### Changed
+
+- nr-llm 0.44 is accepted beside 0.43 (`^0.43.10 || ^0.44`), so the extension installs together with nr-llm 0.44.0 and the nr-vault 1.5 it requires.
+
 ## [0.4.0] - 2026-11-12
 
 ### Added
