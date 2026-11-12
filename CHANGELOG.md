@@ -13,6 +13,8 @@ level lower.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-12
+
 ### Changed
 
 - nr-llm 0.44 is accepted beside 0.43 (`^0.43.10 || ^0.44`), so the extension installs together with nr-llm 0.44.0 and the nr-vault 1.5 it requires.
@@ -397,7 +399,8 @@ Additive/non-breaking 0.x patch. See [#7](https://github.com/netresearch/nr-land
 ### Changes
 Initial release
 
-[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/netresearch/nr-landingpage/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/netresearch/nr-landingpage/compare/v0.3.26...v0.4.0
 [0.3.26]: https://github.com/netresearch/nr-landingpage/compare/v0.3.25...v0.3.26
 [0.3.25]: https://github.com/netresearch/nr-landingpage/compare/v0.3.24...v0.3.25
