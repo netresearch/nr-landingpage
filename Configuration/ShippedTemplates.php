@@ -10,8 +10,8 @@ declare(strict_types=1);
 /*
  * Template records that ship with the extension.
  *
- * Imported once by ShippedTemplateService, on extension setup and by the
- * upgrade wizard "Import the shipped landing page templates". Each entry is a
+ * Imported once by ShippedTemplateService on extension setup, and by the
+ * console command nr-landingpage:import-templates. Each entry is a
  * row of tx_nrlandingpage_domain_model_template; "identifier" names the record
  * and decides whether it exists already. Colours stay empty, so the colours of
  * the site settings apply. The prompts are English: the language of the

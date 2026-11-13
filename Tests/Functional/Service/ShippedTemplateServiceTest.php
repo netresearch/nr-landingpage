@@ -9,19 +9,20 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Tests\Functional\Service;
 
+use Netresearch\NrLandingpage\Command\ImportShippedTemplatesCommand;
 use Netresearch\NrLandingpage\EventListener\ImportShippedTemplatesListener;
 use Netresearch\NrLandingpage\Service\ShippedTemplateService;
 use Netresearch\NrLandingpage\Service\TemplateService;
-use Netresearch\NrLandingpage\Upgrades\ImportShippedTemplatesWizard;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Console\Tester\CommandTester;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Package\Event\PackageInitializationEvent;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 #[CoversClass(ShippedTemplateService::class)]
-#[CoversClass(ImportShippedTemplatesWizard::class)]
+#[CoversClass(ImportShippedTemplatesCommand::class)]
 #[CoversClass(ImportShippedTemplatesListener::class)]
 final class ShippedTemplateServiceTest extends FunctionalTestCase
 {
@@ -119,23 +120,39 @@ final class ShippedTemplateServiceTest extends FunctionalTestCase
     }
 
     #[Test]
-    public function wizardIsNecessaryUntilTheImportRanAndRunsAgain(): void
+    public function commandCreatesTheMissingTemplatesAndReportsThem(): void
     {
-        $wizard = $this->get(ImportShippedTemplatesWizard::class);
+        $tester = new CommandTester(new ImportShippedTemplatesCommand($this->subject));
 
-        self::assertTrue($wizard->updateNecessary());
-        self::assertTrue($wizard->executeUpdate());
+        self::assertSame(0, $tester->execute([]));
+        self::assertStringContainsString('Created: product-launch, event, creative-one-pager, saas-feature', $tester->getDisplay());
         self::assertCount(4, $this->rows());
-        self::assertFalse($wizard->updateNecessary());
         self::assertTrue($this->subject->wasImported());
     }
 
     #[Test]
-    public function wizardIsNotNecessaryWhenAllTemplatesExist(): void
+    public function commandRunAgainCreatesNothingAndSaysSo(): void
     {
-        $this->subject->import();
+        $tester = new CommandTester(new ImportShippedTemplatesCommand($this->subject));
+        $tester->execute([]);
 
-        self::assertFalse($this->get(ImportShippedTemplatesWizard::class)->updateNecessary());
+        self::assertSame(0, $tester->execute([]));
+        self::assertStringContainsString('nothing created', $tester->getDisplay());
+        self::assertCount(4, $this->rows());
+    }
+
+    #[Test]
+    public function commandBringsBackATemplateThatWasRemovedForGood(): void
+    {
+        $tester = new CommandTester(new ImportShippedTemplatesCommand($this->subject));
+        $tester->execute([]);
+        $this->get(ConnectionPool::class)->getConnectionForTable('tx_nrlandingpage_domain_model_template')
+            ->delete('tx_nrlandingpage_domain_model_template', ['identifier' => 'event']);
+
+        $tester->execute([]);
+
+        self::assertStringContainsString('Created: event', $tester->getDisplay());
+        self::assertCount(4, $this->rows());
     }
 
     #[Test]

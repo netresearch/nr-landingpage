@@ -113,12 +113,15 @@ The extension ships four template records on the root level (PID 0):
 *   **SaaS Feature** (structured): explain one feature of a service.
 
 They are created once, when the extension is set up
-(``vendor/bin/typo3 extension:setup``). An installation that had the
-extension before gets them through the upgrade wizard
-:guilabel:`Landing page templates: import the shipped templates`
-(``vendor/bin/typo3 upgrade:run nrLandingpageImportShippedTemplates``).
-Run again, the wizard creates only the templates that are missing, and
-a template with the same identifier is never changed, also not when it
+(``vendor/bin/typo3 extension:setup``). An installation that had the extension
+before gets them with its next ``extension:setup``. To create the ones that
+are missing again, run:
+
+.. code-block:: bash
+
+   vendor/bin/typo3 nr-landingpage:import-templates
+
+A template with the same identifier is never changed, also not when it
 is hidden or deleted. The templates start without colours, so the
 colours of the site settings apply; edit them like any other template.
 

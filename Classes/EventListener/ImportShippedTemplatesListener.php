@@ -18,7 +18,7 @@ use TYPO3\CMS\Core\Package\Event\PackageInitializationEvent;
 /**
  * Creates the template records that ship with the extension when the extension
  * is set up, once. An installation that had the extension before gets them
- * through the upgrade wizard.
+ * with its next extension setup, and the console command repeats the import.
  */
 #[AsEventListener]
 final readonly class ImportShippedTemplatesListener
@@ -38,7 +38,7 @@ final readonly class ImportShippedTemplatesListener
             $created = $this->shippedTemplates->import();
             $this->shippedTemplates->markImported();
         } catch (Throwable $e) {
-            // Setup must not fail over sample records; the upgrade wizard offers the import again.
+            // Setup must not fail over sample records; the console command imports them again.
             $this->logger->warning('The shipped landing page templates were not imported', ['exception' => $e]);
 
             return;

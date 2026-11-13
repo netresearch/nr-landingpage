@@ -72,7 +72,7 @@ final readonly class ShippedTemplateService
         return $created;
     }
 
-    /** Whether the import ran before: on extension setup or through the upgrade wizard. */
+    /** Whether the import ran before: on extension setup or through the console command. */
     public function wasImported(): bool
     {
         return (bool) $this->registry->get(self::REGISTRY_NAMESPACE, self::REGISTRY_KEY, false);

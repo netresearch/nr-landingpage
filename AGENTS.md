@@ -30,7 +30,7 @@ nr_landingpage/
 │   ├── Domain/Model/              # Template, GenerationContext
 │   ├── EventListener/             # PSR-14 event listeners
 │   ├── Form/                      # TCA form elements (fieldControl, fieldInformation)
-│   ├── Upgrades/                  # Upgrade wizards (import of the shipped templates)
+│   ├── Command/                   # Console commands (import of the shipped templates)
 │   └── Service/                   # Business logic
 │       ├── BackendLayoutService   # Column map resolution
 │       ├── BriefingService        # Briefing question generation
