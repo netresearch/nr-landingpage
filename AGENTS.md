@@ -45,7 +45,7 @@ nr_landingpage/
 │       └── TemplateService        # Template CRUD + access control
 ├── Configuration/
 │   ├── Backend/                   # Module registration, AJAX routes
-│   ├── ShippedTemplates.php       # Template records that ship with the extension
+│   ├── ShippedTemplates.json      # Template records that ship with the extension
 │   ├── TCA/                       # Template record TCA
 │   └── Services.yaml              # Dependency injection
 ├── Documentation/                 # RST documentation (TYPO3 docs standard)

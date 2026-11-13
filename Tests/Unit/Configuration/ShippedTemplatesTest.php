@@ -9,7 +9,10 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Tests\Unit\Configuration;
 
+use Netresearch\NrLandingpage\Service\ShippedTemplateService;
 use PHPUnit\Framework\Attributes\Test;
+use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Registry;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 
 final class ShippedTemplatesTest extends UnitTestCase
@@ -17,15 +20,10 @@ final class ShippedTemplatesTest extends UnitTestCase
     /** @var list<array<string, int|string>> */
     private array $definitions;
 
-    /** @var array<string, mixed> */
-    private array $tcaColumns;
-
     protected function setUp(): void
     {
         parent::setUp();
-        $this->definitions = require dirname(__DIR__, 3) . '/Configuration/ShippedTemplates.php';
-        $tca = require dirname(__DIR__, 3) . '/Configuration/TCA/tx_nrlandingpage_domain_model_template.php';
-        $this->tcaColumns = $tca['columns'];
+        $this->definitions = (new ShippedTemplateService($this->createStub(ConnectionPool::class), $this->createStub(Registry::class)))->definitions();
     }
 
     #[Test]
@@ -45,16 +43,6 @@ final class ShippedTemplatesTest extends UnitTestCase
         self::assertSame($identifiers, array_values(array_unique($identifiers)));
         foreach ($identifiers as $identifier) {
             self::assertMatchesRegularExpression('/^[a-z0-9]+(-[a-z0-9]+)*$/', (string) $identifier);
-        }
-    }
-
-    #[Test]
-    public function everyKeyIsAColumnOfTheTemplateTable(): void
-    {
-        foreach ($this->definitions as $definition) {
-            foreach (array_keys($definition) as $key) {
-                self::assertArrayHasKey($key, $this->tcaColumns, $definition['identifier'] . ': ' . $key . ' is no TCA column');
-            }
         }
     }
 

@@ -9,14 +9,19 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Service;
 
-use RuntimeException;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Registry;
+use UnexpectedValueException;
 
 /**
  * Imports the template records that ship with the extension
- * (Configuration/ShippedTemplates.php) as records on the root level.
+ * (Configuration/ShippedTemplates.json) as records on the root level.
+ *
+ * The file holds the shared "defaults" and the "templates"; a prompt is a list
+ * of lines. The templates start without colours, so the colours of the site
+ * settings apply, and the language of the generated text comes from the default
+ * language of the site, so the prompts are English.
  *
  * A record is created only when no record with its identifier exists, hidden
  * or deleted ones included, so the import never overwrites an edited template
@@ -33,7 +38,7 @@ final readonly class ShippedTemplateService
     public function __construct(
         private ConnectionPool $connectionPool,
         private Registry $registry,
-        private string $definitionFile = __DIR__ . '/../../Configuration/ShippedTemplates.php',
+        private string $definitionFile = __DIR__ . '/../../Configuration/ShippedTemplates.json',
     ) {}
 
     /**
@@ -43,7 +48,7 @@ final readonly class ShippedTemplateService
      */
     public function missingIdentifiers(): array
     {
-        $shipped = array_column($this->definitions(), 'identifier');
+        $shipped = array_map(static fn(array $row): string => (string) $row['identifier'], $this->definitions());
         $existing = $this->existingIdentifiers();
 
         return array_values(array_diff($shipped, $existing));
@@ -84,23 +89,30 @@ final readonly class ShippedTemplateService
     }
 
     /**
-     * @return list<array{identifier: string, title: string, ...<string, int|string>}>
+     * The shipped template rows, the shared defaults of the file applied.
+     *
+     * @return list<array<string, int|string>>
      */
-    private function definitions(): array
+    public function definitions(): array
     {
-        /** @var mixed $definitions */
-        $definitions = require $this->definitionFile;
-        if (!is_array($definitions)) {
-            throw new RuntimeException('The shipped template definitions are not a list.', 1762992001);
+        $json = file_get_contents($this->definitionFile);
+        $data = $json === false ? null : json_decode($json, true, 8, JSON_THROW_ON_ERROR);
+        if (!is_array($data) || !is_array($data['defaults'] ?? null) || !is_array($data['templates'] ?? null)) {
+            throw new UnexpectedValueException('The shipped template definitions need "defaults" and "templates".', 1762992001);
         }
 
         $list = [];
-        foreach ($definitions as $definition) {
-            if (!is_array($definition) || !is_string($definition['identifier'] ?? null) || !is_string($definition['title'] ?? null)) {
-                throw new RuntimeException('A shipped template definition lacks its title or identifier.', 1762992002);
+        foreach ($data['templates'] as $template) {
+            if (!is_array($template) || !is_string($template['identifier'] ?? null) || !is_string($template['title'] ?? null)) {
+                throw new UnexpectedValueException('A shipped template definition lacks its title or identifier.', 1762992002);
             }
-            /** @var array{identifier: string, title: string, ...<string, int|string>} $definition */
-            $list[] = $definition;
+            $row = [...$data['defaults'], ...$template];
+            // A prompt is written as a list of lines.
+            if (is_array($row['system_prompt'] ?? null)) {
+                $row['system_prompt'] = implode("\n", array_filter($row['system_prompt'], is_string(...)));
+            }
+            /** @var array<string, int|string> $row */
+            $list[] = $row;
         }
 
         return $list;
@@ -117,7 +129,7 @@ final readonly class ShippedTemplateService
             ->from(self::TABLE)
             ->where($queryBuilder->expr()->in(
                 'identifier',
-                $queryBuilder->createNamedParameter(array_column($this->definitions(), 'identifier'), Connection::PARAM_STR_ARRAY),
+                $queryBuilder->createNamedParameter(array_map(static fn(array $row): string => (string) $row['identifier'], $this->definitions()), Connection::PARAM_STR_ARRAY),
             ))
             ->executeQuery()
             ->fetchFirstColumn();

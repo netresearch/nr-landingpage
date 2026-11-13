@@ -44,6 +44,18 @@ final class ShippedTemplateServiceTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function everyKeyOfADefinitionIsAColumnOfTheTemplateTable(): void
+    {
+        $columns = $GLOBALS['TCA']['tx_nrlandingpage_domain_model_template']['columns'];
+
+        foreach ($this->subject->definitions() as $definition) {
+            foreach (array_keys($definition) as $key) {
+                self::assertArrayHasKey($key, $columns, $definition['identifier'] . ': ' . $key . ' is no TCA column');
+            }
+        }
+    }
+
+    #[Test]
     public function importCreatesTheFourTemplatesOnTheRootLevel(): void
     {
         self::assertSame(self::SHIPPED, $this->subject->missingIdentifiers());
@@ -122,7 +134,7 @@ final class ShippedTemplateServiceTest extends FunctionalTestCase
     #[Test]
     public function commandCreatesTheMissingTemplatesAndReportsThem(): void
     {
-        $tester = new CommandTester(new ImportShippedTemplatesCommand($this->subject));
+        $tester = $this->commandTester();
 
         self::assertSame(0, $tester->execute([]));
         self::assertStringContainsString('Created: product-launch, event, creative-one-pager, saas-feature', $tester->getDisplay());
@@ -133,7 +145,7 @@ final class ShippedTemplateServiceTest extends FunctionalTestCase
     #[Test]
     public function commandRunAgainCreatesNothingAndSaysSo(): void
     {
-        $tester = new CommandTester(new ImportShippedTemplatesCommand($this->subject));
+        $tester = $this->commandTester();
         $tester->execute([]);
 
         self::assertSame(0, $tester->execute([]));
@@ -144,7 +156,7 @@ final class ShippedTemplateServiceTest extends FunctionalTestCase
     #[Test]
     public function commandBringsBackATemplateThatWasRemovedForGood(): void
     {
-        $tester = new CommandTester(new ImportShippedTemplatesCommand($this->subject));
+        $tester = $this->commandTester();
         $tester->execute([]);
         $this->get(ConnectionPool::class)->getConnectionForTable('tx_nrlandingpage_domain_model_template')
             ->delete('tx_nrlandingpage_domain_model_template', ['identifier' => 'event']);
@@ -181,6 +193,11 @@ final class ShippedTemplateServiceTest extends FunctionalTestCase
 
         self::assertSame([], $this->rows());
         self::assertFalse($this->subject->wasImported());
+    }
+
+    private function commandTester(): CommandTester
+    {
+        return new CommandTester(new ImportShippedTemplatesCommand($this->subject));
     }
 
     /** @return list<array<string, mixed>> */

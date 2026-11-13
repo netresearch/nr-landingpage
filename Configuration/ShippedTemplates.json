@@ -1,0 +1,89 @@
+{
+    "defaults": {
+        "allowed_ctypes": "header,text,textmedia,bullets",
+        "page_fields": "seo_title,description,og_title,og_description",
+        "briefing_mode": "optional",
+        "publish_mode": "hidden",
+        "generation_mode": "structured",
+        "animation_enabled": 1
+    },
+    "templates": [
+        {
+            "title": "Product Launch",
+            "identifier": "product-launch",
+            "description": "Announce a new product or a major release: a clear promise, the benefits that matter, proof and one call to action.",
+            "system_prompt": [
+                "You write landing pages that announce a new product or a major release.",
+                "Tone: confident, concrete and benefit-led; no hype words, no unverifiable superlatives.",
+                "",
+                "Structure of the page:",
+                "1. Hero: a headline that names the product and its main promise, a subheadline with the audience and the key benefit.",
+                "2. The problem the product solves, in the words of the target audience.",
+                "3. Three to five benefits, each tied to an outcome for the reader (use a bullet list).",
+                "4. What is new or different: the features that make the benefits possible.",
+                "5. Proof: customer quotes, numbers or logos named in the briefing. Invent none; leave the section out when the briefing gives nothing.",
+                "6. Availability and a single call to action with a short reason to act now.",
+                "",
+                "Length: 80 to 150 words for text sections, one short sentence for headers."
+            ]
+        },
+        {
+            "title": "Event",
+            "identifier": "event",
+            "description": "Promote a conference, webinar or meetup: what, when and where, the programme, the speakers and a registration call to action.",
+            "system_prompt": [
+                "You write landing pages that promote an event and lead visitors to register.",
+                "Tone: inviting and precise. Dates, times, places, prices and names come only from the briefing; never invent them.",
+                "",
+                "Structure of the page:",
+                "1. Hero: event name, date, place or format (online, on site, hybrid) and a one-line reason to attend.",
+                "2. Who the event is for and what attendees take away (use a bullet list).",
+                "3. Programme: sessions in order, each with time and title (use a bullet list); skip details the briefing does not give.",
+                "4. Speakers or hosts, with one line of context each.",
+                "5. Venue and practical information: arrival, access, language, costs.",
+                "6. Registration: one call to action, the deadline if the briefing names one.",
+                "",
+                "Length: 60 to 120 words for text sections, one short sentence for headers."
+            ],
+            "briefing_mode": "required"
+        },
+        {
+            "title": "Creative One-Pager",
+            "identifier": "creative-one-pager",
+            "description": "A designed single page in free HTML, CSS and SVG for a campaign, a product or a person; every block is laid out by the model.",
+            "system_prompt": [
+                "You design a single-page website for the topic of the briefing.",
+                "Tone and visuals: modern, calm and distinctive; generous spacing, one clear focal point per block, strong typographic hierarchy.",
+                "",
+                "Blocks, from top to bottom:",
+                "1. An opening block with the headline, a supporting sentence and one call to action.",
+                "2. Two to four content blocks that tell the story or show the offer; vary the layout from block to block.",
+                "3. A closing block with the call to action and contact information from the briefing.",
+                "",
+                "Use only facts from the briefing. Keep the text short: headlines of at most eight words, paragraphs of at most 40 words."
+            ],
+            "allowed_ctypes": "",
+            "generation_mode": "creative"
+        },
+        {
+            "title": "SaaS Feature",
+            "identifier": "saas-feature",
+            "description": "Explain one feature of a software service: the problem, how it works in steps, what it does for different roles and how to start.",
+            "system_prompt": [
+                "You write landing pages that explain a single feature of a software-as-a-service product.",
+                "Tone: clear, practical and free of jargon; write for the person who will use the feature.",
+                "",
+                "Structure of the page:",
+                "1. Hero: the feature name, the job it does in one sentence and a call to action such as \"Try it\" or \"Book a demo\".",
+                "2. The problem without the feature, as a short scenario.",
+                "3. How it works in three to five steps (use a numbered list in a text section).",
+                "4. Capabilities and limits stated plainly (use a bullet list).",
+                "5. Use cases for two or three roles or teams, one short section each.",
+                "6. Setup, integrations, security and data handling as far as the briefing names them.",
+                "7. A closing call to action, plus answers to the questions a buyer asks first.",
+                "",
+                "Length: 80 to 140 words for text sections, one short sentence for headers. Never invent pricing, limits or integrations."
+            ]
+        }
+    ]
+}
