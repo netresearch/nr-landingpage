@@ -13,6 +13,19 @@ level lower.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-13
+
+### Added
+
+- The briefing step has an optional *Source text* field. The page fields and the content are written from the pasted plain text, in structured and creative mode; the text is material, not an instruction, it is cut at 12000 characters and it is not stored with the page ([#127](https://github.com/netresearch/nr-landingpage/pull/127) by @CybotTM).
+- A template field *Rules per content element* takes one rule per line as `ctype: rule`; the rules of the allowed types go into the structured content prompt as binding constraints, also when a section is regenerated. Product Launch, Event and SaaS Feature ship with rules ([#128](https://github.com/netresearch/nr-landingpage/pull/128) by @CybotTM).
+- The placement step checks the generated page against SEO rules and lists notes on the title length, the meta description length, the order of the headings across the sections and missing alternative texts. The check only reports and never stops the save ([#129](https://github.com/netresearch/nr-landingpage/pull/129) by @CybotTM).
+- A template sets the size of generated images (1024x1024, 1536x1024, 1024x1536, 1792x1024 or 1024x1792) and the folder they are stored in, instead of the fixed 1024x1024 and `generated-landingpage/`. The size also reaches fal.ai, which ignored it before. A chosen folder that cannot be used stores no image and is logged ([#130](https://github.com/netresearch/nr-landingpage/pull/130) by @CybotTM).
+
+### Changed
+
+- New columns `ctype_rules`, `image_size` and `image_folder` on the template table: run `extension:setup` (or the database schema update) after the update.
+
 ## [0.5.0] - 2026-11-13
 
 ### Added
@@ -411,7 +424,8 @@ Additive/non-breaking 0.x patch. See [#7](https://github.com/netresearch/nr-land
 ### Changes
 Initial release
 
-[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/netresearch/nr-landingpage/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/netresearch/nr-landingpage/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/netresearch/nr-landingpage/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/netresearch/nr-landingpage/compare/v0.3.26...v0.4.0
