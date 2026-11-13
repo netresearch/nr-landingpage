@@ -582,6 +582,15 @@
             <trans-unit id="wizard.content.removed" resname="wizard.content.removed">
                 <source>%s removed.</source>
             </trans-unit>
+            <trans-unit id="wizard.content.preview" resname="wizard.content.preview">
+                <source>Preview page</source>
+            </trans-unit>
+            <trans-unit id="wizard.content.previewHide" resname="wizard.content.previewHide">
+                <source>Hide preview</source>
+            </trans-unit>
+            <trans-unit id="wizard.content.previewRegion" resname="wizard.content.previewRegion">
+                <source>Page preview</source>
+            </trans-unit>
         </body>
     </file>
 </xliff>

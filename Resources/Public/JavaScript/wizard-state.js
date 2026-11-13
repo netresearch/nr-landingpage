@@ -34,6 +34,9 @@ class WizardState {
         this.hasImageTask = false;
         this.aiGenerationAvailable = false;
         this.generationMode = 'structured';
+        // Every image the wizard has shown (uid => image), for the page preview.
+        this.imageCatalog = {};
+        this.previewOpen = false;
     }
 
     setTemplate(template) {
