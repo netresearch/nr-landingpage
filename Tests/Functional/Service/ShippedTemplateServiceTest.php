@@ -102,6 +102,8 @@ final class ShippedTemplateServiceTest extends FunctionalTestCase
         self::assertFalse($byIdentifier['event']->isCreativeMode());
         self::assertSame('required', $byIdentifier['event']->briefingMode);
         self::assertSame(['header', 'text', 'textmedia', 'bullets'], $byIdentifier['product-launch']->allowedCTypes);
+        self::assertStringContainsString('header: at most 8 words', $byIdentifier['product-launch']->ctypeRules);
+        self::assertSame('', $byIdentifier['creative-one-pager']->ctypeRules);
     }
 
     #[Test]
