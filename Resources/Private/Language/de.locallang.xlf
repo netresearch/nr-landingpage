@@ -749,6 +749,30 @@
                 <source>This page was created with the help of AI.</source>
                 <target>Diese Seite wurde mit Unterstützung von KI erstellt.</target>
             </trans-unit>
+            <trans-unit id="wizard.content.sectionActions" resname="wizard.content.sectionActions">
+                <source>Actions for section %d</source>
+                <target>Aktionen für Abschnitt %d</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.moveUp" resname="wizard.content.moveUp">
+                <source>Move up</source>
+                <target>Nach oben</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.moveDown" resname="wizard.content.moveDown">
+                <source>Move down</source>
+                <target>Nach unten</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.remove" resname="wizard.content.remove">
+                <source>Remove section</source>
+                <target>Abschnitt entfernen</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.moved" resname="wizard.content.moved">
+                <source>%s moved to position %d of %d.</source>
+                <target>%s steht jetzt an Position %d von %d.</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.removed" resname="wizard.content.removed">
+                <source>%s removed.</source>
+                <target>%s entfernt.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

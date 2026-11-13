@@ -564,6 +564,24 @@
             <trans-unit id="aiLabel.text" resname="aiLabel.text">
                 <source>This page was created with the help of AI.</source>
             </trans-unit>
+            <trans-unit id="wizard.content.sectionActions" resname="wizard.content.sectionActions">
+                <source>Actions for section %d</source>
+            </trans-unit>
+            <trans-unit id="wizard.content.moveUp" resname="wizard.content.moveUp">
+                <source>Move up</source>
+            </trans-unit>
+            <trans-unit id="wizard.content.moveDown" resname="wizard.content.moveDown">
+                <source>Move down</source>
+            </trans-unit>
+            <trans-unit id="wizard.content.remove" resname="wizard.content.remove">
+                <source>Remove section</source>
+            </trans-unit>
+            <trans-unit id="wizard.content.moved" resname="wizard.content.moved">
+                <source>%s moved to position %d of %d.</source>
+            </trans-unit>
+            <trans-unit id="wizard.content.removed" resname="wizard.content.removed">
+                <source>%s removed.</source>
+            </trans-unit>
         </body>
     </file>
 </xliff>

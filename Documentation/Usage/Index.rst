@@ -146,6 +146,22 @@ You can:
 -  **Generate AI images** (if configured) using the image generation
    button
 -  **Edit** section content inline
+-  **Reorder** sections with the :guilabel:`Move up` and
+   :guilabel:`Move down` buttons of a card; the first section cannot
+   move up and the last cannot move down. The page is created with the
+   sections in the order shown. Images and notes of a section move with it.
+-  **Remove** a section with its :guilabel:`Remove section` button. A
+   removed section is gone for this run of the wizard; to get it back,
+   go to the previous step and to this step again, which generates the
+   content anew.
+
+The buttons are reachable with the keyboard (:kbd:`Tab`, :kbd:`Enter`).
+After a move or a removal the focus stays with the section and a
+screen reader announces the new position. :guilabel:`Regenerate` on a
+moved section replaces that section with the matching one of the new
+answer, not the one that now stands at its position.
+
+Reordering and removing are offered in structured mode only.
 
 **Creative HTML mode:**
 

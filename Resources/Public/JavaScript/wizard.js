@@ -1040,6 +1040,12 @@ class LandingPageWizard {
             }
 
             const sections = result.sections || [];
+            // The position in the generated answer: a section regenerated on its
+            // own is picked from a new answer by this position, whatever the
+            // editor has moved or removed since.
+            sections.forEach((section, position) => {
+                section.originIndex = position;
+            });
             const images = result.images || [];
             const imageErrors = result.imageErrors || [];
             const hasImageTask = result.hasImageTask || false;
@@ -1108,8 +1114,19 @@ class LandingPageWizard {
             });
             regenerateBtn.setAttribute('aria-label', this.label('wizard.button.regenerate') + ' ' + (index + 1));
 
+            const actions = document.createElement('div');
+            actions.className = 'd-flex gap-1';
+            actions.setAttribute('role', 'group');
+            actions.setAttribute('aria-label', this.label('wizard.content.sectionActions', index + 1));
+            actions.append(
+                regenerateBtn,
+                this.createSectionAction(container, index, 'up', sections.length),
+                this.createSectionAction(container, index, 'down', sections.length),
+                this.createSectionAction(container, index, 'remove', sections.length),
+            );
+
             cardHeader.appendChild(sectionTitle);
-            cardHeader.appendChild(regenerateBtn);
+            cardHeader.appendChild(actions);
 
             const cardBody = document.createElement('div');
             cardBody.className = 'card-body';
@@ -1159,6 +1176,90 @@ class LandingPageWizard {
             card.appendChild(cardBody);
             container.appendChild(card);
         });
+    }
+
+    /**
+     * A button that moves a structured section up or down, or removes it.
+     * The move buttons are disabled at the ends of the list.
+     *
+     * @param {HTMLElement} container
+     * @param {number} index
+     * @param {'up'|'down'|'remove'} action
+     * @param {number} total
+     * @returns {HTMLButtonElement}
+     */
+    createSectionAction(container, index, action, total) {
+        const text = {
+            up: this.label('wizard.content.moveUp'),
+            down: this.label('wizard.content.moveDown'),
+            remove: this.label('wizard.content.remove'),
+        }[action];
+        const icon = { up: 'actions-move-up', down: 'actions-move-down', remove: 'actions-delete' }[action];
+        const button = this.createIconButton(icon, '', 'btn btn-sm btn-default', () => {
+            this.changeSections(container, index, action);
+        });
+        // Icon only: the name is the aria-label, which names the section as well.
+        button.setAttribute('aria-label', text + ': ' + this.sectionName(WizardState.getContentSections()[index], index));
+        button.title = text;
+        button.dataset.sectionAction = action;
+        button.dataset.sectionIndex = String(index);
+        button.disabled = (action === 'up' && index === 0) || (action === 'down' && index === total - 1);
+        return button;
+    }
+
+    sectionName(section, index) {
+        return section?.section || section?.header || this.label('wizard.summary.untitled') + ' ' + (index + 1);
+    }
+
+    /**
+     * Move or remove a structured section, draw the list again, say what
+     * happened and put the focus where the editor continues.
+     *
+     * @param {HTMLElement} container
+     * @param {number} index
+     * @param {'up'|'down'|'remove'} action
+     */
+    changeSections(container, index, action) {
+        if (this.isBusy()) {
+            return;
+        }
+        const name = this.sectionName(WizardState.getContentSections()[index], index);
+        let message;
+        let focusIndex;
+        if (action === 'remove') {
+            if (!WizardState.removeSection(index)) {
+                return;
+            }
+            message = this.label('wizard.content.removed', name);
+            focusIndex = Math.min(index, WizardState.getContentSections().length - 1);
+        } else {
+            const target = WizardState.moveSection(index, action === 'up' ? -1 : 1);
+            if (target < 0) {
+                return;
+            }
+            message = this.label('wizard.content.moved', name, target + 1, WizardState.getContentSections().length);
+            focusIndex = target;
+        }
+
+        this.rerenderContentSlide(container);
+
+        const status = document.createElement('div');
+        status.className = 'visually-hidden';
+        status.setAttribute('role', 'status');
+        container.prepend(status);
+        // A live region announces text that changes after it is in the page.
+        setTimeout(() => { status.textContent = message; }, 50);
+
+        // The same kind of button at the new position; the move buttons of a
+        // section at an end are disabled, so the other direction takes the focus.
+        const pick = (selector) => container.querySelector(selector);
+        const wanted = action === 'remove' ? 'remove' : action;
+        const at = '[data-section-index="' + focusIndex + '"]';
+        const target = pick('[data-section-action="' + wanted + '"]' + at + ':not(:disabled)')
+            || pick('[data-section-action="up"]' + at + ':not(:disabled)')
+            || pick('[data-section-action="down"]' + at + ':not(:disabled)')
+            || pick('[data-section-action="remove"]' + at);
+        (target || container).focus?.();
     }
 
     /**
@@ -1660,12 +1761,14 @@ class LandingPageWizard {
                 templateUid: template.uid,
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
-                sectionIndex: index,
+                // Where the section stood in the generated answer, not in the list.
+                sectionIndex: WizardState.getContentSections()[index]?.originIndex ?? index,
             });
             if (this.isStaleSectionReply(run, card)) {
                 return;
             }
 
+            reply.data.originIndex = WizardState.getContentSections()[index]?.originIndex ?? index;
             WizardState.updateContentSection(index, reply.data);
             WizardState.sectionHints[index] = reply.guardrailHints || [];
             Notification.success(
