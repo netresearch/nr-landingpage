@@ -797,6 +797,82 @@
                 <source>Paste the text here</source>
                 <target>Text hier einfügen</target>
             </trans-unit>
+            <trans-unit id="wizard.seo.heading" resname="wizard.seo.heading">
+                <source>SEO check</source>
+                <target>SEO-Prüfung</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.again" resname="wizard.seo.again">
+                <source>Check again</source>
+                <target>Erneut prüfen</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.checking" resname="wizard.seo.checking">
+                <source>Checking the page …</source>
+                <target>Die Seite wird geprüft …</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.failed" resname="wizard.seo.failed">
+                <source>The SEO check could not run. You can still create the page.</source>
+                <target>Die SEO-Prüfung konnte nicht laufen. Sie können die Seite trotzdem anlegen.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.none" resname="wizard.seo.none">
+                <source>No notes. Title, meta description, headings and alternative texts follow the usual rules.</source>
+                <target>Keine Hinweise. Titel, Meta-Description, Überschriften und Alternativtexte entsprechen den üblichen Regeln.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.summary" resname="wizard.seo.summary">
+                <source>%d notes on title, meta description, headings or alternative texts. They do not stop you from creating the page.</source>
+                <target>Hinweise zu Titel, Meta-Description, Überschriften und Alternativtexten: %d. Sie hindern Sie nicht daran, die Seite anzulegen.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.severity.error" resname="wizard.seo.severity.error">
+                <source>Error</source>
+                <target>Fehler</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.severity.warning" resname="wizard.seo.severity.warning">
+                <source>Warning</source>
+                <target>Warnung</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.inSection" resname="wizard.seo.inSection">
+                <source>Section %d (%s):</source>
+                <target>Abschnitt %d (%s):</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.title-missing" resname="wizard.seo.rule.title-missing">
+                <source>The page has no title.</source>
+                <target>Die Seite hat keinen Titel.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.title-short" resname="wizard.seo.rule.title-short">
+                <source>The title has %d characters; at least %d are recommended.</source>
+                <target>Der Titel hat %d Zeichen; empfohlen sind mindestens %d.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.title-long" resname="wizard.seo.rule.title-long">
+                <source>The title has %d characters; search engines show about %d.</source>
+                <target>Der Titel hat %d Zeichen; Suchmaschinen zeigen etwa %d an.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.description-missing" resname="wizard.seo.rule.description-missing">
+                <source>The page has no meta description.</source>
+                <target>Die Seite hat keine Meta-Description.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.description-short" resname="wizard.seo.rule.description-short">
+                <source>The meta description has %d characters; at least %d are recommended.</source>
+                <target>Die Meta-Description hat %d Zeichen; empfohlen sind mindestens %d.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.description-long" resname="wizard.seo.rule.description-long">
+                <source>The meta description has %d characters; search engines show about %d.</source>
+                <target>Die Meta-Description hat %d Zeichen; Suchmaschinen zeigen etwa %d an.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.heading-skip" resname="wizard.seo.rule.heading-skip">
+                <source>The heading level jumps from h%d to h%d: “%s”. Do not skip a level.</source>
+                <target>Die Überschriftenebene springt von h%d auf h%d: „%s“. Keine Ebene auslassen.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.heading-h1" resname="wizard.seo.rule.heading-h1">
+                <source>The content has a second main heading (h1): “%s”. The page title is the h1.</source>
+                <target>Der Inhalt hat eine zweite Hauptüberschrift (h1): „%s“. Der Seitentitel ist die h1.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.alt-missing" resname="wizard.seo.rule.alt-missing">
+                <source>An image in the text has no alternative text.</source>
+                <target>Ein Bild im Text hat keinen Alternativtext.</target>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.image-alt-missing" resname="wizard.seo.rule.image-alt-missing">
+                <source>The chosen image file has no alternative text. Add one in the file's metadata.</source>
+                <target>Die gewählte Bilddatei hat keinen Alternativtext. Ergänzen Sie ihn in den Metadaten der Datei.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

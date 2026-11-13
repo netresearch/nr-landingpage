@@ -233,10 +233,10 @@ export async function clickNext(modal: Locator): Promise<void> {
  * Open the wizard with every AJAX reply mocked, choose the sample template and
  * wait for the briefing step; `content` is the reply of generate-content.
  */
-export async function openBriefingStep(page: Page, content: unknown): Promise<Locator> {
+export async function openBriefingStep(page: Page, content: unknown, pageFields: unknown = { title: 'My Landing Page', slug: 'my-landing-page' }): Promise<Locator> {
     await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
     await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
-    await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-page-fields', { title: 'My Landing Page', slug: 'my-landing-page' });
+    await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-page-fields', pageFields);
     await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-content', content);
 
     const modal = await openWizard(page, await navigateToModule(page));
@@ -249,8 +249,8 @@ export async function openBriefingStep(page: Page, content: unknown): Promise<Lo
 /**
  * Walk on from the briefing step to the content step of a structured template.
  */
-export async function walkToStructuredContent(page: Page, content: unknown): Promise<Locator> {
-    const modal = await openBriefingStep(page, content);
+export async function walkToStructuredContent(page: Page, content: unknown, pageFields?: unknown): Promise<Locator> {
+    const modal = await openBriefingStep(page, content, pageFields);
     await clickNext(modal);
     await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
     await clickNext(modal);

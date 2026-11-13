@@ -419,6 +419,37 @@ final class LandingPageWizardControllerTest extends UnitTestCase
     }
 
     #[Test]
+    public function checkSeoActionReturnsTheFindingsOfTheCheck(): void
+    {
+        $response = $this->subject->checkSeoAction($this->createJsonRequest([
+            'title' => 'Short',
+            'pageFields' => ['seo_title' => '', 'description' => str_repeat('d', 140)],
+            'contentSections' => [
+                ['header' => 'Intro', 'bodytext' => '<h4>Deep</h4><img src="a.png">', 'imageUid' => 7],
+                'not a section',
+            ],
+            'imageAlternatives' => ['7' => '', 'x' => 'ignored', '9' => 5],
+        ]));
+
+        self::assertSame(200, $response->getStatusCode());
+        $data = json_decode((string) $response->getBody(), true);
+        self::assertTrue($data['success']);
+        self::assertSame(
+            [['title-short', 'warning', null], ['heading-skip', 'warning', 0], ['alt-missing', 'warning', 0], ['image-alt-missing', 'warning', 0]],
+            array_map(static fn(array $f): array => [$f['rule'], $f['severity'], $f['section']], $data['data']['findings']),
+        );
+    }
+
+    #[Test]
+    public function checkSeoActionWithoutBodyReportsTheMissingTitleAndDescription(): void
+    {
+        $response = $this->subject->checkSeoAction($this->createJsonRequest([]));
+
+        $data = json_decode((string) $response->getBody(), true);
+        self::assertSame(['title-missing', 'description-missing'], array_column($data['data']['findings'], 'rule'));
+    }
+
+    #[Test]
     public function saveActionReturns500OnException(): void
     {
         $this->mockLoadByUid($this->templateRow());
@@ -1239,6 +1270,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
             'save' => ['saveAction'],
             'generation info' => ['generationInfoAction'],
             'check parent page' => ['checkParentPageAction'],
+            'check seo' => ['checkSeoAction'],
         ];
     }
 

@@ -238,6 +238,35 @@ page or when the step opens, the field is emptied again and a message
 below it says which one and what to do; if it is missing when the page
 is saved, the save is refused and says so.
 
+.. _usage-seo-check:
+
+SEO check
+~~~~~~~~~
+
+Below the summary, the placement step checks the page against a few
+SEO rules and lists what it finds. The check only reports: no note
+stops you from creating the page. Change the title in the form above
+and press :guilabel:`Check again` to see its effect; to change other
+things, go back to the earlier steps.
+
+The rules:
+
+*   **Title**: the SEO title, or the page title when there is no SEO
+    title, has 30 to 60 characters.
+*   **Meta description**: present, with 120 to 160 characters.
+*   **Headings**: the page title counts as the main heading (h1) and the
+    header of each section as an h2. A heading may be at most one level
+    deeper than the one before it (no h2 followed by an h4), and the
+    content has no second h1. The order is checked across all sections.
+*   **Alternative texts**: an image in the text of a section has an
+    ``alt`` attribute with text, and an image file chosen for a section has
+    an alternative text in its metadata.
+
+Every note names its rule in words, a severity (``Warning`` or
+``Error``; a missing title is the only error) and, where it applies,
+the section. The limits are the ones the generation prompt asks for.
+They are guidelines of search engines, not guarantees.
+
 Click :guilabel:`Generate Landing Page` and confirm with :guilabel:`OK`
 to create the landing page with all content elements in the TYPO3
 page tree.

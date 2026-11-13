@@ -1931,10 +1931,118 @@ class LandingPageWizard {
         container.appendChild(form);
 
         this.renderSummary(container);
+        this.appendSeoCheck(container, form);
 
         // Repurpose the Next button as "Generate Landing Page" action
         this.replaceNextButtonWithGenerate(form);
         this.focusStep(container);
+    }
+
+    /**
+     * The SEO check of the placement step: notes on the title, the meta
+     * description, the order of the headings and alternative texts. It only
+     * reports, nothing blocks the save. The editor can run it again after
+     * changing the title.
+     *
+     * @param {HTMLElement} container
+     * @param {HTMLFormElement} form
+     */
+    appendSeoCheck(container, form) {
+        const card = document.createElement('div');
+        card.className = 'card mt-4';
+        card.dataset.seoCheck = '';
+
+        const header = document.createElement('div');
+        header.className = 'card-header d-flex justify-content-between align-items-center';
+        const title = document.createElement('strong');
+        title.id = 'seo-check-title';
+        title.textContent = this.label('wizard.seo.heading');
+        const again = this.createButton(this.label('wizard.seo.again'), 'btn btn-sm btn-default', () => {
+            void this.runSeoCheck(body, form);
+        });
+        again.dataset.seoCheckAgain = '';
+        header.append(title, again);
+
+        const body = document.createElement('div');
+        body.className = 'card-body';
+        body.setAttribute('role', 'region');
+        body.setAttribute('aria-labelledby', 'seo-check-title');
+
+        card.append(header, body);
+        container.appendChild(card);
+        void this.runSeoCheck(body, form);
+    }
+
+    /**
+     * Ask the server for the findings and list them.
+     *
+     * @param {HTMLElement} body
+     * @param {HTMLFormElement} form
+     */
+    async runSeoCheck(body, form) {
+        const token = this._render;
+        body.textContent = this.label('wizard.seo.checking');
+        body.setAttribute('aria-busy', 'true');
+
+        const sections = WizardState.getContentSections();
+        const imageAlternatives = {};
+        sections.forEach((section) => {
+            const image = section.imageUid ? WizardState.imageCatalog[section.imageUid] : null;
+            if (image) {
+                imageAlternatives[section.imageUid] = image.alternative || '';
+            }
+        });
+
+        let findings;
+        try {
+            const result = await this.fetchJson(this.getAjaxUrl('checkSeo'), {
+                title: form.querySelector('#placement_title')?.value || WizardState.getTitle(),
+                pageFields: WizardState.getPageFields(),
+                contentSections: sections,
+                imageAlternatives,
+            });
+            findings = result.findings || [];
+        } catch (error) {
+            if (!this.isStaleRender(token, body)) {
+                body.removeAttribute('aria-busy');
+                body.textContent = this.label('wizard.seo.failed');
+            }
+            return;
+        }
+        if (this.isStaleRender(token, body)) {
+            return;
+        }
+
+        body.removeAttribute('aria-busy');
+        body.textContent = '';
+        const summary = document.createElement('p');
+        summary.setAttribute('role', 'status');
+        summary.className = findings.length ? 'mb-2' : 'mb-0';
+        summary.textContent = findings.length
+            ? this.label('wizard.seo.summary', findings.length)
+            : this.label('wizard.seo.none');
+        body.appendChild(summary);
+        if (!findings.length) {
+            return;
+        }
+
+        const list = document.createElement('ul');
+        list.className = 'list-unstyled mb-0';
+        findings.forEach((finding) => {
+            const item = document.createElement('li');
+            item.className = 'mb-1';
+            item.dataset.seoRule = finding.rule;
+            const severity = document.createElement('strong');
+            severity.textContent = this.label('wizard.seo.severity.' + finding.severity) + ': ';
+            item.appendChild(severity);
+            if (finding.section !== null && finding.section !== undefined) {
+                const name = this.sectionName(sections[finding.section], finding.section);
+                item.appendChild(document.createTextNode(this.label('wizard.seo.inSection', finding.section + 1, name) + ' '));
+            }
+            item.appendChild(document.createTextNode(this.label('wizard.seo.rule.' + finding.rule, ...finding.params)));
+            list.appendChild(item);
+        });
+        body.appendChild(list);
     }
 
     /**

@@ -11,6 +11,7 @@ namespace Netresearch\NrLandingpage\Controller\Backend;
 
 use Netresearch\NrLandingpage\Domain\Model\GenerationContext;
 use Netresearch\NrLandingpage\Domain\Model\ParentPageVerdict;
+use Netresearch\NrLandingpage\Domain\Model\SeoFinding;
 use Netresearch\NrLandingpage\Service\BackendAccessGuard;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
@@ -20,6 +21,7 @@ use Netresearch\NrLandingpage\Service\ImageProviderService;
 use Netresearch\NrLandingpage\Service\ImageSearchService;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
 use Netresearch\NrLandingpage\Service\PromptOptimizerService;
+use Netresearch\NrLandingpage\Service\SeoCheckService;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -62,6 +64,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
         private readonly BackendAccessGuard $accessGuard,
         private readonly ?PromptOptimizerService $promptOptimizerService = null,
         private readonly GuardrailHintCapture $hintCapture = new GuardrailHintCapture(),
+        private readonly SeoCheckService $seoCheckService = new SeoCheckService(),
     ) {}
 
     public function indexAction(ServerRequestInterface $request): ResponseInterface
@@ -525,6 +528,51 @@ final class LandingPageWizardController implements LoggerAwareInterface
         return new JsonResponse(['success' => true, 'data' => ['uid' => $parentPageId]]);
     }
 
+    /**
+     * The SEO check of the page as the wizard holds it. It reports; the
+     * request changes nothing, so the module access is all it needs.
+     */
+    public function checkSeoAction(ServerRequestInterface $request): ResponseInterface
+    {
+        if (!$this->accessGuard->mayUseWizard()) {
+            return $this->forbiddenResponse();
+        }
+
+        try {
+            $body = $this->parseRequestBody($request);
+            $pageFields = $this->extractArrayFromBody($body, 'pageFields');
+
+            $alternatives = [];
+            foreach ($this->extractArrayFromBody($body, 'imageAlternatives') as $uid => $alternative) {
+                if (is_numeric($uid) && is_string($alternative)) {
+                    $alternatives[(int) $uid] = $alternative;
+                }
+            }
+
+            $sections = [];
+            foreach ($this->extractArrayFromBody($body, 'contentSections') as $section) {
+                if (is_array($section)) {
+                    $sections[] = $section;
+                }
+            }
+
+            $findings = $this->seoCheckService->check(
+                $this->extractStringFromBody($body, 'title'),
+                is_string($pageFields['seo_title'] ?? null) ? $pageFields['seo_title'] : '',
+                is_string($pageFields['description'] ?? null) ? $pageFields['description'] : '',
+                $sections,
+                $alternatives,
+            );
+
+            return new JsonResponse([
+                'success' => true,
+                'data' => ['findings' => array_map(static fn(SeoFinding $finding): array => $finding->toArray(), $findings)],
+            ]);
+        } catch (Throwable $e) {
+            return $this->errorResponse($e);
+        }
+    }
+
     public function optimizePromptAction(ServerRequestInterface $request): ResponseInterface
     {
         if (!$this->accessGuard->mayEditTemplates()) {
@@ -757,6 +805,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 'generationInfo' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_generation_info'),
                 'optimizePrompt' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_optimize_prompt'),
                 'checkParentPage' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_check_parent_page'),
+                'checkSeo' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_check_seo'),
             ],
             'moduleUrls' => [
                 'editRecord' => (string) $this->uriBuilder->buildUriFromRoute('record_edit'),
