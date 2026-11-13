@@ -313,6 +313,42 @@
                 <source>Constraints the AI must follow for a content element type, one per line as "ctype: rule", for example "header: at most 8 words". A type can have several lines. Lines that start with # are comments. A type the template does not allow, a line without a rule and everything beyond 30 rules are left out; they are written to the log. The AI is told the rules; the text is not cut afterwards.</source>
                 <target>Vorgaben, die die KI für einen Inhaltselement-Typ einhalten muss, eine pro Zeile als „ctype: Regel“, zum Beispiel „header: höchstens 8 Wörter“. Ein Typ kann mehrere Zeilen haben. Zeilen mit # am Anfang sind Kommentare. Ein Typ, den die Vorlage nicht erlaubt, eine Zeile ohne Regel und alles ab der 31. Regel werden nicht verwendet und im Log vermerkt. Die KI bekommt die Regeln gesagt; der Text wird danach nicht gekürzt.</target>
             </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size" resname="tx_nrlandingpage_domain_model_template.image_size">
+                <source>Size of generated images</source>
+                <target>Größe erzeugter Bilder</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.description" resname="tx_nrlandingpage_domain_model_template.image_size.description">
+                <source>Width x height of an AI image. Whether a size works depends on the image model the provider uses: 1024x1024 works everywhere, 1536x1024 and 1024x1536 work with the gpt-image models, 1792x1024 and 1024x1792 with DALL·E 3. A size the model does not accept makes the image generation fail with an error in the wizard. Applies when the template has an image task.</source>
+                <target>Breite x Höhe eines KI-Bildes. Ob eine Größe funktioniert, hängt vom Bildmodell des Anbieters ab: 1024x1024 geht überall, 1536x1024 und 1024x1536 gehen mit den gpt-image-Modellen, 1792x1024 und 1024x1792 mit DALL·E 3. Eine Größe, die das Modell nicht annimmt, lässt die Bilderzeugung mit einer Fehlermeldung im Wizard scheitern. Gilt, wenn die Vorlage eine Bildaufgabe hat.</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.1024x1024" resname="tx_nrlandingpage_domain_model_template.image_size.1024x1024">
+                <source>Square, 1024 x 1024 (default)</source>
+                <target>Quadrat, 1024 x 1024 (Standard)</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.1536x1024" resname="tx_nrlandingpage_domain_model_template.image_size.1536x1024">
+                <source>Landscape, 1536 x 1024 (3:2)</source>
+                <target>Querformat, 1536 x 1024 (3:2)</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.1024x1536" resname="tx_nrlandingpage_domain_model_template.image_size.1024x1536">
+                <source>Portrait, 1024 x 1536 (2:3)</source>
+                <target>Hochformat, 1024 x 1536 (2:3)</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.1792x1024" resname="tx_nrlandingpage_domain_model_template.image_size.1792x1024">
+                <source>Wide landscape, 1792 x 1024 (7:4)</source>
+                <target>Breites Querformat, 1792 x 1024 (7:4)</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.1024x1792" resname="tx_nrlandingpage_domain_model_template.image_size.1024x1792">
+                <source>Tall portrait, 1024 x 1792 (4:7)</source>
+                <target>Hohes Hochformat, 1024 x 1792 (4:7)</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_folder" resname="tx_nrlandingpage_domain_model_template.image_folder">
+                <source>Folder for generated images</source>
+                <target>Ordner für erzeugte Bilder</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_folder.description" resname="tx_nrlandingpage_domain_model_template.image_folder.description">
+                <source>The folder AI images are stored in. Leave it empty for the folder generated-landingpage/ in the default storage, which is created when missing. A folder chosen here must exist and be writable for the editor who generates the page; if it cannot be used, no image is stored and the wizard shows an error.</source>
+                <target>Der Ordner, in dem KI-Bilder gespeichert werden. Leer lassen für den Ordner generated-landingpage/ im Standard-Speicher, der bei Bedarf angelegt wird. Ein hier gewählter Ordner muss existieren und für den Backend-Benutzer, der die Seite erzeugt, beschreibbar sein; kann er nicht verwendet werden, wird kein Bild gespeichert und der Wizard zeigt einen Fehler.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

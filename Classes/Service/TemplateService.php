@@ -578,6 +578,11 @@ final readonly class TemplateService
                 ))
                 : [],
             ctypeRules: is_string($row['ctype_rules'] ?? null) ? $row['ctype_rules'] : '',
+            // A size that is not on the list (an edited record) is the default.
+            imageSize: is_string($row['image_size'] ?? null) && in_array($row['image_size'], Template::IMAGE_SIZES, true)
+                ? $row['image_size']
+                : Template::DEFAULT_IMAGE_SIZE,
+            imageFolder: is_string($row['image_folder'] ?? null) ? trim($row['image_folder']) : '',
         );
     }
 

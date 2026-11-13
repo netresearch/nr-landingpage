@@ -158,6 +158,33 @@ final class TemplateTest extends UnitTestCase
     }
 
     #[Test]
+    public function imageSettingsDefaultToTheFormerBehaviourAndAddToTheHashOnlyWhenSet(): void
+    {
+        $default = new Template(uid: 1, title: 'T', identifier: 't');
+        $explicitDefault = new Template(uid: 1, title: 'T', identifier: 't', imageSize: '1024x1024', imageFolder: '');
+        $landscape = new Template(uid: 1, title: 'T', identifier: 't', imageSize: '1536x1024');
+        $folder = new Template(uid: 1, title: 'T', identifier: 't', imageFolder: '1:/images/');
+
+        self::assertSame('1024x1024', $default->imageSize);
+        self::assertSame('', $default->imageFolder);
+        self::assertSame($default->getConfigHash(), $explicitDefault->getConfigHash());
+        self::assertNotSame($default->getConfigHash(), $landscape->getConfigHash());
+        self::assertNotSame($default->getConfigHash(), $folder->getConfigHash());
+        self::assertNotSame($landscape->getConfigHash(), $folder->getConfigHash());
+    }
+
+    #[Test]
+    public function withResolvedColorsKeepsTheImageSettings(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', imageSize: '1024x1536', imageFolder: '1:/images/');
+
+        $resolved = $template->withResolvedColors([]);
+
+        self::assertSame('1024x1536', $resolved->imageSize);
+        self::assertSame('1:/images/', $resolved->imageFolder);
+    }
+
+    #[Test]
     public function withResolvedColorsKeepsTheRules(): void
     {
         $template = new Template(uid: 1, title: 'T', identifier: 't', ctypeRules: 'header: short');

@@ -24,7 +24,9 @@ CREATE TABLE tx_nrlandingpage_domain_model_template (
     color_text varchar(7) NOT NULL DEFAULT '',
     animation_enabled tinyint(1) unsigned NOT NULL DEFAULT 1,
     content_columns text,
-    ctype_rules text
+    ctype_rules text,
+    image_size varchar(20) NOT NULL DEFAULT '1024x1024',
+    image_folder varchar(255) NOT NULL DEFAULT ''
 );
 
 CREATE TABLE pages (

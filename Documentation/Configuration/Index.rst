@@ -315,6 +315,42 @@ services of nr-llm use the same key and model for every site.
       Natural light, no text.`` and mark it
       :guilabel:`Landing page: image prompt`.
 
+.. confval:: Size of generated images
+
+   :type: select
+   :default: Square, 1024 x 1024
+
+   The width and height of the images the AI generates for this
+   template: 1024 x 1024, 1536 x 1024, 1024 x 1536, 1792 x 1024 or
+   1024 x 1792. The size goes to the image service as the OpenAI
+   ``size`` and as the width and height fal.ai reads, so it applies to both.
+
+   Which sizes work depends on the image model of the provider:
+   ``1024x1024`` works with every model, ``1536x1024`` and ``1024x1536``
+   with the ``gpt-image`` models, ``1792x1024`` and ``1024x1792`` with
+   DALL·E 3. A size the model does not accept makes the generation of that
+   image fail; the wizard shows the error on the section and the
+   media library matches stay available. The field applies when the
+   template has an image prompt and is hidden in creative mode, like that
+   field.
+
+.. confval:: Folder for generated images
+
+   :type: folder
+   :default: (empty)
+
+   The folder AI images are stored in, chosen with the folder browser,
+   for example ``1:/campaigns/images/``. Empty means the folder
+   ``generated-landingpage/`` of the default storage, which is created when
+   it is missing, as before.
+
+   A folder you choose is used as it is: it has to exist and the editor
+   who generates the page has to be allowed to write to it. If it cannot be
+   used, no image is stored, the wizard shows the error and the reason is
+   written to the log (level error, with the template identifier), so a
+   mistake in the setting is not hidden by images that land in a folder
+   nobody chose.
+
 .. confval:: AI Instructions (System Prompt)
 
    :type: text
