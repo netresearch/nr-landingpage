@@ -600,6 +600,63 @@
             <trans-unit id="wizard.briefing.sourcePlaceholder" resname="wizard.briefing.sourcePlaceholder">
                 <source>Paste the text here</source>
             </trans-unit>
+            <trans-unit id="wizard.seo.heading" resname="wizard.seo.heading">
+                <source>SEO check</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.again" resname="wizard.seo.again">
+                <source>Check again</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.checking" resname="wizard.seo.checking">
+                <source>Checking the page …</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.failed" resname="wizard.seo.failed">
+                <source>The SEO check could not run. You can still create the page.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.none" resname="wizard.seo.none">
+                <source>No notes. Title, meta description, headings and alternative texts follow the usual rules.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.summary" resname="wizard.seo.summary">
+                <source>Notes on title, meta description, headings and alternative texts: %d. They do not stop you from creating the page.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.severity.error" resname="wizard.seo.severity.error">
+                <source>Error</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.severity.warning" resname="wizard.seo.severity.warning">
+                <source>Warning</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.inSection" resname="wizard.seo.inSection">
+                <source>Section %d (%s):</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.title-missing" resname="wizard.seo.rule.title-missing">
+                <source>The page has no title.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.title-short" resname="wizard.seo.rule.title-short">
+                <source>The title has %d characters; at least %d are recommended.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.title-long" resname="wizard.seo.rule.title-long">
+                <source>The title has %d characters; search engines show about %d.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.description-missing" resname="wizard.seo.rule.description-missing">
+                <source>The page has no meta description.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.description-short" resname="wizard.seo.rule.description-short">
+                <source>The meta description has %d characters; at least %d are recommended.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.description-long" resname="wizard.seo.rule.description-long">
+                <source>The meta description has %d characters; search engines show about %d.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.heading-skip" resname="wizard.seo.rule.heading-skip">
+                <source>The heading level jumps from h%d to h%d: “%s”. Do not skip a level.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.heading-h1" resname="wizard.seo.rule.heading-h1">
+                <source>The content has a second main heading (h1): “%s”. The page title is the h1.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.alt-missing" resname="wizard.seo.rule.alt-missing">
+                <source>An image in the text has no alternative text.</source>
+            </trans-unit>
+            <trans-unit id="wizard.seo.rule.image-alt-missing" resname="wizard.seo.rule.image-alt-missing">
+                <source>The chosen image file has no alternative text. Add one in the file's metadata.</source>
+            </trans-unit>
         </body>
     </file>
 </xliff>

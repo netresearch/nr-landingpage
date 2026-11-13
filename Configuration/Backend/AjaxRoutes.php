@@ -46,6 +46,10 @@ return [
         'path' => '/nr-landingpage/wizard/check-parent-page',
         'target' => LandingPageWizardController::class . '::checkParentPageAction',
     ],
+    'nr_landingpage_check_seo' => [
+        'path' => '/nr-landingpage/wizard/check-seo',
+        'target' => LandingPageWizardController::class . '::checkSeoAction',
+    ],
     'nr_landingpage_optimize_prompt' => [
         'path' => '/nr-landingpage/wizard/optimize-prompt',
         'target' => LandingPageWizardController::class . '::optimizePromptAction',
