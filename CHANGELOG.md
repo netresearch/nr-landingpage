@@ -13,6 +13,14 @@ level lower.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-13
+
+### Added
+
+- Four template records (Product Launch, Event, Creative One-Pager, SaaS Feature) appear in the Landing Page module right after extension setup. An installation that already had the extension gets them with its next `extension:setup`, and `nr-landingpage:import-templates` creates the missing ones again. A template an editor edited or deleted is never overwritten or brought back ([#124](https://github.com/netresearch/nr-landingpage/pull/124) by @CybotTM).
+- In the structured content step of the wizard, sections can be moved up and down and removed; the page is created with the sections in the order shown. Images, image errors and guardrail hints move with their section, and Regenerate keeps regenerating the section's own answer after a move or removal ([#125](https://github.com/netresearch/nr-landingpage/pull/125) by @CybotTM).
+- A *Preview page* button in the structured content step opens a frame that shows the page title and the sections in their current order with the chosen images and their alternative texts, and follows edits, moves, removals and image choices while it is open ([#126](https://github.com/netresearch/nr-landingpage/pull/126) by @CybotTM).
+
 ### Changed
 
 - nr-llm 0.45 is accepted beside 0.43 and 0.44 (`^0.43.10 || ^0.44 || ^0.45`), so the extension installs together with nr-llm 0.45.0.
@@ -403,7 +411,8 @@ Additive/non-breaking 0.x patch. See [#7](https://github.com/netresearch/nr-land
 ### Changes
 Initial release
 
-[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/netresearch/nr-landingpage/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/netresearch/nr-landingpage/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/netresearch/nr-landingpage/compare/v0.3.26...v0.4.0
 [0.3.26]: https://github.com/netresearch/nr-landingpage/compare/v0.3.25...v0.3.26
