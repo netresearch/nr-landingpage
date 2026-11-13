@@ -42,6 +42,7 @@ final readonly class Template
         public string $colorText = '',
         public bool $animationEnabled = true,
         public array $contentColumns = [],
+        public string $ctypeRules = '',
     ) {}
 
     /**
@@ -75,6 +76,7 @@ final readonly class Template
             colorText: $this->colorText !== '' ? $this->colorText : ($defaults['colorText'] ?? '#333333'),
             animationEnabled: $this->animationEnabled,
             contentColumns: $this->contentColumns,
+            ctypeRules: $this->ctypeRules,
         );
     }
 
@@ -130,7 +132,7 @@ final readonly class Template
         $cols = $this->contentColumns;
         sort($cols);
 
-        $data = implode('|', [
+        $parts = [
             $this->systemPrompt,
             implode(',', $ctypes),
             implode(',', $fields),
@@ -142,8 +144,13 @@ final readonly class Template
             $this->generationMode,
             $this->animationEnabled ? '1' : '0',
             implode(',', $cols),
-        ]);
+        ];
+        // Only a template that has rules carries them in the hash: the hash of
+        // every other template stays what it was.
+        if ($this->ctypeRules !== '') {
+            $parts[] = $this->ctypeRules;
+        }
 
-        return hash('sha256', $data);
+        return hash('sha256', implode('|', $parts));
     }
 }

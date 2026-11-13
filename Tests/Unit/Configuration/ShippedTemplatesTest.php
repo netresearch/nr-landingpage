@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Tests\Unit\Configuration;
 
+use Netresearch\NrLandingpage\Domain\Model\CTypeRules;
 use Netresearch\NrLandingpage\Service\ShippedTemplateService;
 use PHPUnit\Framework\Attributes\Test;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -53,6 +54,17 @@ final class ShippedTemplatesTest extends UnitTestCase
             foreach (['title', 'description', 'system_prompt'] as $key) {
                 self::assertNotSame('', trim((string) ($definition[$key] ?? '')), $definition['identifier'] . ' lacks ' . $key);
             }
+        }
+    }
+
+    #[Test]
+    public function structuredTemplatesShipRulesOnlyForTheTypesTheyAllow(): void
+    {
+        foreach ($this->definitions as $definition) {
+            $rules = CTypeRules::parse((string) ($definition['ctype_rules'] ?? ''), array_filter(explode(',', (string) $definition['allowed_ctypes'])));
+
+            self::assertSame([], $rules->ignored, $definition['identifier'] . ' has rules that would be ignored');
+            self::assertSame($definition['generation_mode'] === 'structured', !$rules->isEmpty(), $definition['identifier']);
         }
     }
 

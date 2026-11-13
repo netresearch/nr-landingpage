@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Service;
 
+use Netresearch\NrLandingpage\Domain\Model\CTypeRules;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLlm\Domain\Repository\LlmConfigurationRepository;
 use Netresearch\NrLlm\Exception\AccessDeniedException;
@@ -358,6 +359,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $columnMap = $this->filterColumnMap($columnMap, $template->contentColumns);
 
         $cTypeMetadata = $this->buildCTypeMetadataBlock($template->allowedCTypes);
+        $rulesBlock = $this->buildCTypeRulesBlock($template);
         $columnBlock = $this->buildColumnBlock($columnMap);
         $languageBlock = $this->buildLanguageBlock($outputLanguage);
         $colorBlock = $this->buildColorBlock($template);
@@ -371,6 +373,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
             {$briefing}
             {$sourceBlock}
             {$cTypeMetadata}
+            {$rulesBlock}
             {$columnBlock}
             {$colorBlock}
             --- ANWEISUNGEN ZUR AUSGABE ---
@@ -438,6 +441,33 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Antworte ausschliesslich als JSON-Objekt mit dem Schluessel "sections":
             {"sections": {$jsonExample}}
             PROMPT;
+    }
+
+    /**
+     * The rules the template sets per content type, as a prompt block. Lines
+     * that cannot be used are logged: they are the editor's, and the prompt
+     * would not show that they were left out.
+     */
+    private function buildCTypeRulesBlock(Template $template): string
+    {
+        $rules = CTypeRules::parse($template->ctypeRules, $template->allowedCTypes);
+        if ($rules->ignored !== []) {
+            $this->logger?->warning('Rules of the template were not used', [
+                'template' => $template->identifier,
+                'lines' => $rules->ignored,
+            ]);
+        }
+        if ($rules->isEmpty()) {
+            return '';
+        }
+
+        return <<<BLOCK
+
+            --- REGELN PRO CONTENT-TYP (verbindlich) ---
+            Halte fuer jede Section die Regeln ihres Content-Typs strikt ein.
+            Sie gelten zusaetzlich zu den Anweisungen oben; bei einem Widerspruch gilt die Regel.
+            {$rules->toPromptLines()}
+            BLOCK;
     }
 
     /**

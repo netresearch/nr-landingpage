@@ -305,6 +305,14 @@
                 <source>Optimization failed</source>
                 <target>Optimierung fehlgeschlagen</target>
             </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.ctype_rules" resname="tx_nrlandingpage_domain_model_template.ctype_rules">
+                <source>Rules per content element</source>
+                <target>Regeln pro Inhaltselement</target>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.ctype_rules.description" resname="tx_nrlandingpage_domain_model_template.ctype_rules.description">
+                <source>Constraints the AI must follow for a content element type, one per line as "ctype: rule", for example "header: at most 8 words". A type can have several lines. Lines that start with # are comments. A type the template does not allow, a line without a rule and everything beyond 30 rules are left out; they are written to the log. The AI is told the rules; the text is not cut afterwards.</source>
+                <target>Vorgaben, die die KI für einen Inhaltselement-Typ einhalten muss, eine pro Zeile als „ctype: Regel“, zum Beispiel „header: höchstens 8 Wörter“. Ein Typ kann mehrere Zeilen haben. Zeilen mit # am Anfang sind Kommentare. Ein Typ, den die Vorlage nicht erlaubt, eine Zeile ohne Regel und alles ab der 31. Regel werden nicht verwendet und im Log vermerkt. Die KI bekommt die Regeln gesagt; der Text wird danach nicht gekürzt.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

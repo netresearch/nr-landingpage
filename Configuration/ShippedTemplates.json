@@ -25,6 +25,12 @@
                 "6. Availability and a single call to action with a short reason to act now.",
                 "",
                 "Length: 80 to 150 words for text sections, one short sentence for headers."
+            ],
+            "ctype_rules": [
+                "header: at most 8 words, no full stop",
+                "text: 80 to 150 words in at most 3 paragraphs",
+                "textmedia: 60 to 120 words",
+                "bullets: 3 to 5 items, each at most 12 words"
             ]
         },
         {
@@ -45,7 +51,13 @@
                 "",
                 "Length: 60 to 120 words for text sections, one short sentence for headers."
             ],
-            "briefing_mode": "required"
+            "briefing_mode": "required",
+            "ctype_rules": [
+                "header: at most 8 words, no full stop",
+                "text: at most 120 words",
+                "textmedia: at most 100 words",
+                "bullets: at most 8 items, each at most 14 words"
+            ]
         },
         {
             "title": "Creative One-Pager",
@@ -83,6 +95,12 @@
                 "7. A closing call to action, plus answers to the questions a buyer asks first.",
                 "",
                 "Length: 80 to 140 words for text sections, one short sentence for headers. Never invent pricing, limits or integrations."
+            ],
+            "ctype_rules": [
+                "header: at most 8 words, no full stop",
+                "text: 80 to 140 words in at most 3 paragraphs",
+                "textmedia: 60 to 120 words",
+                "bullets: 3 to 6 items, each at most 12 words"
             ]
         }
     ]

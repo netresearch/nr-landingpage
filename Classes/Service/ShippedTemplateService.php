@@ -107,9 +107,11 @@ final readonly class ShippedTemplateService
                 throw new UnexpectedValueException('A shipped template definition lacks its title or identifier.', 1762992002);
             }
             $row = [...$data['defaults'], ...$template];
-            // A prompt is written as a list of lines.
-            if (is_array($row['system_prompt'] ?? null)) {
-                $row['system_prompt'] = implode("\n", array_filter($row['system_prompt'], is_string(...)));
+            // A prompt and the rules are written as lists of lines.
+            foreach (['system_prompt', 'ctype_rules'] as $key) {
+                if (is_array($row[$key] ?? null)) {
+                    $row[$key] = implode("\n", array_filter($row[$key], is_string(...)));
+                }
             }
             /** @var array<string, int|string> $row */
             $list[] = $row;

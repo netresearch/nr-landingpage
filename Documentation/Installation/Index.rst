@@ -122,7 +122,9 @@ are missing again, run:
    vendor/bin/typo3 nr-landingpage:import-templates
 
 A template with the same identifier is never changed, also not when it
-is hidden or deleted. The templates start without colours, so the
+is hidden or deleted. The three structured templates come with rules per content element
+(:confval:`Rules per content element`), for example short headers.
+The templates start without colours, so the
 colours of the site settings apply; edit them like any other template.
 
 Upgrading

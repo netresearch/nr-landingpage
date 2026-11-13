@@ -446,6 +446,39 @@ Content & Layout Tab
    -  ``bullets`` — bullet point lists
    -  ``table`` — tabular content
 
+.. confval:: Rules per content element
+
+   :type: text
+   :default: (empty)
+
+   Constraints the AI must follow for a content element type, one per
+   line as ``ctype: rule``:
+
+   .. code-block:: text
+
+      # The hero
+      header: at most 8 words, no full stop
+      text: 80 to 120 words, at most 2 sentences per paragraph
+      text: no questions
+      bullets: at most 5 items
+
+   *   A type can have several lines; its rules are given to the AI
+       together.
+   *   Lines that start with ``#`` and blank lines are comments.
+   *   Ignored, and written to the log (level warning, with the template
+       identifier): a line without a type name or without a rule, a type
+       that :confval:`Allowed Content Types` does not contain (while some
+       types are selected), and every rule after the 30th. A rule is
+       cut at 500 characters.
+   *   The AI is told the rules for the whole page, also when one
+       section is regenerated. The generated text is not checked or cut
+       afterwards, so a model can still break a rule; review the sections
+       in the wizard.
+   *   Changing the rules changes the template's configuration hash, as
+       any other change of the generation does.
+
+   The field is hidden in creative mode, which has no content types.
+
 .. confval:: Page Fields
 
    :type: select (checkboxes)
