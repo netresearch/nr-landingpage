@@ -155,13 +155,21 @@ You can:
    go to the previous step and to this step again, which generates the
    content anew.
 
+-  **Preview** the page with :guilabel:`Preview page` above the cards.
+   The preview shows the page title and the sections in their current
+   order, with their images and alternative texts, in a neutral style. It
+   follows what you edit, move, remove or choose while it is open, and
+   :guilabel:`Hide preview` closes it. It shows content and order, not the
+   design of your site's frontend, and runs no scripts.
+
 The buttons are reachable with the keyboard (:kbd:`Tab`, :kbd:`Enter`).
 After a move or a removal the focus stays with the section and a
 screen reader announces the new position. :guilabel:`Regenerate` on a
 moved section replaces that section with the matching one of the new
 answer, not the one that now stands at its position.
 
-Reordering and removing are offered in structured mode only.
+Reordering, removing and the preview are offered in structured mode only;
+in creative mode every block has its own live preview.
 
 **Creative HTML mode:**
 

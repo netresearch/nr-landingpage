@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: Netresearch DTT GmbH
  */
 
-import { test, expect, navigateToModule, openWizard, waitForSlideSettled, mockAjaxRoute, sampleTemplate } from './fixtures';
+import { test, expect, clickNext, walkToStructuredContent } from './fixtures';
 import { Locator, Page } from '@playwright/test';
 
 /**
@@ -19,31 +19,6 @@ const sections = ['Hero', 'Features', 'Contact'].map((name) => ({
     bodytext: '<p>' + name + ' body</p>',
     imageUid: 0,
 }));
-
-async function clickNext(modal: Locator): Promise<void> {
-    const next = modal.locator('button[name="next"]:not([disabled])');
-    await next.waitFor({ state: 'visible', timeout: 15000 });
-    await waitForSlideSettled(modal);
-    await next.click();
-}
-
-async function walkToContent(page: Page): Promise<Locator> {
-    await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
-    await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
-    await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-page-fields', { title: 'T', slug: 't' });
-    await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-content', { sections, images: [] });
-
-    const modal = await openWizard(page, await navigateToModule(page));
-    await modal.locator('.template-card').first().click();
-    await clickNext(modal);
-    await modal.locator('.carousel-item.active #briefing_title').waitFor({ state: 'visible', timeout: 15000 });
-    await clickNext(modal);
-    await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
-    await clickNext(modal);
-    await modal.locator('.carousel-item.active #section-card-0').waitFor({ state: 'visible', timeout: 15000 });
-    await waitForSlideSettled(modal);
-    return modal;
-}
 
 function headers(modal: Locator): Promise<string[]> {
     return modal.locator('.carousel-item.active .section-header').evaluateAll((inputs) => inputs.map((i) => (i as HTMLInputElement).value));
@@ -72,7 +47,7 @@ async function saveAndCapture(page: Page, modal: Locator): Promise<{ contentSect
 
 test.describe('Structured sections: reorder and remove', () => {
     test('Move down swaps the section with the next one and the save keeps that order', async ({ authenticatedPage: page }) => {
-        const modal = await walkToContent(page);
+        const modal = await walkToStructuredContent(page, { sections, images: [] });
 
         await action(modal, 'down', 0).click();
 
@@ -82,7 +57,7 @@ test.describe('Structured sections: reorder and remove', () => {
     });
 
     test('the first section cannot move up and the last cannot move down', async ({ authenticatedPage: page }) => {
-        const modal = await walkToContent(page);
+        const modal = await walkToStructuredContent(page, { sections, images: [] });
 
         await expect(action(modal, 'up', 0)).toBeDisabled();
         await expect(action(modal, 'down', 2)).toBeDisabled();
@@ -90,7 +65,7 @@ test.describe('Structured sections: reorder and remove', () => {
     });
 
     test('Remove drops the section, also from the save', async ({ authenticatedPage: page }) => {
-        const modal = await walkToContent(page);
+        const modal = await walkToStructuredContent(page, { sections, images: [] });
 
         await action(modal, 'remove', 1).click();
 
@@ -100,7 +75,7 @@ test.describe('Structured sections: reorder and remove', () => {
     });
 
     test('with the keyboard: Enter on Move down keeps the focus on the moved section and announces the move', async ({ authenticatedPage: page }) => {
-        const modal = await walkToContent(page);
+        const modal = await walkToStructuredContent(page, { sections, images: [] });
 
         await action(modal, 'down', 0).focus();
         await page.keyboard.press('Enter');
@@ -112,7 +87,7 @@ test.describe('Structured sections: reorder and remove', () => {
     });
 
     test('with the keyboard: a section moved to the end passes the focus to its Move up button', async ({ authenticatedPage: page }) => {
-        const modal = await walkToContent(page);
+        const modal = await walkToStructuredContent(page, { sections, images: [] });
 
         await action(modal, 'down', 1).focus();
         await page.keyboard.press('Enter');
@@ -121,7 +96,7 @@ test.describe('Structured sections: reorder and remove', () => {
     });
 
     test('after Remove the focus moves to the section that took its place', async ({ authenticatedPage: page }) => {
-        const modal = await walkToContent(page);
+        const modal = await walkToStructuredContent(page, { sections, images: [] });
 
         await action(modal, 'remove', 0).focus();
         await page.keyboard.press('Enter');
@@ -131,7 +106,7 @@ test.describe('Structured sections: reorder and remove', () => {
     });
 
     test('Regenerate after a move asks for the section by its place in the generated answer', async ({ authenticatedPage: page }) => {
-        const modal = await walkToContent(page);
+        const modal = await walkToStructuredContent(page, { sections, images: [] });
         const requested: number[] = [];
         await page.route('**/nr-landingpage/wizard/regenerate-section**', async (route) => {
             requested.push(route.request().postDataJSON().sectionIndex);

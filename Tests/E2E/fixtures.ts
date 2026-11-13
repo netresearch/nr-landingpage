@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: Netresearch DTT GmbH
  */
 
-import { test as base, expect, Page, FrameLocator } from '@playwright/test';
+import { test as base, expect, Page, FrameLocator, Locator } from '@playwright/test';
 
 const TYPO3_CREDENTIALS = {
     username: process.env.TYPO3_USERNAME || 'admin',
@@ -218,6 +218,38 @@ export const pageFieldsWithSeo = {
     og_title: 'Share This Page',
     og_description: 'OG description for social sharing',
 };
+
+/**
+ * Wait for Next to be enabled and the slide to settle, then click it.
+ */
+export async function clickNext(modal: Locator): Promise<void> {
+    const next = modal.locator('button[name="next"]:not([disabled])');
+    await next.waitFor({ state: 'visible', timeout: 15000 });
+    await waitForSlideSettled(modal);
+    await next.click();
+}
+
+/**
+ * Open the wizard with every AJAX reply mocked and walk to the content step of
+ * a structured template; `content` is the reply of generate-content.
+ */
+export async function walkToStructuredContent(page: Page, content: unknown): Promise<Locator> {
+    await mockAjaxRoute(page, '/nr-landingpage/wizard/templates', [sampleTemplate]);
+    await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-briefing', []);
+    await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-page-fields', { title: 'My Landing Page', slug: 'my-landing-page' });
+    await mockAjaxRoute(page, '/nr-landingpage/wizard/generate-content', content);
+
+    const modal = await openWizard(page, await navigateToModule(page));
+    await modal.locator('.template-card').first().click();
+    await clickNext(modal);
+    await modal.locator('.carousel-item.active #briefing_title').waitFor({ state: 'visible', timeout: 15000 });
+    await clickNext(modal);
+    await modal.locator('.carousel-item.active #pf_title').waitFor({ state: 'visible', timeout: 15000 });
+    await clickNext(modal);
+    await modal.locator('.carousel-item.active #section-card-0').waitFor({ state: 'visible', timeout: 15000 });
+    await waitForSlideSettled(modal);
+    return modal;
+}
 
 export const test = base.extend<{ authenticatedPage: Page }>({
     authenticatedPage: async ({ page }, use) => {

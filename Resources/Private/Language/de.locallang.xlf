@@ -773,6 +773,18 @@
                 <source>%s removed.</source>
                 <target>%s entfernt.</target>
             </trans-unit>
+            <trans-unit id="wizard.content.preview" resname="wizard.content.preview">
+                <source>Preview page</source>
+                <target>Seitenvorschau</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.previewHide" resname="wizard.content.previewHide">
+                <source>Hide preview</source>
+                <target>Vorschau ausblenden</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.previewRegion" resname="wizard.content.previewRegion">
+                <source>Page preview</source>
+                <target>Seitenvorschau</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

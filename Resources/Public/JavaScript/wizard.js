@@ -5,6 +5,7 @@
 
 import WizardState from '@netresearch/nr-landingpage/wizard-state.js';
 import { guardrailHintsElement } from '@netresearch/nr-landingpage/guardrail-hints.js';
+import { buildPagePreview } from '@netresearch/nr-landingpage/page-preview.js';
 import MultiStepWizard from '@typo3/backend/multi-step-wizard.js';
 import Modal from '@typo3/backend/modal.js';
 import Notification from '@typo3/backend/notification.js';
@@ -1090,6 +1091,8 @@ class LandingPageWizard {
             return;
         }
 
+        this.appendPagePreview(container);
+
         sections.forEach((section, index) => {
             const card = document.createElement('div');
             card.className = 'card mb-3';
@@ -1176,6 +1179,77 @@ class LandingPageWizard {
             card.appendChild(cardBody);
             container.appendChild(card);
         });
+
+        // After the cards: rendering them may have chosen the recommended images.
+        this.syncPagePreview();
+    }
+
+    /**
+     * The button that shows the page as it is now, and the panel it opens.
+     * The panel is drawn again from the wizard's state when it opens and while
+     * the editor changes text, order or images.
+     *
+     * @param {HTMLElement} container
+     */
+    appendPagePreview(container) {
+        const panelId = 'page-preview-panel';
+        const toolbar = document.createElement('div');
+        toolbar.className = 'mb-3';
+        const toggle = this.createButton(this.label('wizard.content.preview'), 'btn btn-default', () => {
+            WizardState.previewOpen = !WizardState.previewOpen;
+            this.syncPagePreview();
+        });
+        toggle.dataset.pagePreviewToggle = '';
+        toggle.setAttribute('aria-controls', panelId);
+        toolbar.appendChild(toggle);
+
+        const panel = document.createElement('div');
+        panel.id = panelId;
+        panel.className = 'mb-3 border rounded';
+        panel.setAttribute('role', 'region');
+        panel.setAttribute('aria-label', this.label('wizard.content.previewRegion'));
+        const iframe = document.createElement('iframe');
+        // No scripts and no navigation: the preview is read, not used.
+        iframe.sandbox = 'allow-same-origin';
+        iframe.title = this.label('wizard.content.previewRegion');
+        iframe.style.cssText = 'width:100%;height:60vh;border:none;display:block;';
+        panel.appendChild(iframe);
+
+        container.append(toolbar, panel);
+        this._preview = { toggle, panel, iframe };
+        this.syncPagePreview();
+
+        // One listener per content element: a re-render keeps the element.
+        if (!container._previewBound) {
+            container._previewBound = true;
+            let timer = 0;
+            container.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => this.syncPagePreview(), 200);
+            });
+        }
+    }
+
+    /**
+     * Show or hide the preview panel as the state says, and draw it again.
+     */
+    syncPagePreview() {
+        const preview = this._preview;
+        if (!preview || !preview.panel.isConnected) {
+            return;
+        }
+        const open = WizardState.previewOpen;
+        preview.panel.hidden = !open;
+        preview.toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        preview.toggle.textContent = this.label(open ? 'wizard.content.previewHide' : 'wizard.content.preview');
+        if (open) {
+            preview.iframe.srcdoc = buildPagePreview({
+                title: WizardState.getTitle() || WizardState.getPageFields().title || '',
+                sections: WizardState.getContentSections(),
+                imageCatalog: WizardState.imageCatalog,
+                lang: document.documentElement.lang || 'en',
+            });
+        }
     }
 
     /**
@@ -1591,6 +1665,7 @@ class LandingPageWizard {
         const currentImageUid = sections[sectionIndex].imageUid || 0;
 
         newImages.forEach((img) => {
+            WizardState.imageCatalog[img.uid] = img;
             if (shownUids.has(img.uid)) return;
             shownUids.add(img.uid);
 
@@ -1658,6 +1733,7 @@ class LandingPageWizard {
                 const wasSelected = secs[sectionIndex].imageUid === img.uid;
 
                 secs[sectionIndex].imageUid = wasSelected ? 0 : img.uid;
+                this.syncPagePreview();
 
                 // Update visual + ARIA state for all cards in this section's image list
                 imageList.querySelectorAll('.card').forEach((c) => {
