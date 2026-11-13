@@ -25,6 +25,7 @@ use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\MetaDataAspect;
+use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Resource\StorageRepository;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
@@ -35,6 +36,7 @@ final class ImageProviderServiceTest extends UnitTestCase
     private ImageSearchService&MockObject $imageSearchService;
     private ConnectionPool&MockObject $connectionPool;
     private StorageRepository&MockObject $storageRepository;
+    private ResourceFactory&MockObject $resourceFactory;
     private ImageProviderService $subject;
 
     protected function setUp(): void
@@ -43,6 +45,7 @@ final class ImageProviderServiceTest extends UnitTestCase
         $this->imageSearchService = $this->createMock(ImageSearchService::class);
         $this->connectionPool = $this->createMock(ConnectionPool::class);
         $this->storageRepository = $this->createMock(StorageRepository::class);
+        $this->resourceFactory = $this->createMock(ResourceFactory::class);
 
         $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'] = 'gif,jpg,jpeg,tif,tiff,bmp,pcx,tga,png,pdf,ai,svg,webp,avif';
 
@@ -50,6 +53,7 @@ final class ImageProviderServiceTest extends UnitTestCase
             $this->imageSearchService,
             $this->connectionPool,
             $this->storageRepository,
+            $this->resourceFactory,
         );
     }
 
@@ -472,23 +476,113 @@ final class ImageProviderServiceTest extends UnitTestCase
         self::assertSame('Photo: Team.', $capturedPrompt);
     }
 
-    private function mockStorageForGeneration(): void
+    #[Test]
+    public function generatesAtTheSizeOfTheTemplate(): void
     {
-        $metaData = $this->createMock(MetaDataAspect::class);
+        $sizes = [];
+        $this->subject->registerGenerator(
+            'fake',
+            function (string $prompt, array $options) use (&$sizes) {
+                $sizes[] = [$options['size'] ?? null, $options['width'] ?? null, $options['height'] ?? null];
 
+                return new ImageGenerationResult(url: '', base64: base64_encode(self::minimalPng()), prompt: $prompt, revisedPrompt: null, model: 'm', size: '1536x1024', provider: 'dall-e');
+            },
+            fn() => true,
+        );
+        $this->mockStorageForGeneration();
+
+        $this->subject->generateImageForSection($this->createTemplate(5), 'A hero image', 'Welcome');
+        $this->subject->generateImageForSection(new Template(uid: 1, title: 'T', identifier: 't', imageTask: 5, imageSize: '1536x1024'), 'A hero image', 'Welcome');
+        // A value that is no size is the default.
+        $this->subject->generateImageForSection(new Template(uid: 1, title: 'T', identifier: 't', imageTask: 5, imageSize: 'huge'), 'A hero image', 'Welcome');
+
+        self::assertSame([['1024x1024', 1024, 1024], ['1536x1024', 1536, 1024], ['1024x1024', 1024, 1024]], $sizes);
+    }
+
+    #[Test]
+    public function storesInGeneratedLandingpageOfTheDefaultStorageWhenTheTemplateNamesNoFolder(): void
+    {
+        $this->registerFakeGenerator();
+        $storage = $this->storageWithFile();
+        $storage->expects(self::once())->method('hasFolder')->with('generated-landingpage/')->willReturn(false);
+        $storage->expects(self::once())->method('createFolder')->with('generated-landingpage/');
+        $this->storageRepository->method('getDefaultStorage')->willReturn($storage);
+        $this->resourceFactory->expects(self::never())->method('getFolderObjectFromCombinedIdentifier');
+
+        $image = $this->subject->generateImageForSection($this->createTemplate(5), 'A hero image', 'Welcome');
+
+        self::assertSame(99, $image['uid'] ?? null);
+    }
+
+    #[Test]
+    public function storesInTheFolderOfTheTemplateAndNotInTheDefaultStorage(): void
+    {
+        $this->registerFakeGenerator();
+        $storage = $this->storageWithFile();
+        $folder = $this->createMock(Folder::class);
+        $folder->method('getStorage')->willReturn($storage);
+        $storage->expects(self::once())->method('addFile')->with(self::anything(), $folder, self::anything())->willReturn($this->fileMock());
+        $storage->expects(self::never())->method('createFolder');
+        $this->resourceFactory->expects(self::once())->method('getFolderObjectFromCombinedIdentifier')->with('2:/campaigns/images/')->willReturn($folder);
+        $this->storageRepository->expects(self::never())->method('getDefaultStorage');
+
+        $image = $this->subject->generateImageForSection(
+            new Template(uid: 1, title: 'T', identifier: 't', imageTask: 5, imageFolder: '2:/campaigns/images/'),
+            'A hero image',
+            'Welcome',
+        );
+
+        self::assertSame(99, $image['uid'] ?? null);
+    }
+
+    #[Test]
+    public function storesNoImageWhenTheFolderOfTheTemplateCannotBeUsedAndLogsWhy(): void
+    {
+        $this->registerFakeGenerator();
+        $this->resourceFactory->method('getFolderObjectFromCombinedIdentifier')->willThrowException(new RuntimeException('Folder does not exist'));
+        $this->storageRepository->expects(self::never())->method('getDefaultStorage');
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with(
+            'The image folder of the template cannot be used',
+            self::callback(static fn(array $context): bool => $context['folder'] === '2:/gone/' && $context['template'] === 't' && $context['error'] === 'Folder does not exist'),
+        );
+        $this->subject->setLogger($logger);
+
+        $image = $this->subject->generateImageForSection(
+            new Template(uid: 1, title: 'T', identifier: 't', imageTask: 5, imageFolder: '2:/gone/'),
+            'A hero image',
+            'Welcome',
+        );
+
+        self::assertNull($image);
+    }
+
+    private function fileMock(): File&MockObject
+    {
         $file = $this->createMock(File::class);
         $file->method('getUid')->willReturn(99);
         $file->method('getName')->willReturn('generated.png');
         $file->method('getPublicUrl')->willReturn('/fileadmin/generated.png');
-        $file->method('getMetaData')->willReturn($metaData);
+        $file->method('getMetaData')->willReturn($this->createMock(MetaDataAspect::class));
 
-        $folder = $this->createMock(Folder::class);
+        return $file;
+    }
 
+    private function storageWithFile(): ResourceStorage&MockObject
+    {
         $storage = $this->createMock(ResourceStorage::class);
-        $storage->method('hasFolder')->willReturn(true);
+        $folder = $this->createMock(Folder::class);
+        $folder->method('getStorage')->willReturn($storage);
         $storage->method('getFolder')->willReturn($folder);
-        $storage->method('addFile')->willReturn($file);
+        $storage->method('addFile')->willReturn($this->fileMock());
 
+        return $storage;
+    }
+
+    private function mockStorageForGeneration(): void
+    {
+        $storage = $this->storageWithFile();
+        $storage->method('hasFolder')->willReturn(true);
         $this->storageRepository->method('getDefaultStorage')->willReturn($storage);
     }
 

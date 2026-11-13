@@ -61,6 +61,23 @@ final class TemplateServiceTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function loadByUidReadsTheImageSettingsAndFallsBackToTheDefaultSize(): void
+    {
+        $this->setUpBackendUser(1);
+        $connection = $this->get(ConnectionPool::class)->getConnectionForTable('tx_nrlandingpage_domain_model_template');
+        $connection->update('tx_nrlandingpage_domain_model_template', ['image_size' => '1792x1024', 'image_folder' => ' 1:/campaigns/ '], ['uid' => 1]);
+        $connection->update('tx_nrlandingpage_domain_model_template', ['image_size' => '99x99'], ['uid' => 2]);
+
+        $configured = $this->subject->loadByUid(1);
+        $unknownSize = $this->subject->loadByUid(2);
+
+        self::assertSame('1792x1024', $configured?->imageSize);
+        self::assertSame('1:/campaigns/', $configured?->imageFolder);
+        self::assertSame('1024x1024', $unknownSize?->imageSize, 'a size that is not offered becomes the default');
+        self::assertSame('', $unknownSize?->imageFolder);
+    }
+
+    #[Test]
     public function loadByUidReturnsNullForNonExistentRecord(): void
     {
         self::assertNull($this->subject->loadByUid(999));

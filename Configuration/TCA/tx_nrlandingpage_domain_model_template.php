@@ -31,7 +31,7 @@ return [
                 '--div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general',
                 'title,identifier,description',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.ai',
-                'llm_configuration,image_task,system_prompt',
+                'llm_configuration,image_task,image_size,image_folder,system_prompt',
                 '--palette--;;prompt_optimizer',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.content_layout',
                 'generation_mode,allowed_ctypes,ctype_rules,page_fields,reference_pages,backend_layout,content_columns',
@@ -278,6 +278,34 @@ return [
                     'nrllm_unmarked' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_task.group.unmarked',
                 ],
                 'default' => 0,
+            ],
+        ],
+        'image_size' => [
+            'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_size',
+            'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_size.description',
+            'displayCond' => 'FIELD:generation_mode:=:structured',
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'items' => [
+                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_size.1024x1024', 'value' => '1024x1024'],
+                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_size.1536x1024', 'value' => '1536x1024'],
+                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_size.1024x1536', 'value' => '1024x1536'],
+                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_size.1792x1024', 'value' => '1792x1024'],
+                    ['label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_size.1024x1792', 'value' => '1024x1792'],
+                ],
+                'default' => '1024x1024',
+            ],
+        ],
+        'image_folder' => [
+            'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_folder',
+            'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.image_folder.description',
+            'displayCond' => 'FIELD:generation_mode:=:structured',
+            'config' => [
+                'type' => 'folder',
+                'maxitems' => 1,
+                'size' => 1,
+                'default' => '',
             ],
         ],
         'generation_mode' => [

@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Tests\Unit\Configuration;
 
+use Netresearch\NrLandingpage\Domain\Model\Template;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
@@ -158,6 +159,31 @@ final class TcaConfigurationTest extends UnitTestCase
         self::assertSame('FIELD:generation_mode:=:structured', $column['displayCond'] ?? null);
         self::assertStringContainsString('allowed_ctypes,ctype_rules,page_fields', $this->templateTca['types']['1']['showitem']);
         self::assertStringContainsString('ctype_rules text', (string) file_get_contents(dirname(__DIR__, 3) . '/ext_tables.sql'));
+    }
+
+    #[Test]
+    public function imageSizeOffersExactlyTheSizesOfTheModelAndDefaultsToTheFormerOne(): void
+    {
+        $config = $this->templateTca['columns']['image_size']['config'] ?? [];
+
+        self::assertSame('select', $config['type'] ?? null);
+        self::assertSame(Template::IMAGE_SIZES, array_column($config['items'] ?? [], 'value'));
+        self::assertSame(Template::DEFAULT_IMAGE_SIZE, $config['default'] ?? null);
+        self::assertSame('1024x1024', Template::DEFAULT_IMAGE_SIZE);
+        self::assertStringContainsString("image_size varchar(20) NOT NULL DEFAULT '1024x1024'", (string) file_get_contents(dirname(__DIR__, 3) . '/ext_tables.sql'));
+    }
+
+    #[Test]
+    public function imageFolderIsAFolderFieldAndBothImageFieldsAreHiddenInCreativeMode(): void
+    {
+        $columns = $this->templateTca['columns'];
+
+        self::assertSame('folder', $columns['image_folder']['config']['type'] ?? null);
+        self::assertSame(1, $columns['image_folder']['config']['maxitems'] ?? null);
+        foreach (['image_size', 'image_folder'] as $field) {
+            self::assertSame('FIELD:generation_mode:=:structured', $columns[$field]['displayCond'] ?? null, $field);
+        }
+        self::assertStringContainsString('image_task,image_size,image_folder,system_prompt', $this->templateTca['types']['1']['showitem']);
     }
 
     #[Test]

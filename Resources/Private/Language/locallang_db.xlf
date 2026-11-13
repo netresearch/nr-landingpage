@@ -242,6 +242,33 @@
             <trans-unit id="tx_nrlandingpage_domain_model_template.ctype_rules.description" resname="tx_nrlandingpage_domain_model_template.ctype_rules.description">
                 <source>Constraints the AI must follow for a content element type, one per line as "ctype: rule", for example "header: at most 8 words". A type can have several lines. Lines that start with # are comments. A type the template does not allow, a line without a rule and everything beyond 30 rules are left out; they are written to the log. The AI is told the rules; the text is not cut afterwards.</source>
             </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size" resname="tx_nrlandingpage_domain_model_template.image_size">
+                <source>Size of generated images</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.description" resname="tx_nrlandingpage_domain_model_template.image_size.description">
+                <source>Width x height of an AI image. Whether a size works depends on the image model the provider uses: 1024x1024 works everywhere, 1536x1024 and 1024x1536 work with the gpt-image models, 1792x1024 and 1024x1792 with DALL·E 3. A size the model does not accept makes the image generation fail with an error in the wizard. Applies when the template has an image task.</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.1024x1024" resname="tx_nrlandingpage_domain_model_template.image_size.1024x1024">
+                <source>Square, 1024 x 1024 (default)</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.1536x1024" resname="tx_nrlandingpage_domain_model_template.image_size.1536x1024">
+                <source>Landscape, 1536 x 1024 (3:2)</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.1024x1536" resname="tx_nrlandingpage_domain_model_template.image_size.1024x1536">
+                <source>Portrait, 1024 x 1536 (2:3)</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.1792x1024" resname="tx_nrlandingpage_domain_model_template.image_size.1792x1024">
+                <source>Wide landscape, 1792 x 1024 (7:4)</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_size.1024x1792" resname="tx_nrlandingpage_domain_model_template.image_size.1024x1792">
+                <source>Tall portrait, 1024 x 1792 (4:7)</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_folder" resname="tx_nrlandingpage_domain_model_template.image_folder">
+                <source>Folder for generated images</source>
+            </trans-unit>
+            <trans-unit id="tx_nrlandingpage_domain_model_template.image_folder.description" resname="tx_nrlandingpage_domain_model_template.image_folder.description">
+                <source>The folder AI images are stored in. Leave it empty for the folder generated-landingpage/ in the default storage, which is created when missing. A folder chosen here must exist and be writable for the editor who generates the page; if it cannot be used, no image is stored and the wizard shows an error.</source>
+            </trans-unit>
         </body>
     </file>
 </xliff>

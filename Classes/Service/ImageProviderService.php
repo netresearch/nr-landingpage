@@ -18,7 +18,9 @@ use Throwable;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\File;
+use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\MimeTypeDetector;
+use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Resource\StorageRepository;
 
 /**
@@ -31,6 +33,9 @@ use TYPO3\CMS\Core\Resource\StorageRepository;
 class ImageProviderService implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
+
+    /** The folder of the default storage for generated images, when the template names none. */
+    private const DEFAULT_FOLDER = 'generated-landingpage/';
 
     private const DEFAULT_IMAGE_PROMPT = 'Professional high-resolution photograph for a corporate landing page section about "{section}". Style: modern, clean, bright natural lighting, shallow depth of field. No text overlays, no watermarks. Suitable as a website hero or section background image.';
 
@@ -49,6 +54,7 @@ class ImageProviderService implements LoggerAwareInterface
         private readonly ImageSearchService $imageSearchService,
         private readonly ConnectionPool $connectionPool,
         private readonly StorageRepository $storageRepository,
+        private readonly ResourceFactory $resourceFactory,
     ) {}
 
     /**
@@ -110,15 +116,20 @@ class ImageProviderService implements LoggerAwareInterface
         }
 
         $prompt = $this->buildImagePrompt($template, $imagePrompt, $sectionHeader);
+        [$width, $height] = $this->imageDimensions($template);
+        $size = $width . 'x' . $height;
 
         foreach ($this->imageGenerators as $name => $generator) {
             try {
                 $result = $generator($prompt, [
-                    'size' => '1024x1024',
+                    'size' => $size,
+                    // fal.ai reads width and height, OpenAI the size string.
+                    'width' => $width,
+                    'height' => $height,
                     'quality' => 'standard',
                 ]);
 
-                $stored = $this->storeGeneratedImage($result, $sectionHeader);
+                $stored = $this->storeGeneratedImage($result, $sectionHeader, $template);
                 if ($stored !== null) {
                     $this->lastImageError = '';
                     return $stored;
@@ -134,6 +145,21 @@ class ImageProviderService implements LoggerAwareInterface
         }
 
         return null;
+    }
+
+    /**
+     * Width and height of the template's image size; a value that is no size
+     * is the default.
+     *
+     * @return array{int, int}
+     */
+    private function imageDimensions(Template $template): array
+    {
+        if (preg_match('/^(\d{2,4})x(\d{2,4})$/', $template->imageSize, $matches) === 1) {
+            return [(int) $matches[1], (int) $matches[2]];
+        }
+
+        return [1024, 1024];
     }
 
     /**
@@ -258,7 +284,7 @@ class ImageProviderService implements LoggerAwareInterface
     /**
      * @return array{uid: int, name: string, title: string, alternative: string, publicUrl: string, generated: bool}|null
      */
-    private function storeGeneratedImage(ImageGenerationResult $result, string $sectionHeader): ?array
+    private function storeGeneratedImage(ImageGenerationResult $result, string $sectionHeader, Template $template): ?array
     {
         $content = $result->getBinaryContent() ?? $result->downloadFromUrl();
         if ($content === null) {
@@ -289,17 +315,11 @@ class ImageProviderService implements LoggerAwareInterface
 
         $tempFile = null;
         try {
-            $storage = $this->storageRepository->getDefaultStorage();
-            if ($storage === null) {
-                $this->logger?->error('No default storage available for storing generated image');
+            $folder = $this->resolveTargetFolder($template);
+            if ($folder === null) {
                 return null;
             }
-
-            $folderPath = 'generated-landingpage/';
-            if (!$storage->hasFolder($folderPath)) {
-                $storage->createFolder($folderPath);
-            }
-            $folder = $storage->getFolder($folderPath);
+            $storage = $folder->getStorage();
             $filename = 'lp-' . date('Ymd-His') . '-' . substr(md5($sectionHeader . uniqid()), 0, 8) . '.' . $ext;
 
             $tempFile = tempnam(sys_get_temp_dir(), 'lpimg_');
@@ -341,6 +361,43 @@ class ImageProviderService implements LoggerAwareInterface
             ]);
             return null;
         }
+    }
+
+    /**
+     * The folder generated images are stored in: the one the template names, or
+     * generated-landingpage/ of the default storage, created when missing.
+     *
+     * A folder the template names that cannot be used is not replaced by the
+     * default: the editor chose where the images go, so no image is stored.
+     */
+    private function resolveTargetFolder(Template $template): ?Folder
+    {
+        if ($template->imageFolder !== '') {
+            try {
+                return $this->resourceFactory->getFolderObjectFromCombinedIdentifier($template->imageFolder);
+            } catch (Throwable $e) {
+                $this->logger?->error('The image folder of the template cannot be used', [
+                    'template' => $template->identifier,
+                    'folder' => $template->imageFolder,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return null;
+            }
+        }
+
+        $storage = $this->storageRepository->getDefaultStorage();
+        if ($storage === null) {
+            $this->logger?->error('No default storage available for storing generated image');
+
+            return null;
+        }
+        $folderPath = self::DEFAULT_FOLDER;
+        if (!$storage->hasFolder($folderPath)) {
+            $storage->createFolder($folderPath);
+        }
+
+        return $storage->getFolder($folderPath);
     }
 
     /**

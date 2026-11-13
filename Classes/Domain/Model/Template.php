@@ -11,6 +11,15 @@ namespace Netresearch\NrLandingpage\Domain\Model;
 
 final readonly class Template
 {
+    public const DEFAULT_IMAGE_SIZE = '1024x1024';
+
+    /**
+     * The sizes of generated images a template offers, width x height. What a
+     * provider accepts depends on its image model; these are the sizes the
+     * models of the providers nr-llm talks to have in common between them.
+     */
+    public const IMAGE_SIZES = [self::DEFAULT_IMAGE_SIZE, '1536x1024', '1024x1536', '1792x1024', '1024x1792'];
+
     /**
      * @param list<string> $allowedCTypes
      * @param list<string> $pageFields
@@ -43,6 +52,8 @@ final readonly class Template
         public bool $animationEnabled = true,
         public array $contentColumns = [],
         public string $ctypeRules = '',
+        public string $imageSize = self::DEFAULT_IMAGE_SIZE,
+        public string $imageFolder = '',
     ) {}
 
     /**
@@ -77,6 +88,8 @@ final readonly class Template
             animationEnabled: $this->animationEnabled,
             contentColumns: $this->contentColumns,
             ctypeRules: $this->ctypeRules,
+            imageSize: $this->imageSize,
+            imageFolder: $this->imageFolder,
         );
     }
 
@@ -149,6 +162,14 @@ final readonly class Template
         // every other template stays what it was.
         if ($this->ctypeRules !== '') {
             $parts[] = $this->ctypeRules;
+        }
+
+        // The same for the image settings: the default size and folder add nothing.
+        if ($this->imageSize !== self::DEFAULT_IMAGE_SIZE) {
+            $parts[] = $this->imageSize;
+        }
+        if ($this->imageFolder !== '') {
+            $parts[] = $this->imageFolder;
         }
 
         return hash('sha256', implode('|', $parts));
