@@ -13,6 +13,10 @@ level lower.
 
 ## [Unreleased]
 
+### Changed
+
+- nr-llm 0.45 is accepted beside 0.43 and 0.44 (`^0.43.10 || ^0.44 || ^0.45`), so the extension installs together with nr-llm 0.45.0.
+
 ## [0.4.1] - 2026-11-12
 
 ### Changed
