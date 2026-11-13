@@ -15,7 +15,7 @@ const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAA
 const content = {
     sections: [
         { section: 'Hero', ctype: 'text', header: 'Hero header', subheader: 'Hero sub', bodytext: '<p>Hero body</p>', imageUid: 0, imageorient: 0 },
-        { section: 'Benefits', ctype: 'bullets', header: 'Benefits header', subheader: '', bodytext: 'Fast\nReliable', imageUid: 0, imageorient: 0 },
+        { section: 'Benefits', ctype: 'bullets', header: 'Benefits header', subheader: '', bodytext: 'Fast &amp; cheap\nReliable &lt;always&gt;', imageUid: 0, imageorient: 0 },
         { section: 'Contact', ctype: 'textmedia', header: 'Contact header', subheader: '', bodytext: '<p>Contact body</p>', imageUid: 7, imageorient: 25 },
     ],
     images: [[], [], [{ uid: 7, name: 'office.png', title: 'Office', alternative: 'Our office', publicUrl: PIXEL, recommended: true }]],
@@ -44,7 +44,7 @@ test.describe('Structured content step: page preview', () => {
 
         await toggle(modal).click();
 
-        await expect(preview(modal).locator('li')).toHaveText(['Fast', 'Reliable']);
+        await expect(preview(modal).locator('li')).toHaveText(['Fast & cheap', 'Reliable <always>']);
         const image = preview(modal).locator('img');
         await expect(image).toHaveAttribute('alt', 'Our office');
         await expect(image).toHaveClass('image-right');

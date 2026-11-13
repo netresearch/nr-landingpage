@@ -469,6 +469,9 @@ final class LandingPageWizardController implements LoggerAwareInterface
             }
 
             $briefingAnswers = $this->extractArrayFromBody($body, 'briefingAnswers');
+            // A pasted source text is not stored with the page: it can be long and
+            // can hold what the editor would not want kept in a page record.
+            unset($briefingAnswers[ContentGeneratorService::SOURCE_TEXT_KEY]);
             $rawSourcePageUid = $body['sourcePageUid'] ?? 0;
             $sourcePageUid = is_numeric($rawSourcePageUid) ? (int) $rawSourcePageUid : 0;
 

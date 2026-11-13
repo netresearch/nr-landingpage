@@ -12,6 +12,18 @@
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 /**
+ * The text of a piece of HTML, character references decoded: the server
+ * sanitizes bodytext as HTML, so a plain-text item can hold `&amp;`. The
+ * document is inert (no scripts, no loading).
+ *
+ * @param {string} html
+ * @returns {string}
+ */
+function decodeCharacterReferences(html) {
+    return new DOMParser().parseFromString(html, 'text/html').documentElement.textContent || '';
+}
+
+/**
  * @param {unknown} text
  * @returns {string}
  */
@@ -33,7 +45,7 @@ const FLOAT_LEFT = new Set([18, 26]);
 function bodyHtml(section) {
     const body = section.bodytext || '';
     if (section.ctype === 'bullets' && !/<[a-z][^>]*>/i.test(body)) {
-        const items = body.split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== '');
+        const items = body.split(/\r?\n/).map((line) => decodeCharacterReferences(line).trim()).filter((line) => line !== '');
         return items.length ? '<ul>' + items.map((item) => '<li>' + escapeHtml(item) + '</li>').join('') + '</ul>' : '';
     }
     return body;

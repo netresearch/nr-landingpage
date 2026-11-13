@@ -13,6 +13,9 @@ import Severity from '@typo3/backend/severity.js';
 import Icons from '@typo3/backend/icons.js';
 import '@typo3/backend/element/spinner-element.js';
 
+/** The most characters of a pasted source text the server uses (ContentGeneratorService). */
+const SOURCE_TEXT_MAX_LENGTH = 12000;
+
 /**
  * Landing Page Wizard using TYPO3 MultiStepWizard modal overlay.
  *
@@ -850,6 +853,8 @@ class LandingPageWizard {
                 });
             }
 
+            form.appendChild(this.createSourceTextGroup(savedAnswers.sourceText || ''));
+
             container.appendChild(form);
             this._briefingForm = form;
             this._briefingQuestions = questions;
@@ -887,6 +892,30 @@ class LandingPageWizard {
     }
 
     /**
+     * The field for a pasted plain text the page is written from. Optional;
+     * the server keeps at most SOURCE_TEXT_MAX_LENGTH characters.
+     *
+     * @param {string} value
+     * @returns {HTMLDivElement}
+     */
+    createSourceTextGroup(value) {
+        const group = this.createFormGroup('briefing_source', this.label('wizard.briefing.sourceLabel'), 'textarea', value);
+        const input = group.querySelector('#briefing_source');
+        input.rows = 8;
+        input.placeholder = this.label('wizard.briefing.sourcePlaceholder');
+
+        const help = document.createElement('small');
+        help.id = 'briefing_source_help';
+        help.className = 'form-text text-variant d-block mb-1';
+        help.textContent = this.label('wizard.briefing.sourceHelp', SOURCE_TEXT_MAX_LENGTH);
+        group.querySelector('label').after(help);
+
+        this.addCharacterCounter(group, 'briefing_source', SOURCE_TEXT_MAX_LENGTH);
+        input.setAttribute('aria-describedby', 'briefing_source_help char-counter-briefing_source');
+        return group;
+    }
+
+    /**
      * Collect briefing answers from the briefing form if it's still in the DOM.
      */
     collectAndStoreBriefingAnswers() {
@@ -894,6 +923,12 @@ class LandingPageWizard {
         if (!form || !form.isConnected) return;
 
         const answers = this.collectBriefingAnswers(form, this._briefingQuestions);
+        // The pasted text is the one answer that is not a question's: it keeps
+        // its own key, which the server reads as source material.
+        const sourceText = form.querySelector('#briefing_source')?.value?.trim() || '';
+        if (sourceText) {
+            answers.sourceText = sourceText;
+        }
         const titleInput = form.querySelector('#briefing_title');
         const titleVal = titleInput?.value?.trim() || '';
         if (titleVal) {

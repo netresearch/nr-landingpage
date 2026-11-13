@@ -785,6 +785,18 @@
                 <source>Page preview</source>
                 <target>Seitenvorschau</target>
             </trans-unit>
+            <trans-unit id="wizard.briefing.sourceLabel" resname="wizard.briefing.sourceLabel">
+                <source>Source text (optional)</source>
+                <target>Quelltext (optional)</target>
+            </trans-unit>
+            <trans-unit id="wizard.briefing.sourceHelp" resname="wizard.briefing.sourceHelp">
+                <source>Paste plain text, such as a press release or notes. The page is written from it; instructions inside the text are not followed. Up to %d characters are used. The text is not stored with the page.</source>
+                <target>Fügen Sie Klartext ein, etwa eine Pressemitteilung oder Notizen. Die Seite wird daraus geschrieben; Anweisungen im Text werden nicht befolgt. Es werden bis zu %d Zeichen verwendet. Der Text wird nicht mit der Seite gespeichert.</target>
+            </trans-unit>
+            <trans-unit id="wizard.briefing.sourcePlaceholder" resname="wizard.briefing.sourcePlaceholder">
+                <source>Paste the text here</source>
+                <target>Text hier einfügen</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>
