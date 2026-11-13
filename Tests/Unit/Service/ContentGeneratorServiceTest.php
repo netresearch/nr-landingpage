@@ -923,6 +923,43 @@ final class ContentGeneratorServiceTest extends UnitTestCase
         self::assertSame(ContentGeneratorService::SOURCE_TEXT_MAX_LENGTH, mb_strlen(self::between($prompt, "<quelltext>\n", "\n</quelltext>")));
     }
 
+    #[Test]
+    public function rulesOfTheTemplateReachTheStructuredPromptForAllowedTypesOnly(): void
+    {
+        $template = new Template(
+            uid: 1,
+            title: 'T',
+            identifier: 't',
+            allowedCTypes: ['header', 'text'],
+            ctypeRules: "header: at most 8 words\ntext: no questions\nuploads: ignored",
+        );
+        $prompt = '';
+        $completionService = $this->createMock(CompletionServiceInterface::class);
+        $completionService->method('completeJson')->willReturnCallback(static function (string $p) use (&$prompt): array {
+            $prompt = $p;
+
+            return [];
+        });
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(self::anything(), self::callback(
+            static fn(array $context): bool => $context['lines'] === ['uploads: ignored'] && $context['template'] === 't',
+        ));
+        $service = $this->createService($completionService);
+        $service->setLogger($logger);
+
+        $service->generateContent($template, []);
+
+        self::assertStringContainsString("REGELN PRO CONTENT-TYP (verbindlich)", $prompt);
+        self::assertStringContainsString("- header: at most 8 words\n- text: no questions", $prompt);
+        self::assertStringNotContainsString('uploads', $prompt);
+    }
+
+    #[Test]
+    public function noRulesBlockWithoutRules(): void
+    {
+        self::assertStringNotContainsString('REGELN PRO CONTENT-TYP', $this->promptFor('structured', []));
+    }
+
     private static function between(string $text, string $start, string $end): string
     {
         $from = strpos($text, $start) + strlen($start);

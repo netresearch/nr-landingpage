@@ -150,6 +150,17 @@ final class TcaConfigurationTest extends UnitTestCase
     }
 
     #[Test]
+    public function ruleFieldIsOfferedInStructuredModeOnly(): void
+    {
+        $column = $this->templateTca['columns']['ctype_rules'] ?? [];
+
+        self::assertSame('text', $column['config']['type'] ?? null);
+        self::assertSame('FIELD:generation_mode:=:structured', $column['displayCond'] ?? null);
+        self::assertStringContainsString('allowed_ctypes,ctype_rules,page_fields', $this->templateTca['types']['1']['showitem']);
+        self::assertStringContainsString('ctype_rules text', (string) file_get_contents(dirname(__DIR__, 3) . '/ext_tables.sql'));
+    }
+
+    #[Test]
     public function germanTextsUseGermanQuotationMarks(): void
     {
         foreach (glob(dirname(__DIR__, 3) . '/Resources/Private/Language/de.*.xlf') ?: [] as $file) {

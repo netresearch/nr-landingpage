@@ -145,6 +145,27 @@ final class TemplateTest extends UnitTestCase
     }
 
     #[Test]
+    public function ruleTextChangesTheConfigHashOnlyWhenThereIsOne(): void
+    {
+        $without = new Template(uid: 1, title: 'T', identifier: 't');
+        $emptyRules = new Template(uid: 1, title: 'T', identifier: 't', ctypeRules: '');
+        $with = new Template(uid: 1, title: 'T', identifier: 't', ctypeRules: 'header: short');
+        $other = new Template(uid: 1, title: 'T', identifier: 't', ctypeRules: 'header: shorter');
+
+        self::assertSame($without->getConfigHash(), $emptyRules->getConfigHash(), 'a template without rules keeps its hash');
+        self::assertNotSame($without->getConfigHash(), $with->getConfigHash());
+        self::assertNotSame($with->getConfigHash(), $other->getConfigHash());
+    }
+
+    #[Test]
+    public function withResolvedColorsKeepsTheRules(): void
+    {
+        $template = new Template(uid: 1, title: 'T', identifier: 't', ctypeRules: 'header: short');
+
+        self::assertSame('header: short', $template->withResolvedColors([])->ctypeRules);
+    }
+
+    #[Test]
     public function isCreativeModeReturnsTrueForCreative(): void
     {
         $template = new Template(uid: 1, title: 'T', identifier: 't', generationMode: 'creative');

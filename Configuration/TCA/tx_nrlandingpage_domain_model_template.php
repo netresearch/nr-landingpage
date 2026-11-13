@@ -34,7 +34,7 @@ return [
                 'llm_configuration,image_task,system_prompt',
                 '--palette--;;prompt_optimizer',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.content_layout',
-                'generation_mode,allowed_ctypes,page_fields,reference_pages,backend_layout,content_columns',
+                'generation_mode,allowed_ctypes,ctype_rules,page_fields,reference_pages,backend_layout,content_columns',
                 '--palette--;;color_scheme',
                 'animation_enabled',
                 '--div--;LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tabs.wizard',
@@ -153,6 +153,18 @@ return [
                 'type' => 'select',
                 'renderType' => 'selectCheckBox',
                 'itemsProcFunc' => \Netresearch\NrLandingpage\Service\TemplateService::class . '->getAvailableCTypes',
+            ],
+        ],
+        'ctype_rules' => [
+            'label' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.ctype_rules',
+            'description' => 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_db.xlf:tx_nrlandingpage_domain_model_template.ctype_rules.description',
+            'displayCond' => 'FIELD:generation_mode:=:structured',
+            'config' => [
+                'type' => 'text',
+                'cols' => 40,
+                'rows' => 6,
+                'enableRichtext' => false,
+                'placeholder' => "header: at most 8 words, no full stop\ntext: 80 to 120 words, no more than 2 sentences per paragraph",
             ],
         ],
         'page_fields' => [

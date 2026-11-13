@@ -577,6 +577,7 @@ final readonly class TemplateService
                     static fn(int $v): bool => $v >= 0,
                 ))
                 : [],
+            ctypeRules: is_string($row['ctype_rules'] ?? null) ? $row['ctype_rules'] : '',
         );
     }
 

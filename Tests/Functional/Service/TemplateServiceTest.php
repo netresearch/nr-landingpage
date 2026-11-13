@@ -50,6 +50,17 @@ final class TemplateServiceTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function loadByUidReadsTheRulesPerContentType(): void
+    {
+        $this->setUpBackendUser(1);
+        $this->get(ConnectionPool::class)->getConnectionForTable('tx_nrlandingpage_domain_model_template')
+            ->update('tx_nrlandingpage_domain_model_template', ['ctype_rules' => "header: at most 8 words\ntext: no questions"], ['uid' => 1]);
+
+        self::assertSame("header: at most 8 words\ntext: no questions", $this->subject->loadByUid(1)?->ctypeRules);
+        self::assertSame('', $this->subject->loadByUid(2)?->ctypeRules);
+    }
+
+    #[Test]
     public function loadByUidReturnsNullForNonExistentRecord(): void
     {
         self::assertNull($this->subject->loadByUid(999));
