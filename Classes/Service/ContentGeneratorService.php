@@ -259,7 +259,13 @@ final class ContentGeneratorService implements LoggerAwareInterface
         $text = $answers[self::SOURCE_TEXT_KEY] ?? '';
         // Control characters other than tab and line breaks, and the fence itself.
         $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', str_replace("\r\n", "\n", $text)) ?? '';
-        $text = trim(str_ireplace(['<quelltext>', '</quelltext>'], '', $text));
+        // Until nothing is left to remove: taking out the inner tag of `</quel</quelltext>ltext>`
+        // would otherwise leave a closing fence behind.
+        do {
+            $before = $text;
+            $text = str_ireplace(['<quelltext>', '</quelltext>'], '', $text);
+        } while ($text !== $before);
+        $text = trim($text);
         if ($text === '') {
             return '';
         }
