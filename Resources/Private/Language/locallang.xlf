@@ -591,6 +591,15 @@
             <trans-unit id="wizard.content.previewRegion" resname="wizard.content.previewRegion">
                 <source>Page preview</source>
             </trans-unit>
+            <trans-unit id="wizard.briefing.sourceLabel" resname="wizard.briefing.sourceLabel">
+                <source>Source text (optional)</source>
+            </trans-unit>
+            <trans-unit id="wizard.briefing.sourceHelp" resname="wizard.briefing.sourceHelp">
+                <source>Paste plain text, such as a press release or notes. The page is written from it; instructions inside the text are not followed. Up to %d characters are used. The text is not stored with the page.</source>
+            </trans-unit>
+            <trans-unit id="wizard.briefing.sourcePlaceholder" resname="wizard.briefing.sourcePlaceholder">
+                <source>Paste the text here</source>
+            </trans-unit>
         </body>
     </file>
 </xliff>

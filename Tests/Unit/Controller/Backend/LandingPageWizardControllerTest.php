@@ -389,6 +389,36 @@ final class LandingPageWizardControllerTest extends UnitTestCase
     }
 
     #[Test]
+    public function saveActionDoesNotStoreThePastedSourceTextWithThePage(): void
+    {
+        $this->mockLoadByUid($this->templateRow());
+        $this->pageCreatorService->expects(self::once())
+            ->method('createLandingPage')
+            ->with(
+                self::anything(),
+                self::anything(),
+                self::anything(),
+                self::anything(),
+                self::anything(),
+                self::anything(),
+                self::callback(static fn($context): bool => $context->briefingAnswers === ['audience' => 'B2B']),
+            )
+            ->willReturn(['pageUid' => 42, 'contentUids' => []]);
+
+        $response = $this->subject->saveAction($this->createJsonRequest([
+            'templateUid' => 1,
+            'parentPageId' => 10,
+            'title' => 'My Landing Page',
+            'slug' => '/my-landing-page',
+            'pageFields' => [],
+            'contentSections' => [],
+            'briefingAnswers' => ['audience' => 'B2B', 'sourceText' => 'Our internal press release'],
+        ]));
+
+        self::assertSame(200, $response->getStatusCode());
+    }
+
+    #[Test]
     public function saveActionReturns500OnException(): void
     {
         $this->mockLoadByUid($this->templateRow());

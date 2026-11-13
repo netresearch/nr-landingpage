@@ -101,6 +101,24 @@ Answer them to help the AI produce more targeted content.
 
 When briefing mode is ``none``, this step is skipped entirely.
 
+Source text
+~~~~~~~~~~~
+
+Below the questions, the optional field :guilabel:`Source text` takes
+plain text you paste, such as a press release, product notes or the
+copy of an old page. The AI writes the page fields and the content from
+it, in addition to the briefing answers.
+
+*   The text is material, not an instruction: sentences in it that tell
+    the AI what to do are not followed, and the AI is told not to invent
+    what neither the text nor the briefing says.
+*   Up to 12000 characters are used, and a counter shows how many you have
+    typed. A longer text is cut off at that length.
+*   The text is not stored with the generated page. For
+    :guilabel:`Re-generate` the field starts empty; paste the text again.
+*   Because it is part of the briefing, the field is not offered when
+    the template's briefing mode is ``none``.
+
 Step 3: Page Fields
 -------------------
 
