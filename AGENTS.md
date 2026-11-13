@@ -30,6 +30,7 @@ nr_landingpage/
 │   ├── Domain/Model/              # Template, GenerationContext
 │   ├── EventListener/             # PSR-14 event listeners
 │   ├── Form/                      # TCA form elements (fieldControl, fieldInformation)
+│   ├── Command/                   # Console commands (import of the shipped templates)
 │   └── Service/                   # Business logic
 │       ├── BackendLayoutService   # Column map resolution
 │       ├── BriefingService        # Briefing question generation
@@ -44,6 +45,7 @@ nr_landingpage/
 │       └── TemplateService        # Template CRUD + access control
 ├── Configuration/
 │   ├── Backend/                   # Module registration, AJAX routes
+│   ├── ShippedTemplates.json      # Template records that ship with the extension
 │   ├── TCA/                       # Template record TCA
 │   └── Services.yaml              # Dependency injection
 ├── Documentation/                 # RST documentation (TYPO3 docs standard)

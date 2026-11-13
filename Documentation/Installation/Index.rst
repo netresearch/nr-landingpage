@@ -82,9 +82,11 @@ page:
     :guilabel:`Site Management > Settings` and configure the
     default color scheme under **Landing Page Generator**
 
-3.  **Create a template** — Go to :guilabel:`List` module on the root
-    page (PID 0), create a new :guilabel:`Landing Page Template`
-    record. Fill in at minimum:
+3.  **Choose or create a template** — The extension ships four
+    templates (see :ref:`installation-shipped-templates`), so the
+    wizard offers templates right after setup. To make your own, go to
+    :guilabel:`List` module on the root page (PID 0), create a new
+    :guilabel:`Landing Page Template` record. Fill in at minimum:
 
     -  Template name (e.g. "Product Landing Page")
     -  System prompt (use the Auto-optimize button to generate one)
@@ -96,6 +98,32 @@ page:
 5.  **Review the result** — The generated page appears in the page
     tree. Open it in the :guilabel:`Page` module to review and
     enable it.
+
+..  _installation-shipped-templates:
+
+Shipped templates
+=================
+
+The extension ships four template records on the root level (PID 0):
+
+*   **Product Launch** (structured): announce a product or a release.
+*   **Event** (structured, briefing required): promote an event and lead
+    to registration.
+*   **Creative One-Pager** (creative HTML): a designed single page.
+*   **SaaS Feature** (structured): explain one feature of a service.
+
+They are created once, when the extension is set up
+(``vendor/bin/typo3 extension:setup``). An installation that had the extension
+before gets them with its next ``extension:setup``. To create the ones that
+are missing again, run:
+
+.. code-block:: bash
+
+   vendor/bin/typo3 nr-landingpage:import-templates
+
+A template with the same identifier is never changed, also not when it
+is hidden or deleted. The templates start without colours, so the
+colours of the site settings apply; edit them like any other template.
 
 Upgrading
 =========
