@@ -61,6 +61,7 @@ changed around the checks in this ADR.
 | `version` | integer, +1 on every change of any column that page creation reads: `title`, `template_uid`, `parent_page_uid`, `page_fields`, `sections` |
 | `status` | `draft`, `approved`, `created` |
 | `approved_by`, `approved_at`, `approved_version`, `created_page_uid` | set at approval and creation |
+| `approval_attempt` | random 32-hex value written by the approval update, cleared by a revert or reset; fences page creation (section 9) |
 
 `tx_nrlandingpage_workspace_link`
 
@@ -74,6 +75,11 @@ changed around the checks in this ADR.
 | `passphrase_hash` | optional, TYPO3 `PasswordHashFactory` hash, never reversible |
 | `max_uses`, `use_count` | optional usage limit; counts opened review sessions |
 | `created_by`, `crdate`, `revoked_at`, `revoked_by` | audit of who created and who revoked |
+
+The `pages` table gets one column, `tx_nrlandingpage_workspace_ref`
+(`<draft uid>:<approval_attempt>`, empty for every other page). It is part of
+the page's initial insert, so a page of a draft is identifiable from the moment
+it exists (section 9).
 
 `tx_nrlandingpage_workspace_session` (server-side review session)
 
@@ -140,10 +146,15 @@ repository has an insert method and no update or delete method.
   the link again, so revocation applies to open sessions on the next request.
 - **Passphrase** (optional). Stored with `PasswordHashFactory`. The entry form
   always shows the passphrase field, so a form that asks for one does not
-  reveal that a token exists. Exactly one `isCorrectHash()` call runs per
-  exchange: against the link's hash, or against a dummy hash of the configured
-  algorithm when no link matched or the link has no passphrase, so the work is
-  the same on every path. (Tests count the calls; wall time proves nothing.)
+  reveal that a token exists. Exactly one password-hash operation runs per
+  exchange: `checkPassword()` against the link's hash when the link has a
+  passphrase, otherwise `getHashedPassword()` on the given text (unknown link,
+  or a link without passphrase), so the work is the same on every path. (Tests
+  count the calls; wall time proves nothing.) Guessing the passphrase needs the
+  token first, and is limited per link (section 5, `nrlp-review-link`). The
+  trade-off: whoever holds the full link can use up that limit and so keep the
+  recipient out for the window (15 minutes); a link holder is already past the
+  secret, and revocation ends it.
 - **Usage limit** (optional). `use_count` is raised by `UPDATE ... SET
   use_count = use_count + 1 WHERE uid = ? AND (max_uses = 0 OR use_count <
   max_uses)`; an affected-rows count of 0 refuses the entry. The check is atomic,
@@ -165,8 +176,9 @@ overridden with `workspace.publicBaseUrl`.
 **HTTPS only.** A request that TYPO3 does not see as HTTPS (`NormalizedParams`,
 which honours the installation's reverse-proxy settings) gets the standard 404.
 Tests and local setups switch this off with `workspace.allowInsecureHttp = 1`
-(default 0). The cookie is `Secure` and carries the `__Secure-` name prefix
-whenever the request is HTTPS.
+(default 0). Over HTTPS the cookies are `Secure` and carry the `__Host-` name
+prefix (below); over plain HTTP, only possible with that switch, they have
+neither.
 
 **The token travels in the URL fragment.** A share link is
 `https://host/nr-landingpage/review#<token>`. A fragment is never sent to the
@@ -194,31 +206,44 @@ with a GET that changes state.
 Exchange (`POST /nr-landingpage/review/enter`, body: `token`, `passphrase`,
 `name`, `form_token`):
 
-1. Checks the signed `form_token` (a stale or missing one gets a `400` that
-   asks to reload the page; it says nothing about the token), refuses
-   `Sec-Fetch-Site: cross-site` and `same-site`, and a present `Origin` that
-   differs from the request's own origin. A missing `Origin` is accepted:
-   not every client sends it, and the form token carries the protection.
-2. **Verifies first, limits on failure.** It finds and verifies the link as in
-   section 3 and checks revocation, expiry, the passphrase and the usage limit.
-   A request that passes all of them succeeds whatever the limiters hold, as in
-   nr-llm's `A2aAuthenticator`: one address cannot lock out a recipient. Only a
-   failure consumes a limiter. While `nrlp-review-enter` is exhausted, a request
-   whose token hash does not match answers `429` without running the passphrase
-   hash.
+1. Checks the `form_token` against the entry cookie (below; a stale, missing
+   or foreign one gets a `400` that asks to reload the page and says nothing
+   about the token), refuses `Sec-Fetch-Site: cross-site` and `same-site`, and a
+   present `Origin` that differs from the request's own origin.
+2. **Link limit before the passphrase, verify before the address limit.** It
+   finds the link as in section 3 and checks revocation and expiry. For a link
+   with a passphrase whose token hash matched, `nrlp-review-link` is consumed
+   first: while it is exhausted the answer is `429` and **no passphrase hash
+   runs**, so a correct guess is refused too (guessing is capped; section 4
+   states the trade-off). Then the passphrase and the usage limit are checked.
+   A request that passes everything succeeds whatever `nrlp-review-enter`
+   holds, as in nr-llm's `A2aAuthenticator`: one address cannot lock out a
+   recipient. Only a failure consumes `nrlp-review-enter`.
 3. On success: inserts a session row, writes the `link_opened` audit row, sets
-   the cookie (256-bit random value, only its SHA-256 stored; `HttpOnly`,
-   `Secure`, `SameSite=Strict`, `Path=/nr-landingpage/review`, `Max-Age` equal
-   to the session's lifetime, no `Domain`), and answers `303` to
-   `/nr-landingpage/review/draft`. Accepted limit: with `Path` scoping the
-   cookie cannot carry the `__Host-` prefix, so a sibling subdomain that an
-   attacker controls could set a cookie of this name; the session id is checked
-   against the stored hash, so such a cookie only logs the visitor out.
+   the session cookie `__Host-nrws_session` (256-bit random value, only its
+   SHA-256 stored; `HttpOnly`, `Secure`, `SameSite=Strict`, **`Path=/`**,
+   `Max-Age` equal to the session's lifetime, no `Domain`), and answers `303` to
+   `/nr-landingpage/review/draft`. The `__Host-` prefix makes browsers refuse a
+   cookie of that name that a sibling subdomain tries to set, so an attacker
+   cannot plant a session id of their own review session. The price is
+   `Path=/`: the cookie is sent with every request to the host, including the
+   site's own pages and the backend. It is `HttpOnly`, `Secure`, `Strict` and
+   random, and only its hash is stored, so that is the smaller risk.
 4. On every failure, whatever the cause (unknown, wrong, expired, revoked,
    wrong passphrase, usage limit reached), the answer is the same `404` with
-   the same body and the same headers and no `Set-Cookie`: the entry page with
-   the line "This link is not valid or has expired." No failure path says which
-   check failed.
+   the same body and the same headers: the entry page with the line "This link
+   is not valid or has expired." A `429` (a limiter is hit) is a different
+   status by design, keyed on the caller's address or on a token the caller
+   already holds, so it does not tell a real link from an invented one. No
+   failure path says which check failed.
+
+**Entry cookie.** Every render of the entry page, the `200` and every `404`
+alike, sets `__Host-nrws_entry`: a random 128-bit value (`HttpOnly`, `Secure`,
+`SameSite=Strict`, `Path=/`, `Max-Age` 2 hours), reusing the value the request
+already carried. The form's `form_token` is `HMAC(entry value + timestamp)`, so
+it is bound to this browser: a token fetched by an attacker is useless in a
+victim's browser, and a cross-site form sends neither the `Strict` cookie nor
+a token that matches it. The cookie carries no session and no link.
 
 Session-bound views (all need the cookie; a missing, unknown, expired or
 revoked-link session answers the same 404 entry page):
@@ -238,27 +263,28 @@ revoked-link session answers the same 404 entry page):
 | Limiter | Key | Default | Consumed by |
 |---------|-----|---------|-------------|
 | `nrlp-review-enter` | source address | sliding window, 10 per 15 minutes | each failed exchange |
-| `nrlp-review-link` | token prefix | 5 per 15 minutes | a failed passphrase **after the token hash matched** |
+| `nrlp-review-link` | token prefix | 5 per 15 minutes | each exchange for a passphrase-protected link **whose token hash matched**, before the passphrase is checked |
 | `nrlp-review-write` | session id hash | 30 per 10 minutes | each POST in a session |
 
-`nrlp-review-link` is consumed only by someone who holds the secret, so a
-stranger who hammers a known prefix cannot lock the real recipient out, and
-invented prefixes create no limiter entries. A limit that is hit answers `429`
-with `Retry-After`. `nrlp-review-enter` is keyed by the source address and
+`nrlp-review-link` is consumed only by someone who holds the secret (the token
+hash matched), so a stranger who hammers a known prefix cannot lock the real
+recipient out, and invented prefixes create no limiter entries. A recipient
+uses one of the five for each opening of the link. A limit that is hit answers
+`429` with `Retry-After`. `nrlp-review-enter` is keyed by the source address and
 `nrlp-review-write` by a session the caller owns, so `429` does not tell a real
 link from an invented one. The source address comes from
 TYPO3's `NormalizedParams` (the reverse-proxy configuration of the
 installation applies).
 
-**CSRF.** Every POST carries a form token. The entry form's token is stateless:
-`timestamp.HMAC-SHA256('nrws-entry|' + timestamp, derived key)`, valid for 2
-hours; it is replayable inside that window by design (it protects against a
-foreign page submitting the form, and a token needs no CSRF protection of its
-own). A session form's token is `HMAC-SHA256('nrws-csrf|' + sessionId,
+**CSRF.** Every POST carries a form token. The entry form's token is bound to
+the entry cookie: `timestamp.HMAC-SHA256('nrws-entry|' + entry value + '|' +
+timestamp, derived key)`, valid for 2 hours and useless without the cookie it
+was made for, so it cannot be fetched by an attacker and replayed in a
+victim's browser. A session form's token is `HMAC-SHA256('nrws-csrf|' + sessionId,
 derived key)`, so it is bound to the session and, through the session, to the
 one link. Verified with `hash_equals`. The derived key is
 `hash_hmac('sha256', 'nr_landingpage.workspace', encryptionKey)`. In addition:
-`SameSite=Strict` on the cookie, and the `Origin` check.
+`SameSite=Strict` on the cookies, and the `Origin` and `Sec-Fetch-Site` checks.
 
 **Response headers** on every response of the endpoint, including 404 and 429:
 
@@ -273,9 +299,9 @@ Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'
 ```
 
 The pages also carry `<meta name="robots" content="noindex,nofollow">` and
-`<meta name="referrer" content="no-referrer">`. There is no `Set-Cookie`
-except the session cookie, no third-party request and no inline script or
-style.
+`<meta name="referrer" content="no-referrer">`. The only cookies the endpoint
+sets are the entry cookie and the session cookie. There is no third-party
+request and no inline script or style.
 
 **Output escaping.** The pages are built with Fluid on a dedicated template
 root, `{variable}` escaping on, no `f:format.raw`. Reviewer names and comment
@@ -357,42 +383,56 @@ cannot approve content the editor was not shown.
 
 1. Checks `BackendAccessGuard::checkParentPage()` for the **stored**
    `parent_page_uid`.
-2. One conditional update:
+2. One conditional update, which also takes ownership of the creation:
 
 ```
 UPDATE draft SET status = 'approved', approved_by = :u, approved_at = :now,
-       approved_version = :v
+       approved_version = :v, approval_attempt = :attempt
  WHERE uid = :d AND status = 'draft' AND version = :v
 ```
 
-   An affected-rows count of 0 means the draft changed (any column page
-   creation reads moves `version`) or was approved after the editor looked:
-   nothing is created, the editor sees "The draft changed since you opened it"
-   and the current version. Because `parent_page_uid` is part of the version,
-   the parent that step 1 checked is the parent the page is created under.
+   `:attempt` is a fresh random value. An affected-rows count of 0 means the
+   draft changed (any column page creation reads moves `version`) or was
+   approved after the editor looked: nothing is created, the editor sees "The
+   draft changed since you opened it" and the current version. Because
+   `parent_page_uid` is part of the version, the parent that step 1 checked is
+   the parent the page is created under.
 3. `PageCreatorService` creates the page from the **stored** draft, never from
-   the submitted form, then the status becomes `created` with
-   `created_page_uid`. From `approved` on every writer of section 6 fails its
-   `status = 'draft'` condition, so the content cannot move between the update
-   and the creation.
-4. When page creation fails, the compensating update `SET status = 'draft',
-   approved_by = 0, approved_at = 0, approved_version = 0 WHERE uid = :d AND
-   status = 'approved' AND version = :v` runs, and a page the failed run left
-   behind is deleted through DataHandler before it. `approval_reverted` goes to
-   the audit table.
-5. Creation is idempotent per draft: `created_page_uid` is the marker, and an
-   approval of a draft that already has one creates nothing.
-6. A PHP crash between steps 2 and 3 leaves the draft `approved` without a page.
-   After 10 minutes an editor who may approve can reset it (`approval_reset`
-   in the audit table), which runs step 4's update; a partial page is looked up
-   by the marker the creation wrote and deleted first.
+   the submitted form. The page's initial insert carries
+   `tx_nrlandingpage_workspace_ref = '<draft uid>:<attempt>'`, so the marker is
+   durable in the same statement that creates the page; a crash cannot leave a
+   page without it. After creation, `UPDATE draft SET status = 'created',
+   created_page_uid = :page WHERE uid = :d AND status = 'approved' AND
+   approval_attempt = :attempt`. From `approved` on every writer of section 6
+   fails its `status = 'draft'` condition, so the content cannot move between
+   the update and the creation.
+4. **Fencing.** Every step that finishes or undoes an attempt is guarded by
+   `approval_attempt = :mine`. When page creation fails, the compensating
+   update `SET status = 'draft', approved_by = 0, approved_at = 0,
+   approved_version = 0, approval_attempt = '' WHERE uid = :d AND status =
+   'approved' AND approval_attempt = :mine` runs, and the pages whose
+   `tx_nrlandingpage_workspace_ref` is `<draft uid>:<mine>` are deleted through
+   DataHandler first. An attempt whose finalising update in step 3 matches no
+   row (a reset or another approval took over) deletes the pages carrying its
+   own reference and ends; it can neither finalise nor revert someone else's
+   approval. `approval_reverted` goes to the audit table.
+5. Creation is idempotent per draft: a draft with a `created_page_uid` creates
+   nothing, and a lookup of pages with a `tx_nrlandingpage_workspace_ref`
+   starting `<draft uid>:` answers "does a page of this draft exist".
+6. A PHP crash between steps 2 and 3 leaves the draft `approved`, possibly with
+   a partial page. After 10 minutes an editor who may approve can reset it
+   (`approval_reset` in the audit table): the pages carrying the draft's
+   reference are deleted through DataHandler, then step 4's update runs with
+   the attempt read from the draft, which clears `approval_attempt` and so
+   fences any attempt still running. A new approval gets a new attempt.
 
 ### 10. Failure behaviour and what is tested
 
 Each of these is a test and not only a sentence:
 
 - expired, revoked, unknown, malformed and wrong-passphrase tokens: identical
-  `404` status, body and headers; none of them sets a cookie;
+  `404` status, body and headers, none of them sets a session cookie, and each
+  sets the same entry cookie as the entry page does;
 - a usage limit of 1 admits one exchange, not two simultaneous ones;
 - a `view` session cannot comment, suggest or edit (server-side, with a forged
   form); a `comment` session cannot edit; no level can approve;
@@ -409,26 +449,37 @@ Each of these is a test and not only a sentence:
 - approval is refused when the draft changed after the editor's page was
   rendered, and when it was already approved;
 - a backend user without access gets "not found" for a draft's actions;
-- one passphrase hash call per exchange on every failure path (unknown token,
-  known token without passphrase, wrong passphrase, expired, revoked): counted
-  with a counting hasher, not timed;
-- a valid token and passphrase succeed from an address whose failure limiter is
-  exhausted; hammering a known prefix with wrong secrets does not block the
-  right token; invented prefixes create no limiter state;
+- one password-hash operation per exchange on every failure path (unknown
+  token, known token without passphrase, wrong passphrase, expired, revoked):
+  counted with a counting hasher, not timed; the exception, tested separately,
+  is a passphrase-protected link whose `nrlp-review-link` limiter is exhausted:
+  `429` and no hash at all, also for the correct passphrase;
+- a valid token and passphrase succeed from an address whose
+  `nrlp-review-enter` limiter is exhausted; hammering a known prefix with wrong
+  secrets does not block the right token; invented prefixes create no limiter
+  state;
+- a form token made for one entry cookie is refused with another entry cookie
+  and with none, and a cross-site form sends neither;
+- a `__Host-` session cookie has `Path=/`, no `Domain`, `Secure`, `HttpOnly` and
+  `SameSite=Strict`;
 - two concurrent writers (a link edit and an approval, two stale edits):
   exactly one wins, the other gets `409`; no write lands after `approved`;
 - approval after `parent_page_uid` changed, after the title changed, and
   accepting a suggestion while the draft is `approved`: all refused;
 - forced page-creation failure: status back to `draft`, no orphan page,
-  `approved_*` cleared, a second approval creates exactly one page;
+  `approved_*` and `approval_attempt` cleared, a second approval creates
+  exactly one page;
+- a stale attempt (reset and re-approved in between) neither finalises nor
+  reverts the newer approval and deletes only its own pages;
+- a crash after the page insert and before `created_page_uid`: the page is found
+  by its reference and deleted by the reset;
 - markup payloads in header, subheader, bodytext, reviewer name and comment
   through to the created `tt_content` record and the rendered output;
 - an open session of a link that was revoked, expired or whose draft was
   deleted gets the 404 entry page;
 - a non-HTTPS request gets the 404, a cross-site `Sec-Fetch-Site`, a foreign
-  `Origin` and an expired entry form token are refused, the failure `Set-Cookie`
-  header is absent, the success cookie has `HttpOnly`, `Secure`, `SameSite=Strict`
-  and the path scope;
+  `Origin` and an expired entry form token are refused, and no failure path
+  sets a session cookie;
 - group 1 does not see a draft shared with group 12;
 - a backend POST without the route token is refused, for each route.
 
