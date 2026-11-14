@@ -58,18 +58,44 @@ class WorkspacePages implements LoggerAwareInterface
 
     /**
      * Delete pages (with their content), as the current backend user. A page
-     * DataHandler refuses stays and is logged.
+     * DataHandler refuses stays and is logged. DataHandler also reports no error
+     * for a page it only discards (one that lives in a non-live workspace), so
+     * every requested page is read back and counts as an error while it remains.
      *
      * @param list<int> $pageUids
-     * @return int how many errors DataHandler reported, 0 when every page is gone
+     * @return int how many errors DataHandler reported plus how many pages remain, 0 when every page is gone
      */
     public function delete(array $pageUids): int
     {
         $errors = $this->pageCreator->deletePages($pageUids);
-        if ($errors > 0) {
-            $this->logger?->error('Deleting the pages of an undone workspace approval failed', ['pages' => $pageUids, 'errors' => $errors]);
+        $remaining = $this->stillThere($pageUids);
+        if ($errors > 0 || $remaining !== []) {
+            $this->logger?->error('Deleting the pages of an undone workspace approval failed', ['pages' => $pageUids, 'errors' => $errors, 'remaining' => $remaining]);
         }
 
-        return $errors;
+        return $errors + count($remaining);
+    }
+
+    /**
+     * @param list<int> $pageUids
+     * @return list<int> the requested pages that exist and are not deleted
+     */
+    private function stillThere(array $pageUids): array
+    {
+        if ($pageUids === []) {
+            return [];
+        }
+        $builder = $this->connectionPool->getQueryBuilderForTable('pages');
+        $builder->getRestrictions()->removeAll();
+        $rows = $builder->select('uid')
+            ->from('pages')
+            ->where(
+                $builder->expr()->in('uid', $builder->createNamedParameter($pageUids, Connection::PARAM_INT_ARRAY)),
+                $builder->expr()->eq('deleted', $builder->createNamedParameter(0, Connection::PARAM_INT)),
+            )
+            ->executeQuery()
+            ->fetchFirstColumn();
+
+        return array_values(array_map(static fn(mixed $uid): int => is_numeric($uid) ? (int) $uid : 0, $rows));
     }
 }

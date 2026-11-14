@@ -618,6 +618,32 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
     }
 
     #[Test]
+    public function aResetOverAPageThatDataHandlerOnlyDiscardsRefusesAndKeepsTheApproval(): void
+    {
+        $this->actAsAnEditor(3);
+        $drafts = $this->container(DraftRepository::class);
+        self::assertTrue($drafts->approve($this->draftUid, $this->draft()->version, self::OPEN_PARENT, 3, 'crashedcrashedcrashedcrashed0000', self::NOW));
+        $pageUid = $this->pageWithMarker($this->draftUid . ':crashedcrashedcrashedcrashed0000');
+        // A page that lives in a workspace: from Live, DataHandler turns its delete into a discard and reports no error.
+        $this->getConnectionPool()->getConnectionForTable('pages')->update('pages', ['t3ver_wsid' => 1, 't3ver_state' => 1], ['uid' => $pageUid]);
+
+        try {
+            $this->approval()->reset($this->draftUid, self::NOW + ApprovalService::RESET_AFTER);
+            self::fail('The reset went on over a page that is still there.');
+        } catch (WorkspaceRefusedException $e) {
+            self::assertSame(WorkspaceRefusedException::FAILED, $e->reason);
+        }
+
+        self::assertSame(0, (int) $this->row('pages', $pageUid)['deleted'], 'the page is still there');
+        $after = $this->draft();
+        self::assertSame(DraftStatus::Approved, $after->status);
+        self::assertSame('crashedcrashedcrashedcrashed0000', $after->approvalAttempt);
+        $actions = array_column($this->audit()->findByDraft($this->draftUid), 'action');
+        self::assertContains('approval_cleanup_failed', $actions);
+        self::assertNotContains('approval_reset', $actions);
+    }
+
+    #[Test]
     public function anApprovalThatLostTheDraftAndDeletesItsPageLeavesAnAuditRow(): void
     {
         $this->actAs(1);
