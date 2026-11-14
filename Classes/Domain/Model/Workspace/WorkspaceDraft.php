@@ -43,6 +43,7 @@ final readonly class WorkspaceDraft
         public int $createdPageUid,
         public int $crdate,
         public int $tstamp,
+        public string $approvalAttempt = '',
     ) {}
 
     /**
@@ -91,6 +92,7 @@ final readonly class WorkspaceDraft
             createdPageUid: $int('created_page_uid'),
             crdate: $int('crdate'),
             tstamp: $int('tstamp'),
+            approvalAttempt: $string('approval_attempt'),
         );
     }
 

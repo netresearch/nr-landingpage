@@ -42,6 +42,13 @@ $columns = [
             'type' => 'passthrough',
         ],
     ],
+    // ADR-0001, section 9: '<draft uid>:<approval attempt>' on a page created from a
+    // workspace draft, written with the page's first insert.
+    'tx_nrlandingpage_workspace_ref' => [
+        'config' => [
+            'type' => 'passthrough',
+        ],
+    ],
 ];
 
 ExtensionManagementUtility::addTCAcolumns('pages', $columns);

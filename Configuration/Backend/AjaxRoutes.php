@@ -75,4 +75,20 @@ return [
         'path' => '/nr-landingpage/workspace/revoke-link',
         'target' => WorkspaceAjaxController::class . '::revokeLinkAction',
     ],
+    'nr_landingpage_workspace_approve' => [
+        'path' => '/nr-landingpage/workspace/approve',
+        'target' => WorkspaceAjaxController::class . '::approveAction',
+    ],
+    'nr_landingpage_workspace_reset_approval' => [
+        'path' => '/nr-landingpage/workspace/reset-approval',
+        'target' => WorkspaceAjaxController::class . '::resetApprovalAction',
+    ],
+    'nr_landingpage_workspace_accept_suggestion' => [
+        'path' => '/nr-landingpage/workspace/accept-suggestion',
+        'target' => WorkspaceAjaxController::class . '::acceptSuggestionAction',
+    ],
+    'nr_landingpage_workspace_reject_suggestion' => [
+        'path' => '/nr-landingpage/workspace/reject-suggestion',
+        'target' => WorkspaceAjaxController::class . '::rejectSuggestionAction',
+    ],
 ];

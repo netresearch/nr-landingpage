@@ -48,6 +48,8 @@ class PageCreatorService implements LoggerAwareInterface
         't3ver_wsid',
         't3ver_state',
         't3ver_stage',
+        // The marker of a page made from a workspace draft: only the approval sets it.
+        'tx_nrlandingpage_workspace_ref',
     ];
 
     public function __construct(
@@ -63,6 +65,8 @@ class PageCreatorService implements LoggerAwareInterface
      * @param array<string, string> $pageFields SEO and other page field values
      * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid?: int, colPos?: int}> $contentSections
      * @param array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animations
+     * @param string $workspaceRef '<draft uid>:<approval attempt>' for a page made from a workspace draft,
+     *        written with the page's first insert so a crash cannot leave a page without it (ADR-0001, section 9)
      * @return array{pageUid: int, contentUids: list<int>}
      * @throws RuntimeException if page creation fails
      */
@@ -75,6 +79,7 @@ class PageCreatorService implements LoggerAwareInterface
         array $contentSections,
         ?GenerationContext $generationContext = null,
         array $animations = [],
+        string $workspaceRef = '',
     ): array {
         $pageData = $this->buildPageData($template, $parentPageId, $title, $slug, $pageFields);
         $pageData = $this->addGenerationMetadata($pageData, $template, $generationContext);
@@ -87,6 +92,9 @@ class PageCreatorService implements LoggerAwareInterface
 
         $pageData = $event->pageData;
         $contentElements = $event->contentElements;
+        if ($workspaceRef !== '') {
+            $pageData['tx_nrlandingpage_workspace_ref'] = $workspaceRef;
+        }
 
         $newPageId = 'NEW_page';
         $dataMap = [
@@ -518,6 +526,29 @@ class PageCreatorService implements LoggerAwareInterface
                 'exception' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Delete pages (with their content) through DataHandler, as the current
+     * backend user, and return how many errors DataHandler reported. Used to
+     * remove the pages of an approval that was undone (ADR-0001, section 9).
+     *
+     * @param list<int> $pageUids
+     */
+    public function deletePages(array $pageUids): int
+    {
+        if ($pageUids === []) {
+            return 0;
+        }
+        $commands = ['pages' => []];
+        foreach ($pageUids as $uid) {
+            $commands['pages'][$uid] = ['delete' => 1];
+        }
+        $dataHandler = $this->createDataHandler();
+        $dataHandler->start([], $commands);
+        $dataHandler->process_cmdmap();
+
+        return count($dataHandler->errorLog);
     }
 
     /**

@@ -1245,6 +1245,98 @@
                 <source>%s comments and suggestions</source>
                 <target>%s Kommentare und Vorschläge</target>
             </trans-unit>
+            <trans-unit id="workspace.approval.heading" resname="workspace.approval.heading">
+                <source>Approval</source>
+                <target>Freigabe</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.intro" resname="workspace.approval.intro">
+                <source>Approving creates the page below the page you choose, from the content shown here. Nobody who only has a share link can approve.</source>
+                <target>Die Freigabe legt die Seite unterhalb der gewählten Seite aus dem hier gezeigten Inhalt an. Wer nur einen Freigabelink hat, kann nicht freigeben.</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.parent" resname="workspace.approval.parent">
+                <source>Parent page (page ID)</source>
+                <target>Übergeordnete Seite (Seiten-ID)</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.parent.help" resname="workspace.approval.parent.help">
+                <source>The new page is created below this page. You need the right to create pages there.</source>
+                <target>Die neue Seite wird unterhalb dieser Seite angelegt. Sie benötigen dort das Recht, Seiten anzulegen.</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.parent.current" resname="workspace.approval.parent.current">
+                <source>Current choice: %s</source>
+                <target>Aktuelle Auswahl: %s</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.version" resname="workspace.approval.version">
+                <source>You approve version %s as shown on this page. If the draft changes before you confirm, nothing is created.</source>
+                <target>Sie geben Version %s so frei, wie sie auf dieser Seite steht. Ändert sich der Entwurf vor der Bestätigung, wird nichts angelegt.</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.submit" resname="workspace.approval.submit">
+                <source>Approve and create the page</source>
+                <target>Freigeben und Seite anlegen</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.confirm.title" resname="workspace.approval.confirm.title">
+                <source>Approve and create the page?</source>
+                <target>Freigeben und Seite anlegen?</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.confirm.message" resname="workspace.approval.confirm.message">
+                <source>The page is created from this version of the draft. Share links stop taking changes.</source>
+                <target>Die Seite wird aus dieser Version des Entwurfs angelegt. Freigabelinks nehmen danach keine Änderungen mehr an.</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.done" resname="workspace.approval.done">
+                <source>The page was created.</source>
+                <target>Die Seite wurde angelegt.</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.failed" resname="workspace.approval.failed">
+                <source>Approval failed</source>
+                <target>Freigabe fehlgeschlagen</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.approved" resname="workspace.approval.approved">
+                <source>Approved by %s. The page is being created.</source>
+                <target>Freigegeben von %s. Die Seite wird angelegt.</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.created" resname="workspace.approval.created">
+                <source>Approved by %s. The page was created.</source>
+                <target>Freigegeben von %s. Die Seite wurde angelegt.</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.openPage" resname="workspace.approval.openPage">
+                <source>Open the page</source>
+                <target>Seite öffnen</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.reset" resname="workspace.approval.reset">
+                <source>Reset the approval</source>
+                <target>Freigabe zurücksetzen</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.reset.help" resname="workspace.approval.reset.help">
+                <source>The approval has stood for more than ten minutes without a page. Resetting removes any partial page and opens the draft again.</source>
+                <target>Die Freigabe besteht seit mehr als zehn Minuten ohne Seite. Das Zurücksetzen entfernt eine unvollständige Seite und öffnet den Entwurf wieder.</target>
+            </trans-unit>
+            <trans-unit id="workspace.approval.reset.confirm" resname="workspace.approval.reset.confirm">
+                <source>Reset the approval?</source>
+                <target>Freigabe zurücksetzen?</target>
+            </trans-unit>
+            <trans-unit id="workspace.suggestion.accept" resname="workspace.suggestion.accept">
+                <source>Accept</source>
+                <target>Übernehmen</target>
+            </trans-unit>
+            <trans-unit id="workspace.suggestion.reject" resname="workspace.suggestion.reject">
+                <source>Reject</source>
+                <target>Ablehnen</target>
+            </trans-unit>
+            <trans-unit id="workspace.suggestion.current" resname="workspace.suggestion.current">
+                <source>Text when suggested</source>
+                <target>Text beim Vorschlag</target>
+            </trans-unit>
+            <trans-unit id="workspace.suggestion.proposed" resname="workspace.suggestion.proposed">
+                <source>Proposed text</source>
+                <target>Vorgeschlagener Text</target>
+            </trans-unit>
+            <trans-unit id="workspace.suggestion.stale" resname="workspace.suggestion.stale">
+                <source>The text has changed since this was suggested. It cannot be applied.</source>
+                <target>Der Text hat sich seit dem Vorschlag geändert. Er lässt sich nicht mehr anwenden.</target>
+            </trans-unit>
+            <trans-unit id="workspace.suggestion.failed" resname="workspace.suggestion.failed">
+                <source>The suggestion could not be settled</source>
+                <target>Der Vorschlag konnte nicht bearbeitet werden</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

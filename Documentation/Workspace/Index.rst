@@ -138,6 +138,29 @@ The draft's page in the module lists every comment, suggestion and edit
 under its section, with the author, the time and the state. A reviewer's
 entries are marked as such.
 
+Suggestions, approval and the page
+==================================
+
+An open suggestion shows the text it was made against and the proposed text.
+:guilabel:`Accept` replaces the field's text, when the field still holds the
+text the suggestion was made against; otherwise the suggestion is marked
+outdated and nothing is written. :guilabel:`Reject` only closes it. Every
+user who sees the draft may do both.
+
+:guilabel:`Approve and create the page` needs the ID of the parent page. The
+user must see the draft and may create pages below that page; no share link
+can approve. The approval is bound to the version shown: if a reviewer changed
+a text, or someone else approved, between opening the page and confirming,
+nothing is created and the page says so. The page is created from the stored
+draft by the same code as the wizard, below the chosen parent, hidden or
+visible as the template says. From then on the draft is closed: links take no
+more comments and no more changes, and the draft links to the new page.
+
+When creating the page fails, the approval is taken back, a partial page is
+removed and the draft is open again. After a crash the draft can stay approved
+without a page; once that has stood for ten minutes, :guilabel:`Reset the
+approval` removes any partial page and opens the draft again.
+
 Configuration
 =============
 

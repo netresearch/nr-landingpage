@@ -9,14 +9,20 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Controller\Backend;
 
+use Netresearch\NrLandingpage\Domain\Model\ParentPageVerdict;
 use Netresearch\NrLandingpage\Domain\Model\Workspace\CommentKind;
+use Netresearch\NrLandingpage\Domain\Model\Workspace\CommentStatus;
+use Netresearch\NrLandingpage\Domain\Model\Workspace\DraftStatus;
 use Netresearch\NrLandingpage\Domain\Model\Workspace\ReviewComment;
 use Netresearch\NrLandingpage\Domain\Model\Workspace\ShareLink;
 use Netresearch\NrLandingpage\Domain\Model\Workspace\WorkspaceDraft;
+use Netresearch\NrLandingpage\Service\BackendAccessGuard;
+use Netresearch\NrLandingpage\Service\Workspace\ApprovalService;
 use Netresearch\NrLandingpage\Service\Workspace\AuditRepository;
 use Netresearch\NrLandingpage\Service\Workspace\CommentRepository;
 use Netresearch\NrLandingpage\Service\Workspace\DraftAccessGuard;
 use Netresearch\NrLandingpage\Service\Workspace\PlainText;
+use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewService;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkRepository;
 use Netresearch\NrLandingpage\Service\Workspace\WorkspaceSettings;
 use Psr\Http\Message\ResponseInterface;
@@ -44,6 +50,7 @@ final class WorkspaceController
         private readonly AuditRepository $audit,
         private readonly CommentRepository $comments,
         private readonly WorkspaceSettings $settings,
+        private readonly BackendAccessGuard $accessGuard,
     ) {}
 
     public function indexAction(ServerRequestInterface $request): ResponseInterface
@@ -91,13 +98,15 @@ final class WorkspaceController
                 'ajaxUrls' => [
                     'createLink' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_workspace_create_link'),
                     'revokeLink' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_workspace_revoke_link'),
+                    'approve' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_workspace_approve'),
+                    'resetApproval' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_workspace_reset_approval'),
+                    'acceptSuggestion' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_workspace_accept_suggestion'),
+                    'rejectSuggestion' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_workspace_reject_suggestion'),
                 ],
             ],
         ]);
         $this->pageRenderer->addInlineLanguageLabelFile('EXT:nr_landingpage/Resources/Private/Language/locallang.xlf', 'workspace.', '');
-        if ($mayShare) {
-            $this->pageRenderer->loadJavaScriptModule('@netresearch/nr-landingpage/workspace.js');
-        }
+        $this->pageRenderer->loadJavaScriptModule('@netresearch/nr-landingpage/workspace.js');
 
         $moduleTemplate->assignMultiple([
             'draft' => $this->draftView($draft, $names),
@@ -105,6 +114,7 @@ final class WorkspaceController
             'links' => array_map(fn(ShareLink $link): array => $this->linkView($link, $now, $names), $this->links->findByDraft($draft->uid)),
             'audit' => $this->auditViews($draft, $names),
             'mayShare' => $mayShare,
+            'approval' => $this->approvalView($draft, $names, $now),
             'linksEnabled' => $this->settings->isEnabled(),
             'defaultLifetimeDays' => $this->settings->defaultLifetimeDays(),
             'maxLifetimeDays' => $this->settings->maxLifetimeDays(),
@@ -141,7 +151,7 @@ final class WorkspaceController
     {
         $bySection = [];
         foreach ($this->comments->findByDraft($draft->uid) as $comment) {
-            $bySection[$comment->sectionId][] = $this->commentView($comment, $names);
+            $bySection[$comment->sectionId][] = $this->commentView($comment, $names, $draft);
         }
 
         $views = [];
@@ -162,14 +172,59 @@ final class WorkspaceController
     }
 
     /**
+     * What the approval box shows: the state, the parent page, and what the
+     * current user may do.
+     *
      * @param array<int, string> $names
      * @return array<string, mixed>
      */
-    private function commentView(ReviewComment $comment, array $names): array
+    private function approvalView(WorkspaceDraft $draft, array $names, int $now): array
     {
-        $isComment = $comment->kind === CommentKind::Comment;
+        $parentTitle = $draft->parentPageUid > 0 ? $this->accessGuard->readablePageTitle($draft->parentPageUid) : null;
 
         return [
+            'status' => $draft->status->value,
+            'isOpen' => $draft->isDraft(),
+            'version' => $draft->version,
+            'parentPageUid' => $draft->parentPageUid,
+            'parentPageTitle' => $parentTitle ?? '',
+            'approvedBy' => $names[$draft->approvedBy] ?? '',
+            'approvedAt' => $draft->approvedAt,
+            'createdPageUid' => $draft->createdPageUid,
+            'pageUrl' => $draft->createdPageUid > 0 && $this->accessGuard->mayReadPage($draft->createdPageUid)
+                ? (string) $this->uriBuilder->buildUriFromRoute('web_layout', ['id' => $draft->createdPageUid])
+                : '',
+            'mayReset' => $draft->status === DraftStatus::Approved
+                && $draft->createdPageUid === 0
+                && $now - $draft->approvedAt >= ApprovalService::RESET_AFTER
+                && $this->accessGuard->checkParentPage($draft->parentPageUid) === ParentPageVerdict::Allowed,
+        ];
+    }
+
+    /**
+     * @param array<int, string> $names
+     * @return array<string, mixed>
+     */
+    private function commentView(ReviewComment $comment, array $names, WorkspaceDraft $draft): array
+    {
+        $isComment = $comment->kind === CommentKind::Comment;
+        $canResolve = $draft->isDraft() && $comment->kind === CommentKind::Suggestion && $comment->status === CommentStatus::Open;
+        $stale = false;
+        if ($canResolve) {
+            $current = null;
+            foreach ($draft->sections as $section) {
+                if (($section['id'] ?? null) === $comment->sectionId) {
+                    $current = ReviewService::fieldText($section, $comment->field);
+                }
+            }
+            $stale = $current === null || $current !== $comment->baseText;
+        }
+
+        return [
+            'uid' => $comment->uid,
+            'canResolve' => $canResolve,
+            'stale' => $stale,
+            'baseLines' => self::lines($comment->baseText),
             'author' => $comment->isFromReviewer() ? $comment->authorName : ($names[$comment->beUser] ?? $comment->authorName),
             'fromReviewer' => $comment->isFromReviewer(),
             'kind' => $comment->kind->value,

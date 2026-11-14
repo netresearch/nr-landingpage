@@ -410,22 +410,25 @@ made through links since the draft was created (who, what, when), and embeds
 the draft's `version`. Approval binds to exactly the rendered version: it
 cannot approve content the editor was not shown.
 
-1. Checks `BackendAccessGuard::checkParentPage()` for the **stored**
-   `parent_page_uid`.
+1. Checks `BackendAccessGuard::checkParentPage()` for the parent page the
+   approver submitted (the form shows the stored `parent_page_uid` as its
+   default; a draft saved without one needs the approver to choose it).
 2. One conditional update, which also takes ownership of the creation:
 
 ```
 UPDATE draft SET status = 'approved', approved_by = :u, approved_at = :now,
-       approved_version = :v, approval_attempt = :attempt
+       approved_version = :v, approval_attempt = :attempt,
+       parent_page_uid = :parent, version = version + 1
  WHERE uid = :d AND status = 'draft' AND version = :v
 ```
 
    `:attempt` is a fresh random value. An affected-rows count of 0 means the
    draft changed (any column page creation reads moves `version`) or was
    approved after the editor looked: nothing is created, the editor sees "The
-   draft changed since you opened it" and the current version. Because
-   `parent_page_uid` is part of the version, the parent that step 1 checked is
-   the parent the page is created under.
+   draft changed since you opened it" and the current version. The update
+   writes the parent page of step 1, so the page that was checked is the page
+   the new one is created under. The approval raises `version` itself, like
+   every change of a column page creation reads.
 3. `PageCreatorService` creates the page from the **stored** draft, never from
    the submitted form. The page's initial insert carries
    `tx_nrlandingpage_workspace_ref = '<draft uid>:<attempt>'`, so the marker is

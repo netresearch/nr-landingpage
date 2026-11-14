@@ -14,6 +14,43 @@
             &middot; <f:format.date format="Y-m-d H:i">{draft.updated}</f:format.date>
         </p>
 
+        <section class="card mb-5" aria-labelledby="ws-approval-heading" id="ws-approval" data-draft-uid="{draft.uid}">
+            <div class="card-body">
+                <h2 class="h4" id="ws-approval-heading">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.heading')}</h2>
+                <f:if condition="{approval.isOpen}">
+                    <f:then>
+                        <p>{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.intro')}</p>
+                        <form id="ws-approve-form" data-version="{approval.version}" novalidate>
+                            <label class="form-label" for="ws-parent">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.parent')}</label>
+                            <input type="number" class="form-control w-auto mb-1" id="ws-parent" name="parentPageUid" min="1" value="{approval.parentPageUid}" required="required" aria-describedby="ws-parent-help" />
+                            <div class="form-text mb-2" id="ws-parent-help">
+                                <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.parent.help" />
+                                <f:if condition="{approval.parentPageTitle}"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.parent.current" arguments="{0: approval.parentPageTitle}" /></f:if>
+                            </div>
+                            <p class="text-variant"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.version" arguments="{0: approval.version}" /></p>
+                            <button type="submit" class="btn btn-success" id="ws-approve-submit">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.submit')}</button>
+                        </form>
+                    </f:then>
+                    <f:else>
+                        <f:if condition="{approval.createdPageUid}">
+                            <f:then>
+                                <p id="ws-approval-state"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.created" arguments="{0: approval.approvedBy}" />
+                                    <f:if condition="{approval.pageUrl}"><a href="{approval.pageUrl}">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.openPage')}</a></f:if>
+                                </p>
+                            </f:then>
+                            <f:else>
+                                <p id="ws-approval-state"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.approved" arguments="{0: approval.approvedBy}" /></p>
+                                <f:if condition="{approval.mayReset}">
+                                    <p class="text-variant">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.reset.help')}</p>
+                                    <button type="button" class="btn btn-default" id="ws-approval-reset">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.reset')}</button>
+                                </f:if>
+                            </f:else>
+                        </f:if>
+                    </f:else>
+                </f:if>
+            </div>
+        </section>
+
         <section class="mb-5" aria-labelledby="ws-links-heading">
             <h2 class="h4 mb-3" id="ws-links-heading"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.links" /></h2>
 
@@ -157,7 +194,23 @@
                                             &middot; <f:format.date format="Y-m-d H:i">{comment.when}</f:format.date>
                                             <f:if condition="{comment.isComment}"><f:else>&middot; <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.comment.status.{comment.status}" /></f:else></f:if>
                                         </p>
+                                        <f:if condition="{comment.baseLines}">
+                                            <p class="small text-variant mb-0">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.suggestion.current')}</p>
+                                            <blockquote class="border-start ps-2 text-variant mb-1">
+                                                <f:for each="{comment.baseLines}" as="line"><p class="mb-0">{line}</p></f:for>
+                                            </blockquote>
+                                        </f:if>
+                                        <f:if condition="{comment.baseLines}"><p class="small text-variant mb-0">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.suggestion.proposed')}</p></f:if>
                                         <f:for each="{comment.lines}" as="line"><p class="mb-1">{line}</p></f:for>
+                                        <f:if condition="{comment.canResolve}">
+                                            <f:if condition="{comment.stale}">
+                                                <f:then><p class="text-warning small mb-1">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.suggestion.stale')}</p></f:then>
+                                                <f:else>
+                                                    <button type="button" class="btn btn-sm btn-success js-ws-accept" data-comment-uid="{comment.uid}">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.suggestion.accept')}</button>
+                                                </f:else>
+                                            </f:if>
+                                            <button type="button" class="btn btn-sm btn-default js-ws-reject" data-comment-uid="{comment.uid}">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.suggestion.reject')}</button>
+                                        </f:if>
                                     </li>
                                 </f:for>
                             </ul>

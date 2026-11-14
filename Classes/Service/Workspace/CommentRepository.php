@@ -94,6 +94,20 @@ class CommentRepository
     }
 
     /**
+     * Settle an open suggestion. False when it was not open any more.
+     */
+    public function resolve(int $uid, CommentStatus $to, int $user, int $now): bool
+    {
+        $affected = $this->connectionPool->getConnectionForTable(self::TABLE)->executeStatement(
+            'UPDATE ' . self::TABLE . ' SET status = ?, resolved_by = ?, resolved_at = ?, tstamp = ? WHERE uid = ? AND status = ?',
+            [$to->value, $user, $now, $now, $uid, CommentStatus::Open->value],
+            [Connection::PARAM_STR, Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_STR],
+        );
+
+        return $affected === 1;
+    }
+
+    /**
      * A comment of the given draft; one of another draft is not found.
      */
     public function findInDraft(int $uid, int $draftUid): ?ReviewComment

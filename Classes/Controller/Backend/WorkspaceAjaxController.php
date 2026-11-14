@@ -13,9 +13,11 @@ use Netresearch\NrLandingpage\Domain\Model\Workspace\LinkPermission;
 use Netresearch\NrLandingpage\Service\BackendAccessGuard;
 use Netresearch\NrLandingpage\Service\ImageNotReadableException;
 use Netresearch\NrLandingpage\Service\TemplateService;
+use Netresearch\NrLandingpage\Service\Workspace\ApprovalService;
 use Netresearch\NrLandingpage\Service\Workspace\DraftAccessGuard;
 use Netresearch\NrLandingpage\Service\Workspace\DraftService;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkService;
+use Netresearch\NrLandingpage\Service\Workspace\SuggestionService;
 use Netresearch\NrLandingpage\Service\Workspace\WorkspaceRefusedException;
 use Netresearch\NrLandingpage\Service\Workspace\WorkspaceSettings;
 use Psr\Http\Message\ResponseInterface;
@@ -47,6 +49,8 @@ final class WorkspaceAjaxController implements LoggerAwareInterface
         private readonly ShareLinkService $shareLinks,
         private readonly TemplateService $templateService,
         private readonly WorkspaceSettings $settings,
+        private readonly ApprovalService $approval,
+        private readonly SuggestionService $suggestions,
     ) {}
 
     /**
@@ -185,6 +189,75 @@ final class WorkspaceAjaxController implements LoggerAwareInterface
         }
 
         return $map;
+    }
+
+    /**
+     * Approve the draft at the version the editor looked at, below the page
+     * the editor chose, and create the page.
+     */
+    public function approveAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $body = $this->body($request);
+
+        return $this->attempt(fn(): array => [
+            'pageUid' => $this->approval->approve($this->int($body, 'draft'), $this->int($body, 'version'), $this->int($body, 'parentPageUid'), time()),
+        ]);
+    }
+
+    /**
+     * Take back an approval that never got its page.
+     */
+    public function resetApprovalAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $body = $this->body($request);
+
+        return $this->attempt(function () use ($body): array {
+            $this->approval->reset($this->int($body, 'draft'), time());
+
+            return [];
+        });
+    }
+
+    public function acceptSuggestionAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $body = $this->body($request);
+
+        return $this->attempt(function () use ($body): array {
+            $this->suggestions->accept($this->int($body, 'draft'), $this->int($body, 'comment'), time());
+
+            return [];
+        });
+    }
+
+    public function rejectSuggestionAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $body = $this->body($request);
+
+        return $this->attempt(function () use ($body): array {
+            $this->suggestions->reject($this->int($body, 'draft'), $this->int($body, 'comment'), time());
+
+            return [];
+        });
+    }
+
+    /**
+     * Run an action that may be refused: the refusal becomes the status that
+     * says what kind it was, with a message safe to show.
+     *
+     * @param callable(): array<string, mixed> $action
+     */
+    private function attempt(callable $action): ResponseInterface
+    {
+        try {
+            return new JsonResponse(['success' => true] + $action());
+        } catch (WorkspaceRefusedException $e) {
+            return $this->failure($e->getMessage(), match ($e->reason) {
+                WorkspaceRefusedException::NOT_FOUND => 404,
+                WorkspaceRefusedException::CONFLICT => 409,
+                WorkspaceRefusedException::FAILED => 500,
+                default => 400,
+            });
+        }
     }
 
     private function baseUrl(ServerRequestInterface $request): string

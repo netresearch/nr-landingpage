@@ -105,6 +105,64 @@ class DraftRepository
     }
 
     /**
+     * Approve: the one conditional update of ADR-0001, section 9. It also
+     * takes ownership of the page creation (`approval_attempt`) and writes the
+     * parent page the approver chose, which is part of the version. False means
+     * the draft changed or was approved after the approver looked.
+     */
+    public function approve(int $uid, int $version, int $parentPageUid, int $user, string $attempt, int $now): bool
+    {
+        $affected = $this->connectionPool->getConnectionForTable(self::TABLE)->executeStatement(
+            'UPDATE ' . self::TABLE . ' SET status = ?, approved_by = ?, approved_at = ?, approved_version = ?,'
+            . ' approval_attempt = ?, parent_page_uid = ?, version = version + 1, tstamp = ?'
+            . ' WHERE uid = ? AND deleted = 0 AND status = ? AND version = ?',
+            [DraftStatus::Approved->value, $user, $now, $version, $attempt, $parentPageUid, $now, $uid, DraftStatus::Draft->value, $version],
+            [Connection::PARAM_STR, Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_STR, Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_STR, Connection::PARAM_INT],
+        );
+
+        return $affected === 1;
+    }
+
+    /**
+     * The attempt that approved the draft ends: the page exists. Only the
+     * attempt that owns the approval can finish it.
+     */
+    public function finalize(int $uid, string $attempt, int $pageUid, int $now): bool
+    {
+        if ($attempt === '') {
+            return false;
+        }
+        $affected = $this->connectionPool->getConnectionForTable(self::TABLE)->executeStatement(
+            'UPDATE ' . self::TABLE . ' SET status = ?, created_page_uid = ?, tstamp = ?'
+            . ' WHERE uid = ? AND status = ? AND approval_attempt = ?',
+            [DraftStatus::Created->value, $pageUid, $now, $uid, DraftStatus::Approved->value, $attempt],
+            [Connection::PARAM_STR, Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_STR, Connection::PARAM_STR],
+        );
+
+        return $affected === 1;
+    }
+
+    /**
+     * Take an approval back: the draft is open again and the attempt that
+     * owned it is void. Guarded by that attempt, so a stale attempt cannot
+     * revert a newer approval.
+     */
+    public function revert(int $uid, string $attempt, int $now): bool
+    {
+        if ($attempt === '') {
+            return false;
+        }
+        $affected = $this->connectionPool->getConnectionForTable(self::TABLE)->executeStatement(
+            'UPDATE ' . self::TABLE . " SET status = ?, approved_by = 0, approved_at = 0, approved_version = 0, approval_attempt = '', version = version + 1, tstamp = ?"
+            . ' WHERE uid = ? AND status = ? AND approval_attempt = ?',
+            [DraftStatus::Draft->value, $now, $uid, DraftStatus::Approved->value, $attempt],
+            [Connection::PARAM_STR, Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_STR, Connection::PARAM_STR],
+        );
+
+        return $affected === 1;
+    }
+
+    /**
      * The drafts a backend user sees: all of them for an administrator, else
      * the user's own and those shared with one of the user's groups. A group
      * is matched with the platform's set function, never with LIKE, so group
