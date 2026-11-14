@@ -78,7 +78,9 @@ class SuggestionService
 
         if ($stale) {
             // Nothing was written: the text moved on. Say so, on the suggestion.
-            $this->comments->resolve($suggestion->uid, CommentStatus::Stale, $user, $now);
+            if ($this->comments->resolve($suggestion->uid, CommentStatus::Stale, $user, $now)) {
+                $this->audit->record($draftUid, $suggestion->linkUid, $user, AuditAction::SuggestionStale, $now);
+            }
 
             throw new WorkspaceRefusedException('The text changed since the suggestion was made, so it was marked outdated and nothing was applied.', 1799600004, WorkspaceRefusedException::CONFLICT);
         }

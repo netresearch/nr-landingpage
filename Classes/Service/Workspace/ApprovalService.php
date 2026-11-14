@@ -106,14 +106,20 @@ class ApprovalService implements LoggerAwareInterface
         } catch (Throwable $e) {
             // The class and the code only: the message can carry the content.
             $this->logger?->error('Creating the page of a workspace draft failed', ['draft' => $draft->uid, 'exception' => $e::class, 'code' => $e->getCode()]);
-            $this->undo($draft->uid, $attempt, $ref, $parentPageUid, $user, $now);
+            if (!$this->undo($draft->uid, $attempt, $ref, $parentPageUid, $user, $now)) {
+                throw new WorkspaceRefusedException('The page could not be created, and the page made so far could not be removed. The draft stays approved; an editor who may approve can reset it after ' . intdiv(self::RESET_AFTER, 60) . ' minutes.', 1799600115, WorkspaceRefusedException::FAILED);
+            }
 
             throw new WorkspaceRefusedException('The page could not be created. The approval was taken back and the draft is open again.', 1799600105, WorkspaceRefusedException::FAILED);
         }
 
         if (!$this->drafts->finalize($draft->uid, $attempt, $result['pageUid'], $now)) {
             // A reset or another approval took the draft over while the page was made.
-            $this->pages->delete($this->pages->findByRef($ref, $parentPageUid));
+            $errors = $this->pages->delete($this->pages->findByRef($ref, $parentPageUid));
+            $this->audit->record($draft->uid, 0, $user, AuditAction::ApprovalConflict, $now);
+            if ($errors > 0) {
+                $this->audit->record($draft->uid, 0, $user, AuditAction::ApprovalCleanupFailed, $now);
+            }
 
             throw new WorkspaceRefusedException('The approval was reset while the page was being created; the page was removed.', 1799600106, WorkspaceRefusedException::CONFLICT);
         }
@@ -144,7 +150,12 @@ class ApprovalService implements LoggerAwareInterface
         }
         $this->assertMayCreateBelow($draft->parentPageUid);
 
-        $this->pages->delete($this->pages->findByRef($draft->uid . ':' . $draft->approvalAttempt, $draft->parentPageUid));
+        if ($this->pages->delete($this->pages->findByRef($draft->uid . ':' . $draft->approvalAttempt, $draft->parentPageUid)) > 0) {
+            // The page stays, and so does the approval that owns it: reverting now would orphan it and allow a second page.
+            $this->audit->record($draft->uid, 0, $user, AuditAction::ApprovalCleanupFailed, $now);
+
+            throw new WorkspaceRefusedException('The page of this approval could not be deleted, so the approval was kept. Check the page (an edit lock or missing delete rights) and try again.', 1799600116, WorkspaceRefusedException::FAILED);
+        }
         if (!$this->drafts->revert($draft->uid, $draft->approvalAttempt, $now)) {
             throw $this->changed();
         }
@@ -162,12 +173,24 @@ class ApprovalService implements LoggerAwareInterface
             && $this->accessGuard->checkParentPage($parentPageUid) === ParentPageVerdict::Allowed;
     }
 
-    private function undo(int $draftUid, string $attempt, string $ref, int $parentPageUid, int $user, int $now): void
+    /**
+     * Take an approval back after the page creation failed.
+     *
+     * @return bool false when the page could not be deleted: the approval and its marker then stay, so the page is
+     *              still found by its reference and a reset can remove it later, and the failure is audited
+     */
+    private function undo(int $draftUid, string $attempt, string $ref, int $parentPageUid, int $user, int $now): bool
     {
-        $this->pages->delete($this->pages->findByRef($ref, $parentPageUid));
+        if ($this->pages->delete($this->pages->findByRef($ref, $parentPageUid)) > 0) {
+            $this->audit->record($draftUid, 0, $user, AuditAction::ApprovalCleanupFailed, $now);
+
+            return false;
+        }
         if ($this->drafts->revert($draftUid, $attempt, $now)) {
             $this->audit->record($draftUid, 0, $user, AuditAction::ApprovalReverted, $now);
         }
+
+        return true;
     }
 
     /**

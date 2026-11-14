@@ -534,6 +534,112 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
         self::assertSame('', (string) $page['keywords'], 'a field outside the template list is dropped');
     }
 
+    // ------------------------------------------------ a delete DataHandler refuses (editlock)
+
+    #[Test]
+    public function anApproverWithoutAdminRightsCreatesThePage(): void
+    {
+        $this->actAsAnEditor(3);
+
+        $pageUid = $this->approval()->approve($this->draftUid, $this->draft()->version, self::OPEN_PARENT, self::NOW);
+
+        self::assertSame($this->draftUid . ':' . $this->draft()->approvalAttempt, $this->row('pages', $pageUid)['tx_nrlandingpage_workspace_ref']);
+        self::assertCount(1, $this->contentOf($pageUid));
+    }
+
+    #[Test]
+    public function aPageThatCannotBeDeletedKeepsTheApprovalAndItsMarkerAndIsRecordedInTheAudit(): void
+    {
+        $this->actAsAnEditor(3);
+        $version = $this->draft()->version;
+        // The creation fails after the page exists, and the page is edit-locked meanwhile: the undo cannot delete it.
+        $locking = $this->creator(failAfterCreation: true, afterCreation: fn() => $this->lockPagesOfDraft(1));
+
+        try {
+            $this->approval($locking)->approve($this->draftUid, $version, self::OPEN_PARENT, self::NOW);
+            self::fail('The creation did not fail.');
+        } catch (WorkspaceRefusedException $e) {
+            self::assertSame(WorkspaceRefusedException::FAILED, $e->reason);
+            self::assertStringContainsString('could not be removed', $e->getMessage());
+        }
+
+        $after = $this->draft();
+        self::assertSame(DraftStatus::Approved, $after->status, 'the draft is not reopened over a page that still exists');
+        self::assertNotSame('', $after->approvalAttempt, 'the marker stays, so the page can be found');
+        self::assertCount(1, $this->pagesOfDraft(), 'the page is still there');
+        $actions = array_column($this->audit()->findByDraft($this->draftUid), 'action');
+        self::assertContains('approval_cleanup_failed', $actions);
+        self::assertNotContains('approval_reverted', $actions);
+
+        // A second approval cannot make a duplicate while the first stands.
+        try {
+            $this->approval()->approve($this->draftUid, $after->version, self::OPEN_PARENT, self::NOW + 1);
+            self::fail('A draft that stands approved was approved again.');
+        } catch (WorkspaceRefusedException $e) {
+            self::assertSame(WorkspaceRefusedException::CONFLICT, $e->reason);
+        }
+        self::assertCount(1, $this->pagesOfDraft());
+
+        // Once the page can be deleted, the reset finds it by its marker and removes it.
+        $this->lockPagesOfDraft(0);
+        $this->approval()->reset($this->draftUid, self::NOW + ApprovalService::RESET_AFTER);
+        self::assertSame([], $this->pagesOfDraft());
+        self::assertSame(DraftStatus::Draft, $this->draft()->status);
+    }
+
+    #[Test]
+    public function aResetThatCannotDeleteThePageRefusesAndKeepsTheApproval(): void
+    {
+        $this->actAsAnEditor(3);
+        $drafts = $this->container(DraftRepository::class);
+        self::assertTrue($drafts->approve($this->draftUid, $this->draft()->version, self::OPEN_PARENT, 3, 'crashedcrashedcrashedcrashed0000', self::NOW));
+        $this->pageWithMarker($this->draftUid . ':crashedcrashedcrashedcrashed0000');
+        $this->lockPagesOfDraft(1);
+
+        try {
+            $this->approval()->reset($this->draftUid, self::NOW + ApprovalService::RESET_AFTER);
+            self::fail('The reset went on over a page it could not delete.');
+        } catch (WorkspaceRefusedException $e) {
+            self::assertSame(WorkspaceRefusedException::FAILED, $e->reason);
+        }
+
+        $after = $this->draft();
+        self::assertSame(DraftStatus::Approved, $after->status);
+        self::assertSame('crashedcrashedcrashedcrashed0000', $after->approvalAttempt);
+        self::assertCount(1, $this->pagesOfDraft());
+        $actions = array_column($this->audit()->findByDraft($this->draftUid), 'action');
+        self::assertContains('approval_cleanup_failed', $actions);
+        self::assertNotContains('approval_reset', $actions);
+
+        $this->lockPagesOfDraft(0);
+        $this->approval()->reset($this->draftUid, self::NOW + ApprovalService::RESET_AFTER + 1);
+        self::assertSame([], $this->pagesOfDraft());
+        self::assertSame(DraftStatus::Draft, $this->draft()->status);
+    }
+
+    #[Test]
+    public function anApprovalThatLostTheDraftAndDeletesItsPageLeavesAnAuditRow(): void
+    {
+        $this->actAs(1);
+        $version = $this->draft()->version;
+        $drafts = $this->container(DraftRepository::class);
+        $racing = $this->creator(afterCreation: function () use ($drafts): void {
+            $current = $drafts->findByUid($this->draftUid);
+            self::assertNotNull($current);
+            self::assertTrue($drafts->revert($this->draftUid, $current->approvalAttempt, self::NOW + 5));
+        });
+
+        try {
+            $this->approval($racing)->approve($this->draftUid, $version, self::OPEN_PARENT, self::NOW);
+            self::fail('The stale attempt finished.');
+        } catch (WorkspaceRefusedException $e) {
+            self::assertSame(WorkspaceRefusedException::CONFLICT, $e->reason);
+        }
+
+        self::assertSame([], $this->pagesOfDraft());
+        self::assertContains('approval_conflict', array_column($this->audit()->findByDraft($this->draftUid), 'action'));
+    }
+
     #[Test]
     public function aCreatedDraftHasNothingToReset(): void
     {
@@ -612,6 +718,7 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
         self::assertSame('Changed meanwhile', $this->draft()->sections[0]['header']);
         self::assertSame($version, $this->draft()->version);
         self::assertSame(CommentStatus::Stale, $this->container(CommentRepository::class)->findInDraft($suggestion, $this->draftUid)?->status);
+        self::assertContains('suggestion_stale', array_column($this->audit()->findByDraft($this->draftUid), 'action'));
     }
 
     #[Test]
@@ -798,6 +905,33 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
         self::assertNotNull($draft);
 
         return $draft;
+    }
+
+    /**
+     * Log in as a user of group 1 ("Editors"), who is not an administrator and
+     * may create pages and the content types text, textmedia and html below the
+     * open parent: the rights of an approver who is no administrator.
+     */
+    private function actAsAnEditor(int $uid): void
+    {
+        $this->getConnectionPool()->getConnectionForTable('be_groups')->update('be_groups', [
+            'tables_select' => 'pages,tt_content,sys_file_reference',
+            'tables_modify' => 'pages,tt_content,sys_file_reference',
+            'pagetypes_select' => '1',
+            'db_mountpoints' => '1',
+        ], ['uid' => 1]);
+        $user = $this->actAs($uid);
+        $user->groupData['explicit_allowdeny'] = 'tt_content:CType:text,tt_content:CType:textmedia,tt_content:CType:html';
+    }
+
+    /**
+     * Lock or unlock the pages of the draft: DataHandler refuses to delete an edit-locked page for anybody but an administrator.
+     */
+    private function lockPagesOfDraft(int $locked): void
+    {
+        foreach ($this->pagesOfDraft() as $uid) {
+            $this->getConnectionPool()->getConnectionForTable('pages')->update('pages', ['editlock' => $locked], ['uid' => $uid]);
+        }
     }
 
     private function draft(): WorkspaceDraft

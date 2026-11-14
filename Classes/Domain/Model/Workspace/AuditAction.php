@@ -23,4 +23,7 @@ enum AuditAction: string
     case PageCreated = 'page_created';
     case ApprovalReverted = 'approval_reverted';
     case ApprovalReset = 'approval_reset';
+    case ApprovalConflict = 'approval_conflict';
+    case ApprovalCleanupFailed = 'approval_cleanup_failed';
+    case SuggestionStale = 'suggestion_stale';
 }

@@ -879,6 +879,15 @@
             <trans-unit id="workspace.audit.approval_reset" resname="workspace.audit.approval_reset">
                 <source>Approval reset</source>
             </trans-unit>
+            <trans-unit id="workspace.audit.approval_conflict" resname="workspace.audit.approval_conflict">
+                <source>Approval lost the draft, page removed</source>
+            </trans-unit>
+            <trans-unit id="workspace.audit.approval_cleanup_failed" resname="workspace.audit.approval_cleanup_failed">
+                <source>Page of an approval could not be deleted</source>
+            </trans-unit>
+            <trans-unit id="workspace.audit.suggestion_stale" resname="workspace.audit.suggestion_stale">
+                <source>Suggestion outdated</source>
+            </trans-unit>
             <trans-unit id="wizard.button.saveDraft" resname="wizard.button.saveDraft">
                 <source>Save as workspace draft</source>
             </trans-unit>

@@ -61,12 +61,15 @@ class WorkspacePages implements LoggerAwareInterface
      * DataHandler refuses stays and is logged.
      *
      * @param list<int> $pageUids
+     * @return int how many errors DataHandler reported, 0 when every page is gone
      */
-    public function delete(array $pageUids): void
+    public function delete(array $pageUids): int
     {
         $errors = $this->pageCreator->deletePages($pageUids);
         if ($errors > 0) {
             $this->logger?->error('Deleting the pages of an undone workspace approval failed', ['pages' => $pageUids, 'errors' => $errors]);
         }
+
+        return $errors;
     }
 }

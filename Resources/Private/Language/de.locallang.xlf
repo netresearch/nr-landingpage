@@ -1169,6 +1169,18 @@
                 <source>Approval reset</source>
                 <target>Freigabe zurückgesetzt</target>
             </trans-unit>
+            <trans-unit id="workspace.audit.approval_conflict" resname="workspace.audit.approval_conflict">
+                <source>Approval lost the draft, page removed</source>
+                <target>Freigabe hat den Entwurf verloren, Seite entfernt</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.approval_cleanup_failed" resname="workspace.audit.approval_cleanup_failed">
+                <source>Page of an approval could not be deleted</source>
+                <target>Seite einer Freigabe konnte nicht gelöscht werden</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.suggestion_stale" resname="workspace.audit.suggestion_stale">
+                <source>Suggestion outdated</source>
+                <target>Vorschlag veraltet</target>
+            </trans-unit>
             <trans-unit id="wizard.button.saveDraft" resname="wizard.button.saveDraft">
                 <source>Save as workspace draft</source>
                 <target>Als Workspace-Entwurf speichern</target>
