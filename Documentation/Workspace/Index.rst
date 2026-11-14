@@ -87,6 +87,10 @@ and a text written through a link is stored as paragraphs. A reviewer's name
 is whatever the visitor typed; it is shown as untrusted text and never as a
 backend user.
 
+A draft's comments are shared by all of its links: every link shows the
+comments and names that came in through any other link of the same draft. Use
+separate drafts for separate audiences.
+
 Every refusal, whether the code is unknown, wrong, expired, revoked, used up
 or the passphrase is wrong, gets the same page with the same status (404), so
 the page does not tell whether a link exists. Too many failed attempts from

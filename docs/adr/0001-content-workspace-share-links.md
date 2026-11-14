@@ -254,6 +254,9 @@ revoked-link session answers the same 404 entry page):
 - `GET /nr-landingpage/review/draft`: the draft, its sections, comments and
   suggestions, and the forms the permission allows. Forms are only rendered for
   what the level permits, and every handler re-checks the level on the server.
+  A draft's comments, suggestions and reviewer names are shared by all of its
+  links: every link sees what any other link of the draft wrote. Separate
+  audiences get separate drafts.
 - `POST .../comment`, `.../suggest`, `.../edit`: one POST handler per action,
   each with its own permission check, a length limit, and `303` back to the
   draft view (Post/Redirect/Get).
