@@ -138,6 +138,45 @@ The draft's page in the module lists every comment, suggestion and edit
 under its section, with the author, the time and the state. A reviewer's
 entries are marked as such.
 
+Suggestions, approval and the page
+==================================
+
+An open suggestion shows the text it was made against and the proposed text.
+:guilabel:`Accept` replaces the field's text, when the field still holds the
+text the suggestion was made against; otherwise the suggestion is marked
+outdated and nothing is written. :guilabel:`Reject` only closes it. Every
+user who sees the draft may do both.
+
+:guilabel:`Approve and create the page` needs the ID of the parent page. The
+user must see the draft and may create pages below that page; no share link
+can approve. The approval is bound to the version shown: if a reviewer changed
+a text, or someone else approved, between opening the page and confirming,
+nothing is created and the page says so. The page is created from the stored
+draft by the same code as the wizard, below the chosen parent, hidden or
+visible as the template says. From then on the draft is closed: links take no
+more comments and no more changes, and the draft links to the new page.
+
+The page is created with the rights of the user who approves, but the content
+comes from the owner of the draft. The approval therefore limits what it
+creates. The module shows each section's content type and the page fields the
+new page gets. When the template lists no content types, only ``text``,
+``textmedia`` and ``textpic`` are created (the types the structured wizard
+produces), and when it lists no page fields, only ``title``, ``subtitle``,
+``nav_title``, ``seo_title``, ``description``, ``abstract``, ``keywords``,
+``author``, ``no_index``, ``og_title``, ``og_description``, ``twitter_title``
+and ``twitter_description``. A template's own lists apply where it has them. A
+draft outside the limit is refused as a whole, with the section or field named,
+and stays open and unchanged.
+
+When creating the page fails, the approval is taken back, a partial page is
+removed and the draft is open again. If that page cannot be deleted (an edit
+lock, missing delete rights), the draft stays approved with its marker, so the
+page is still found, and the failure is recorded in the history. After a crash
+the draft can stay approved without a page; once that has stood for ten
+minutes, :guilabel:`Reset the approval` removes any partial page and opens the
+draft again. A reset that cannot delete the page refuses and keeps the
+approval; remove the cause and reset again.
+
 Configuration
 =============
 

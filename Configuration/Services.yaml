@@ -59,6 +59,15 @@ services:
   Netresearch\NrLandingpage\Service\Workspace\ShareLinkService:
     public: true
 
+  Netresearch\NrLandingpage\Service\Workspace\ApprovalService:
+    public: true
+
+  Netresearch\NrLandingpage\Service\Workspace\SuggestionService:
+    public: true
+
+  Netresearch\NrLandingpage\Service\Workspace\WorkspacePages:
+    public: true
+
   Netresearch\NrLandingpage\Service\Workspace\WorkspaceSettings:
     public: true
 

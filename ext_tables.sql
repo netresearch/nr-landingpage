@@ -35,8 +35,10 @@ CREATE TABLE pages (
     tx_nrlandingpage_config_hash varchar(64) NOT NULL DEFAULT '',
     tx_nrlandingpage_generated_at int(11) unsigned DEFAULT 0,
     tx_nrlandingpage_source_page_uid int(11) unsigned DEFAULT 0,
+    tx_nrlandingpage_workspace_ref varchar(64) NOT NULL DEFAULT '',
 
-    KEY idx_template_uid (tx_nrlandingpage_template_uid)
+    KEY idx_template_uid (tx_nrlandingpage_template_uid),
+    KEY idx_workspace_ref (tx_nrlandingpage_workspace_ref)
 );
 
 CREATE TABLE tx_nrlandingpage_workspace_draft (
@@ -59,6 +61,7 @@ CREATE TABLE tx_nrlandingpage_workspace_draft (
     approved_at int(11) unsigned NOT NULL DEFAULT 0,
     approved_version int(11) unsigned NOT NULL DEFAULT 0,
     created_page_uid int(11) unsigned NOT NULL DEFAULT 0,
+    approval_attempt varchar(32) NOT NULL DEFAULT '',
 
     PRIMARY KEY (uid),
     KEY idx_owner (owner)

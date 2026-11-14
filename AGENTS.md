@@ -195,6 +195,8 @@ read it before changing anything here.
 - `DraftAccessGuard` decides who sees and shares a draft; a draft a user may not see is "not found".
 - State-changing backend routes (`nr_landingpage_workspace_*`) are covered by `WorkspaceRouteTokenTest`; add a new route to its data provider.
 - The review page (`ReviewPageMiddleware`, `Controller/Frontend/ReviewController`, `Service/Workspace/Review/`) answers `/nr-landingpage/review` before the site is resolved. Every refusal is the same 404; keep it that way when adding a check (`ReviewPageTest::everyKindOfRefusedEntryLooksTheSame`). Test through `executeFrontendSubRequest`; settings for a sub request are written to LocalConfiguration, and the rate limiters' state outlives a test, so each test uses its own source address.
+- Approval (`ApprovalService`) and accepting a suggestion (`SuggestionService`) are backend-only; no link level reaches them. The page of an approval carries `tx_nrlandingpage_workspace_ref` (`<draft uid>:<approval_attempt>`) from its first insert, and finalising, reverting and resetting are all guarded by that attempt: keep every new step that ends an approval behind the same guard (`ApprovalTest`).
+- An approval creates the owner's content with the approver's rights, so `ApprovalContentPolicy` limits it (ADR-0001, section 9): without template lists only `text`, `textmedia`, `textpic` and the title, description and SEO page fields. A new step that creates content from a draft goes through the same check, and every workspace AJAX route is POST-only.
 - `workspace.*` extension configuration is read by `WorkspaceSettings` from `TYPO3_CONF_VARS`, not through `ExtensionConfiguration::get()`, which can write `LocalConfiguration` during a frontend request.
 
 ## Output Language

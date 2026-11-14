@@ -38,10 +38,28 @@ class Workspace {
             this.close();
         });
         this.root.addEventListener('click', (event) => {
-            const button = event.target.closest('.js-ws-revoke');
-            if (button) {
-                this.confirmRevoke(button);
+            const revoke = event.target.closest('.js-ws-revoke');
+            if (revoke) {
+                this.confirmRevoke(revoke);
+                return;
             }
+            const accept = event.target.closest('.js-ws-accept');
+            if (accept) {
+                void this.settle('acceptSuggestion', accept);
+                return;
+            }
+            const reject = event.target.closest('.js-ws-reject');
+            if (reject) {
+                void this.settle('rejectSuggestion', reject);
+                return;
+            }
+            if (event.target.closest('#ws-approval-reset')) {
+                this.confirmReset();
+            }
+        });
+        document.getElementById('ws-approve-form')?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            this.confirmApprove();
         });
     }
 
@@ -129,6 +147,76 @@ class Workspace {
     close() {
         this.field.value = '';
         location.reload();
+    }
+
+    /**
+     * Accept or reject one suggestion, then show the draft as it is now.
+     */
+    async settle(route, button) {
+        button.disabled = true;
+        try {
+            await this.post(this.settings.ajaxUrls[route], {
+                draft: this.settings.draftUid,
+                comment: Number.parseInt(button.dataset.commentUid, 10),
+            });
+            location.reload();
+        } catch (error) {
+            button.disabled = false;
+            Notification.error(this.label('suggestion.failed'), error.message);
+        }
+    }
+
+    /**
+     * Approve at the version the page shows. The server refuses when the
+     * draft changed since, and says so: nothing is created then.
+     */
+    confirmApprove() {
+        const form = document.getElementById('ws-approve-form');
+        const parent = Number.parseInt(form.elements.parentPageUid.value, 10) || 0;
+        const version = Number.parseInt(form.dataset.version, 10) || 0;
+        const modal = Modal.confirm(this.label('approval.confirm.title'), this.label('approval.confirm.message'), Modal.sizes.small);
+        let answered = false;
+        modal.addEventListener('confirm.button.ok', async () => {
+            if (answered) {
+                return;
+            }
+            answered = true;
+            modal.hideModal();
+            const submit = document.getElementById('ws-approve-submit');
+            submit.disabled = true;
+            try {
+                await this.post(this.settings.ajaxUrls.approve, { draft: this.settings.draftUid, version, parentPageUid: parent });
+                Notification.success(this.label('approval.done'), '');
+                location.reload();
+            } catch (error) {
+                submit.disabled = false;
+                Notification.error(this.label('approval.failed'), error.message);
+            }
+        });
+        modal.addEventListener('confirm.button.cancel', () => {
+            modal.hideModal();
+        });
+    }
+
+    confirmReset() {
+        const modal = Modal.confirm(this.label('approval.reset'), this.label('approval.reset.confirm'), Modal.sizes.small);
+        let answered = false;
+        modal.addEventListener('confirm.button.ok', async () => {
+            if (answered) {
+                return;
+            }
+            answered = true;
+            modal.hideModal();
+            try {
+                await this.post(this.settings.ajaxUrls.resetApproval, { draft: this.settings.draftUid });
+                location.reload();
+            } catch (error) {
+                Notification.error(this.label('approval.failed'), error.message);
+            }
+        });
+        modal.addEventListener('confirm.button.cancel', () => {
+            modal.hideModal();
+        });
     }
 
     confirmRevoke(button) {

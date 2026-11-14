@@ -106,6 +106,84 @@ final class WorkspaceTemplatesTest extends FunctionalTestCase
         self::assertStringNotContainsString('id="ws-link-form"', $this->render('Show', $variables));
     }
 
+    #[Test]
+    public function theApprovalBoxBindsToTheVersionShownAndEscapesTheParentTitle(): void
+    {
+        $html = $this->render('Show', $this->showVariables(mayShare: true));
+
+        self::assertMatchesRegularExpression('/id="ws-approve-form"[^>]*data-version="3"/', $html);
+        self::assertStringContainsString('id="ws-approve-submit"', $html);
+        self::assertMatchesRegularExpression('/id="ws-parent"[^>]*value="6"/', $html);
+        self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
+        self::assertStringNotContainsString('id="ws-approval-reset"', $html);
+    }
+
+    #[Test]
+    public function theApproverSeesEachSectionsContentTypeAndThePageFieldsEscaped(): void
+    {
+        $html = $this->render('Show', $this->showVariables(mayShare: true));
+
+        self::assertMatchesRegularExpression('/<code class="ws-section-ctype">&lt;script&gt;alert\(1\)&lt;\/script&gt;[^<]*<\/code>/', $html, 'the content type of the section');
+        self::assertStringContainsString('id="ws-page-fields"', $html);
+        self::assertMatchesRegularExpression('/<th scope="row">[^<]*fe_group[^<]*<\/th>\s*<td>-2<\/td>/', $html, 'a page field with its value');
+        self::assertStringContainsString('Content type', $html);
+        $this->assertEscaped($html);
+    }
+
+    #[Test]
+    public function aDraftWithoutPageFieldsShowsNoPageFieldTable(): void
+    {
+        $variables = $this->showVariables(mayShare: true);
+        $variables['approval']['pageFields'] = [];
+
+        self::assertStringNotContainsString('id="ws-page-fields"', $this->render('Show', $variables));
+    }
+
+    #[Test]
+    public function aCreatedDraftLinksToItsPageAndOffersNoApproval(): void
+    {
+        $variables = $this->showVariables(mayShare: true);
+        $variables['approval'] = ['status' => 'created', 'isOpen' => false, 'version' => 4, 'parentPageUid' => 6, 'parentPageTitle' => '', 'approvedBy' => 'admin', 'approvedAt' => 1800000000, 'createdPageUid' => 12, 'pageUrl' => '/typo3/module/web/layout?id=12', 'mayReset' => false];
+
+        $html = $this->render('Show', $variables);
+
+        self::assertStringNotContainsString('id="ws-approve-form"', $html);
+        self::assertStringContainsString('href="/typo3/module/web/layout?id=12"', $html);
+    }
+
+    #[Test]
+    public function theResetButtonShowsOnlyForAnApprovalThatStoodLongWithoutAPage(): void
+    {
+        $variables = $this->showVariables(mayShare: true);
+        $variables['approval'] = ['status' => 'approved', 'isOpen' => false, 'version' => 4, 'parentPageUid' => 6, 'parentPageTitle' => '', 'approvedBy' => 'admin', 'approvedAt' => 1800000000, 'createdPageUid' => 0, 'pageUrl' => '', 'mayReset' => false];
+        self::assertStringNotContainsString('id="ws-approval-reset"', $this->render('Show', $variables));
+
+        $variables['approval']['mayReset'] = true;
+        $html = $this->render('Show', $variables);
+
+        self::assertStringContainsString('id="ws-approval-reset"', $html);
+        self::assertStringNotContainsString('id="ws-approve-form"', $html);
+    }
+
+    #[Test]
+    public function anOpenSuggestionOffersAcceptAndRejectAndAnOutdatedOneOnlyReject(): void
+    {
+        $html = $this->render('Show', $this->showVariables(mayShare: true));
+        self::assertStringContainsString('js-ws-accept', $html);
+        self::assertStringContainsString('js-ws-reject', $html);
+
+        $variables = $this->showVariables(mayShare: true);
+        $variables['sections'][0]['comments'][0]['stale'] = true;
+        $stale = $this->render('Show', $variables);
+        self::assertStringNotContainsString('js-ws-accept', $stale);
+        self::assertStringContainsString('js-ws-reject', $stale);
+
+        $variables['sections'][0]['comments'][0]['canResolve'] = false;
+        $settled = $this->render('Show', $variables);
+        self::assertStringNotContainsString('js-ws-accept', $settled);
+        self::assertStringNotContainsString('js-ws-reject', $settled);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -115,11 +193,16 @@ final class WorkspaceTemplatesTest extends FunctionalTestCase
             'draft' => ['uid' => 1, 'title' => self::PAYLOAD, 'status' => 'draft', 'version' => 3, 'owner' => self::PAYLOAD, 'updated' => 1800000000],
             'sections' => [[
                 'id' => 'aaaaaaaaaaaaaaaa',
+                'ctype' => '<script>alert(1)</script>',
                 'name' => self::PAYLOAD,
                 'header' => self::PAYLOAD,
                 'subheader' => self::PAYLOAD,
                 'lines' => [self::PAYLOAD, 'second line'],
                 'comments' => [[
+                    'uid' => 9,
+                    'canResolve' => true,
+                    'stale' => false,
+                    'baseLines' => [self::PAYLOAD],
                     'author' => self::PAYLOAD,
                     'fromReviewer' => true,
                     'kind' => 'suggestion',
@@ -136,6 +219,11 @@ final class WorkspaceTemplatesTest extends FunctionalTestCase
             ]],
             'audit' => [['action' => 'link_created', 'user' => self::PAYLOAD, 'linkUid' => 5, 'when' => 1800000000]],
             'mayShare' => $mayShare,
+            'approval' => [
+                'status' => 'draft', 'isOpen' => true, 'version' => 3, 'parentPageUid' => 6, 'parentPageTitle' => self::PAYLOAD, 'approvedBy' => '',
+                'approvedAt' => 0, 'createdPageUid' => 0, 'pageUrl' => '', 'mayReset' => false,
+                'pageFields' => [['name' => 'fe_group', 'value' => '-2'], ['name' => self::PAYLOAD, 'value' => self::PAYLOAD]],
+            ],
             'linksEnabled' => true,
             'defaultLifetimeDays' => 7,
             'maxLifetimeDays' => 30,

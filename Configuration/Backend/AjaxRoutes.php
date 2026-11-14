@@ -66,13 +66,36 @@ return [
     'nr_landingpage_workspace_save_draft' => [
         'path' => '/nr-landingpage/workspace/save-draft',
         'target' => WorkspaceAjaxController::class . '::saveDraftAction',
+        'methods' => ['POST'],
     ],
     'nr_landingpage_workspace_create_link' => [
         'path' => '/nr-landingpage/workspace/create-link',
         'target' => WorkspaceAjaxController::class . '::createLinkAction',
+        'methods' => ['POST'],
     ],
     'nr_landingpage_workspace_revoke_link' => [
         'path' => '/nr-landingpage/workspace/revoke-link',
         'target' => WorkspaceAjaxController::class . '::revokeLinkAction',
+        'methods' => ['POST'],
+    ],
+    'nr_landingpage_workspace_approve' => [
+        'path' => '/nr-landingpage/workspace/approve',
+        'target' => WorkspaceAjaxController::class . '::approveAction',
+        'methods' => ['POST'],
+    ],
+    'nr_landingpage_workspace_reset_approval' => [
+        'path' => '/nr-landingpage/workspace/reset-approval',
+        'target' => WorkspaceAjaxController::class . '::resetApprovalAction',
+        'methods' => ['POST'],
+    ],
+    'nr_landingpage_workspace_accept_suggestion' => [
+        'path' => '/nr-landingpage/workspace/accept-suggestion',
+        'target' => WorkspaceAjaxController::class . '::acceptSuggestionAction',
+        'methods' => ['POST'],
+    ],
+    'nr_landingpage_workspace_reject_suggestion' => [
+        'path' => '/nr-landingpage/workspace/reject-suggestion',
+        'target' => WorkspaceAjaxController::class . '::rejectSuggestionAction',
+        'methods' => ['POST'],
     ],
 ];

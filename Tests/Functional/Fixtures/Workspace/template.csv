@@ -1,0 +1,5 @@
+"tx_nrlandingpage_domain_model_template"
+,"uid","pid","title","identifier","description","llm_configuration","system_prompt","allowed_ctypes","page_fields","briefing_mode","publish_mode","be_groups","generation_mode","animation_enabled","hidden","deleted"
+,1,0,"Product LP","product-lp","",0,"","text,textmedia","seo_title,description","optional","hidden","","structured",0,0,0
+,2,0,"Open LP","open-lp","",0,"","","","optional","hidden","","structured",0,0,0
+,3,0,"Html LP","html-lp","",0,"","html,text","description,fe_group","optional","hidden","","structured",0,0,0

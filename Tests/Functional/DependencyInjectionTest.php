@@ -22,11 +22,14 @@ use Netresearch\NrLandingpage\Service\ImageSearchService;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
 use Netresearch\NrLandingpage\Service\PromptOptimizerService;
 use Netresearch\NrLandingpage\Service\TemplateService;
+use Netresearch\NrLandingpage\Service\Workspace\ApprovalService;
 use Netresearch\NrLandingpage\Service\Workspace\DraftAccessGuard;
 use Netresearch\NrLandingpage\Service\Workspace\DraftService;
 use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewAuthenticator;
 use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewService;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkService;
+use Netresearch\NrLandingpage\Service\Workspace\SuggestionService;
+use Netresearch\NrLandingpage\Service\Workspace\WorkspacePages;
 use Netresearch\NrLandingpage\Service\Workspace\WorkspaceSettings;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionClass;
@@ -74,6 +77,9 @@ final class DependencyInjectionTest extends FunctionalTestCase
             ReviewPageMiddleware::class,
             ReviewAuthenticator::class,
             ReviewService::class,
+            ApprovalService::class,
+            SuggestionService::class,
+            WorkspacePages::class,
         ];
 
         foreach ($services as $className) {

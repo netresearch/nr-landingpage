@@ -20,6 +20,12 @@ defined('TYPO3') or die();
 // 1700000001-1700000005 used here before did against netresearch/contexts,
 // which registers 1700000001-1700000003.
 
+// ADR-0001, section 9: only an approval writes the page marker it later deletes by.
+$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processDatamapClass'][]
+    = \Netresearch\NrLandingpage\DataHandling\WorkspaceRefDataHandlerHook::class;
+$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processCmdmapClass'][]
+    = \Netresearch\NrLandingpage\DataHandling\WorkspaceRefDataHandlerHook::class;
+
 $GLOBALS['TYPO3_CONF_VARS']['BE']['ContextMenu']['ItemProviders'][1789736090]
     = \Netresearch\NrLandingpage\ContextMenu\LandingPageItemProvider::class;
 

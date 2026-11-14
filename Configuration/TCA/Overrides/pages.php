@@ -42,6 +42,16 @@ $columns = [
             'type' => 'passthrough',
         ],
     ],
+    // ADR-0001, section 9: '<draft uid>:<approval attempt>' on a page created from a
+    // workspace draft, written with the page's first insert.
+    // Not writable through DataHandler except by the approval itself and not
+    // copied along with a page (WorkspaceRefDataHandlerHook). No `exclude` flag:
+    // it would also strip the approval's own write for a non-admin approver.
+    'tx_nrlandingpage_workspace_ref' => [
+        'config' => [
+            'type' => 'passthrough',
+        ],
+    ],
 ];
 
 ExtensionManagementUtility::addTCAcolumns('pages', $columns);
