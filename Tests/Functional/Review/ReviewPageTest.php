@@ -473,7 +473,7 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
         $first = $this->enter($token);
         $second = $this->enter($token);
         $other = $this->enter($otherToken);
-        $post = fn (array $session, string $text): ResponseInterface => $this->submit(
+        $post = fn(array $session, string $text): ResponseInterface => $this->submit(
             self::BASE . '/comment',
             $this->withSession($session, ['section' => 'aaaaaaaaaaaaaaaa', 'field' => '', 'text' => $text]),
             $session['cookies'],
