@@ -496,6 +496,26 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
     }
 
     #[Test]
+    public function theNullOriginIsServedOnTheSessionRoutesToo(): void
+    {
+        [$token] = $this->link(LinkPermission::Comment);
+        $session = $this->enter($token, name: 'Jane');
+        $fields = ['section' => 'aaaaaaaaaaaaaaaa', 'field' => '', 'text' => 'Seen'];
+        $nullOrigin = ['Sec-Fetch-Site' => 'same-origin', 'Origin' => 'NULL'];
+
+        $comment = $this->submit(self::BASE . '/comment', $this->withSession($session, $fields), $session['cookies'], $nullOrigin);
+        $crossSite = $this->submit(self::BASE . '/comment', $this->withSession($session, $fields), $session['cookies'], ['Sec-Fetch-Site' => 'cross-site', 'Origin' => 'null']);
+        $withoutCookies = $this->submit(self::BASE . '/comment', $this->withSession($session, $fields), [], ['Origin' => 'null']);
+        $leave = $this->submit(self::BASE . '/leave', $this->withSession($session, []), $session['cookies'], $nullOrigin);
+
+        self::assertSame(303, $comment->getStatusCode());
+        self::assertSame(400, $crossSite->getStatusCode());
+        self::assertSame(404, $withoutCookies->getStatusCode(), 'a post without the cookies of a session reaches nothing');
+        self::assertSame(303, $leave->getStatusCode());
+        self::assertCount(1, $this->comments()->findByDraft($this->draftUid));
+    }
+
+    #[Test]
     public function repeatedFailuresFromOneAddressAreRateLimitedAndAValidEntryStillPasses(): void
     {
         $this->setConfig('SYS/rateLimiter/nrlp-review-enter/limit', 2);
