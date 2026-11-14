@@ -211,7 +211,12 @@ Exchange (`POST /nr-landingpage/review/enter`, body: `token`, `passphrase`,
 1. Checks the `form_token` against the entry cookie (below; a stale, missing
    or foreign one gets a `400` that asks to reload the page and says nothing
    about the token), refuses `Sec-Fetch-Site: cross-site` and `same-site`, and a
-   present `Origin` that differs from the request's own origin.
+   present `Origin` that differs from the request's own origin. `Origin: null`
+   counts as absent: the pages say `Referrer-Policy: no-referrer`, so a browser
+   sends `null` with the forms of this very site, and a sandboxed page of
+   another site is refused through `Sec-Fetch-Site` where the browser sends it.
+   A browser without `Sec-Fetch-Site` (before Safari 16.4) is held back by the
+   form token and the `SameSite=Strict` cookie alone.
 2. **Link limit before the passphrase, verify before the address limit.** It
    finds the link as in section 3 and matches the token (a SHA-256 lookup, no
    password hash); only a request whose token did **not** match consumes
