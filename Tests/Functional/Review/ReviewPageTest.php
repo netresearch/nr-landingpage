@@ -63,6 +63,33 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
     }
 
     #[Test]
+    public function everyLabelIsResolvedAndAssetsHaveAbsolutePaths(): void
+    {
+        [$token] = $this->link(LinkPermission::Edit);
+        $session = $this->enter($token);
+
+        foreach ([$this->fetch(self::BASE), $this->fetch(self::BASE . '/draft', $session['cookies'])] as $response) {
+            $body = (string) $response->getBody();
+            self::assertStringNotContainsString('EXT:', $body, 'an unresolved label reference');
+            self::assertStringNotContainsString('locallang_review', $body);
+            self::assertMatchesRegularExpression('#<link rel="stylesheet" href="/[^"]+review\.css#', $body);
+        }
+        self::assertMatchesRegularExpression('#<script src="/[^"]+review-entry\.js" defer>#', (string) $this->fetch(self::BASE)->getBody());
+    }
+
+    #[Test]
+    public function theLanguageFollowsTheBrowser(): void
+    {
+        $german = $this->executeFrontendSubRequest((new InternalRequest(self::HOST . self::BASE))->withHeader('Accept-Language', 'de-DE,de;q=0.9,en;q=0.5')->withServerParams($this->serverParams(self::HOST, [])));
+        $other = $this->executeFrontendSubRequest((new InternalRequest(self::HOST . self::BASE))->withHeader('Accept-Language', 'fr-FR,fr;q=0.9')->withServerParams($this->serverParams(self::HOST, [])));
+
+        self::assertStringContainsString('lang="de"', (string) $german->getBody());
+        self::assertStringContainsString('Prüflink öffnen', (string) $german->getBody());
+        self::assertStringContainsString('lang="en"', (string) $other->getBody());
+        self::assertStringContainsString('Open a review link', (string) $other->getBody());
+    }
+
+    #[Test]
     public function thePageLoadsNoThirdPartyResourceAndHasNoInlineScriptOrStyle(): void
     {
         $body = (string) $this->fetch(self::BASE)->getBody();

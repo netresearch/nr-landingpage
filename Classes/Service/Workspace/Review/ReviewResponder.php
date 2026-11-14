@@ -27,7 +27,8 @@ use TYPO3\CMS\Core\View\ViewFactoryInterface;
  */
 class ReviewResponder
 {
-    public const LABEL_FILE = 'EXT:nr_landingpage/Resources/Private/Language/locallang_review.xlf';
+    /** TYPO3 13.4 resolves only a reference that starts with LLL:; 14.3 accepts both. */
+    public const LABEL_FILE = 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang_review.xlf';
 
     /**
      * Every label the templates use. A test checks this list against the
@@ -76,8 +77,8 @@ class ReviewResponder
             'message' => $messageId !== '' ? ($labels[$messageId] ?? '') : '',
             'labels' => $labels,
             'lang' => $this->language($request),
-            'cssUrl' => PathUtility::getPublicResourceWebPath('EXT:nr_landingpage/Resources/Public/Css/review.css'),
-            'entryScriptUrl' => PathUtility::getPublicResourceWebPath('EXT:nr_landingpage/Resources/Public/JavaScript/review-entry.js'),
+            'cssUrl' => $this->assetUrl('EXT:nr_landingpage/Resources/Public/Css/review.css'),
+            'entryScriptUrl' => $this->assetUrl('EXT:nr_landingpage/Resources/Public/JavaScript/review-entry.js'),
         ]);
 
         $response = new HtmlResponse($view->render($template), $status);
@@ -114,6 +115,17 @@ class ReviewResponder
         }
 
         return $response;
+    }
+
+    /**
+     * The web path of a public file of the extension, always absolute: a
+     * relative one would resolve against /nr-landingpage/review/ and fail.
+     */
+    private function assetUrl(string $resource): string
+    {
+        $url = PathUtility::getPublicResourceWebPath($resource);
+
+        return str_starts_with($url, '/') || str_contains($url, '://') ? $url : '/' . $url;
     }
 
     /**
