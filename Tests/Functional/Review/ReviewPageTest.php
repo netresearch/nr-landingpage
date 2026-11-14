@@ -477,6 +477,25 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
     }
 
     #[Test]
+    public function aBrowserThatSendsTheNullOriginOfANoReferrerPageIsServedButACrossSiteOneIsNot(): void
+    {
+        // Every page of the review site sets `Referrer-Policy: no-referrer`, and a browser
+        // then sends `Origin: null` with each form post, also from this very site.
+        [$token] = $this->link(LinkPermission::Comment);
+        $entry = $this->fetch(self::BASE);
+        $good = ['token' => $token, 'form_token' => $this->formToken($entry)];
+        $cookies = ['__Host-nrws_entry' => $this->cookieValue($entry, '__Host-nrws_entry')];
+
+        $fromThisSite = $this->submit(self::BASE . '/enter', $good, $cookies, ['Sec-Fetch-Site' => 'same-origin', 'Origin' => 'null']);
+        $fromAnotherSite = $this->submit(self::BASE . '/enter', $good, $cookies, ['Sec-Fetch-Site' => 'cross-site', 'Origin' => 'null']);
+        $withoutFetchMetadata = $this->submit(self::BASE . '/enter', $good, $cookies, ['Origin' => 'null']);
+
+        self::assertSame(303, $fromThisSite->getStatusCode(), 'a form of this site posts with Origin: null');
+        self::assertSame(400, $fromAnotherSite->getStatusCode(), 'a sandboxed page of another site also sends Origin: null');
+        self::assertSame(303, $withoutFetchMetadata->getStatusCode(), 'the form tokens and the SameSite cookie carry the protection');
+    }
+
+    #[Test]
     public function repeatedFailuresFromOneAddressAreRateLimitedAndAValidEntryStillPasses(): void
     {
         $this->setConfig('SYS/rateLimiter/nrlp-review-enter/limit', 2);

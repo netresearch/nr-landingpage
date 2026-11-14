@@ -326,7 +326,8 @@ final class ReviewController
     /**
      * A POST must come from this very site: `Sec-Fetch-Site` of a browser
      * that sends it says same-origin (or none, for a typed address), and a
-     * present `Origin` equals the request's own. Neither is trusted alone:
+     * present `Origin` equals the request's own (the opaque `null` counts as
+     * absent, see below). Neither is trusted alone:
      * the form tokens are what protect a client that sends neither.
      */
     private function sameOrigin(ServerRequestInterface $request): bool
@@ -336,7 +337,11 @@ final class ReviewController
             return false;
         }
         $origin = $request->getHeaderLine('Origin');
-        if ($origin === '') {
+        // The pages say `Referrer-Policy: no-referrer`, so a browser sends the
+        // serialised opaque origin `null` with every form of this very site. Where
+        // the browser sends `Sec-Fetch-Site`, the check above has already refused
+        // another site, a sandboxed one included.
+        if ($origin === '' || strtolower($origin) === 'null') {
             return true;
         }
         // The scheme and host as TYPO3 sees them, behind a reverse proxy too.
