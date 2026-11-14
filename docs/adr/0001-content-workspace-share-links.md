@@ -275,6 +275,13 @@ revoked-link session answers the same 404 entry page):
 | `nrlp-review-link-write` | token prefix of the link | 100 per 24 hours | each POST through the link, in any of its sessions |
 | `nrlp-review-request` | source address | sliding window, 60 per 15 minutes | every entry attempt **whose token did not match**, before any password hash runs |
 
+Accepted limit: the limiters are built without a lock, as TYPO3 core builds its
+own login limiter, because `symfony/lock` is not a dependency of core 13.4 or
+14.3. The sliding window reads and saves its counter in two steps, so a burst
+of parallel requests can pass a few more attempts than the limit. For
+`nrlp-review-link` this means a few extra passphrase guesses per burst by
+someone who already holds the 256-bit token.
+
 `nrlp-review-link` is consumed only by someone who holds the secret (the token
 hash matched), so a stranger who hammers a known prefix cannot lock the real
 recipient out, and invented prefixes create no limiter entries. A recipient
