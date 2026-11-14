@@ -29,15 +29,16 @@ class WorkspacePages implements LoggerAwareInterface
     ) {}
 
     /**
-     * The uids of the pages whose marker starts with the given text: the
-     * whole marker `<draft uid>:<attempt>` for one attempt, `<draft uid>:` for
-     * every attempt of a draft. Deleted pages are not listed.
+     * The uids of the pages directly below the given parent whose marker is
+     * exactly `<draft uid>:<approval attempt>`. Never a prefix, never another
+     * parent: an approval removes only what that approval created, whatever a
+     * page elsewhere carries in its marker field. Deleted pages are not listed.
      *
      * @return list<int>
      */
-    public function findByRef(string $refOrPrefix): array
+    public function findByRef(string $ref, int $parentPageUid): array
     {
-        if ($refOrPrefix === '') {
+        if ($parentPageUid <= 0 || preg_match('/^[1-9][0-9]*:[A-Za-z0-9]{1,32}$/D', $ref) !== 1) {
             return [];
         }
         $builder = $this->connectionPool->getQueryBuilderForTable('pages');
@@ -45,7 +46,8 @@ class WorkspacePages implements LoggerAwareInterface
         $rows = $builder->select('uid')
             ->from('pages')
             ->where(
-                $builder->expr()->like('tx_nrlandingpage_workspace_ref', $builder->createNamedParameter($builder->escapeLikeWildcards($refOrPrefix) . '%')),
+                $builder->expr()->eq('tx_nrlandingpage_workspace_ref', $builder->createNamedParameter($ref)),
+                $builder->expr()->eq('pid', $builder->createNamedParameter($parentPageUid, Connection::PARAM_INT)),
                 $builder->expr()->eq('deleted', $builder->createNamedParameter(0, Connection::PARAM_INT)),
             )
             ->executeQuery()

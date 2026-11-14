@@ -36,7 +36,9 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
+use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Approval and the creation of the page (ADR-0001, sections 7 and 9), with the
@@ -285,6 +287,49 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
         self::assertSame(DraftStatus::Draft, $draft->status);
         self::assertSame('', $draft->approvalAttempt);
         self::assertContains('approval_reset', array_column($this->audit()->findByDraft($this->draftUid), 'action'));
+    }
+
+    #[Test]
+    public function aResetDeletesOnlyThePageOfItsExactAttemptBelowTheApprovedParent(): void
+    {
+        $this->actAs(1);
+        $drafts = $this->container(DraftRepository::class);
+        self::assertTrue($drafts->approve($this->draftUid, $this->draft()->version, self::OPEN_PARENT, 1, 'crashedcrashedcrashedcrashed0000', self::NOW));
+        $own = $this->pageWithMarker($this->draftUid . ':crashedcrashedcrashedcrashed0000');
+        $otherAttempt = $this->pageWithMarker($this->draftUid . ':crashedcrashedcrashedcrashed0000x');
+        $elsewhere = $this->pageWithMarker($this->draftUid . ':crashedcrashedcrashedcrashed0000');
+        $this->getConnectionPool()->getConnectionForTable('pages')->update('pages', ['pid' => 1], ['uid' => $elsewhere]);
+
+        $this->approval()->reset($this->draftUid, self::NOW + ApprovalService::RESET_AFTER);
+
+        self::assertSame(1, (int) $this->row('pages', $own)['deleted'], 'the page of this attempt is removed');
+        self::assertSame(0, (int) $this->row('pages', $otherAttempt)['deleted'], 'a marker that only starts like it survives');
+        self::assertSame(0, (int) $this->row('pages', $elsewhere)['deleted'], 'a page below another parent survives');
+    }
+
+    #[Test]
+    public function aDataHandlerWriteToTheMarkerIsIgnoredAndACopyDoesNotCarryIt(): void
+    {
+        $this->actAs(1);
+        $GLOBALS['LANG'] = $this->container(\TYPO3\CMS\Core\Localization\LanguageServiceFactory::class)->createFromUserPreferences($GLOBALS['BE_USER']);
+        $plain = $this->pageWithMarker('');
+        $handler = GeneralUtility::makeInstance(DataHandler::class);
+        $handler->start(['pages' => [$plain => ['tx_nrlandingpage_workspace_ref' => $this->draftUid . ':forged'], 'NEW_forged' => ['pid' => self::OPEN_PARENT, 'title' => 'Forged', 'tx_nrlandingpage_workspace_ref' => $this->draftUid . ':forged']]], []);
+        $handler->process_datamap();
+
+        self::assertSame('', $this->row('pages', $plain)['tx_nrlandingpage_workspace_ref'], 'an update cannot set the marker');
+        $created = (int) ($handler->substNEWwithIDs['NEW_forged'] ?? 0);
+        self::assertGreaterThan(0, $created);
+        self::assertSame('', $this->row('pages', $created)['tx_nrlandingpage_workspace_ref'], 'an insert cannot set it either');
+
+        $marked = $this->pageWithMarker($this->draftUid . ':realrealrealrealrealrealreal0000');
+        $copier = GeneralUtility::makeInstance(DataHandler::class);
+        $copier->start([], ['pages' => [$marked => ['copy' => self::OPEN_PARENT]]]);
+        $copier->process_cmdmap();
+        $copy = (int) ($copier->copyMappingArray_merged['pages'][$marked] ?? 0);
+        self::assertGreaterThan(0, $copy);
+        self::assertSame('', $this->row('pages', $copy)['tx_nrlandingpage_workspace_ref'], 'a copied page does not carry the marker');
+        self::assertSame($this->draftUid . ':realrealrealrealrealrealreal0000', $this->row('pages', $marked)['tx_nrlandingpage_workspace_ref'], 'the original keeps it');
     }
 
     #[Test]
@@ -545,11 +590,30 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
     }
 
     /**
+     * A page below the open parent carrying the marker, made the way the approval makes it.
+     */
+    private function pageWithMarker(string $marker): int
+    {
+        $result = $this->creator()->createLandingPage($this->template(), self::OPEN_PARENT, 'Marked', '', [], [['section' => '', 'ctype' => 'text', 'header' => 'x', 'subheader' => '', 'bodytext' => '<p>x</p>', 'imageUid' => 0, 'imageorient' => 0, 'colPos' => 0]], null, [], $marker);
+
+        return $result['pageUid'];
+    }
+
+    /**
      * @return list<int>
      */
     private function pagesOfDraft(): array
     {
-        return $this->container(WorkspacePages::class)->findByRef($this->draftUid . ':');
+        $builder = $this->getConnectionPool()->getQueryBuilderForTable('pages');
+        $builder->getRestrictions()->removeAll();
+        $rows = $builder->select('uid')->from('pages')
+            ->where(
+                $builder->expr()->like('tx_nrlandingpage_workspace_ref', $builder->createNamedParameter($this->draftUid . ':%')),
+                $builder->expr()->eq('deleted', $builder->createNamedParameter(0, \TYPO3\CMS\Core\Database\Connection::PARAM_INT)),
+            )
+            ->executeQuery()->fetchFirstColumn();
+
+        return array_values(array_map(static fn(mixed $uid): int => (int) $uid, $rows));
     }
 
     /**

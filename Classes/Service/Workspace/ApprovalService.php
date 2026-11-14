@@ -103,14 +103,14 @@ class ApprovalService implements LoggerAwareInterface
         } catch (Throwable $e) {
             // The class and the code only: the message can carry the content.
             $this->logger?->error('Creating the page of a workspace draft failed', ['draft' => $draft->uid, 'exception' => $e::class, 'code' => $e->getCode()]);
-            $this->undo($draft->uid, $attempt, $ref, $user, $now);
+            $this->undo($draft->uid, $attempt, $ref, $parentPageUid, $user, $now);
 
             throw new WorkspaceRefusedException('The page could not be created. The approval was taken back and the draft is open again.', 1799600105, WorkspaceRefusedException::FAILED);
         }
 
         if (!$this->drafts->finalize($draft->uid, $attempt, $result['pageUid'], $now)) {
             // A reset or another approval took the draft over while the page was made.
-            $this->pages->delete($this->pages->findByRef($ref));
+            $this->pages->delete($this->pages->findByRef($ref, $parentPageUid));
 
             throw new WorkspaceRefusedException('The approval was reset while the page was being created; the page was removed.', 1799600106, WorkspaceRefusedException::CONFLICT);
         }
@@ -122,7 +122,7 @@ class ApprovalService implements LoggerAwareInterface
     /**
      * Reset an approval that never got its page, after RESET_AFTER seconds
      * (a crash between the approval and the creation). Whoever may approve
-     * may reset. The pages carrying the draft's marker are deleted first.
+     * may reset. The pages below the approved parent that carry this attempt's exact marker are deleted first.
      *
      * @throws WorkspaceRefusedException
      */
@@ -141,7 +141,7 @@ class ApprovalService implements LoggerAwareInterface
         }
         $this->assertMayCreateBelow($draft->parentPageUid);
 
-        $this->pages->delete($this->pages->findByRef($draft->uid . ':'));
+        $this->pages->delete($this->pages->findByRef($draft->uid . ':' . $draft->approvalAttempt, $draft->parentPageUid));
         if (!$this->drafts->revert($draft->uid, $draft->approvalAttempt, $now)) {
             throw $this->changed();
         }
@@ -159,9 +159,9 @@ class ApprovalService implements LoggerAwareInterface
             && $this->accessGuard->checkParentPage($parentPageUid) === ParentPageVerdict::Allowed;
     }
 
-    private function undo(int $draftUid, string $attempt, string $ref, int $user, int $now): void
+    private function undo(int $draftUid, string $attempt, string $ref, int $parentPageUid, int $user, int $now): void
     {
-        $this->pages->delete($this->pages->findByRef($ref));
+        $this->pages->delete($this->pages->findByRef($ref, $parentPageUid));
         if ($this->drafts->revert($draftUid, $attempt, $now)) {
             $this->audit->record($draftUid, 0, $user, AuditAction::ApprovalReverted, $now);
         }

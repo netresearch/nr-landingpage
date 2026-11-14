@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Service;
 
+use Netresearch\NrLandingpage\DataHandling\WorkspaceRefGate;
 use Netresearch\NrLandingpage\Domain\Model\GenerationContext;
 use Netresearch\NrLandingpage\Domain\Model\Template;
 use Netresearch\NrLandingpage\Event\AfterContentGenerationEvent;
@@ -144,7 +145,12 @@ class PageCreatorService implements LoggerAwareInterface
             $this->logger?->info('Creating page in workspace', ['workspaceId' => $workspaceId]);
         }
         $dataHandler->start($dataMap, []);
-        $dataHandler->process_datamap();
+        WorkspaceRefGate::permit($workspaceRef);
+        try {
+            $dataHandler->process_datamap();
+        } finally {
+            WorkspaceRefGate::release();
+        }
 
         if ($dataHandler->errorLog !== []) {
             $errors = implode(', ', array_map(static fn(mixed $v): string => is_string($v) ? $v : var_export($v, true), $dataHandler->errorLog));
