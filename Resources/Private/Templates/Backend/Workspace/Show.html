@@ -53,7 +53,7 @@
                                 </p>
                             </f:then>
                             <f:else>
-                                <p id="ws-approval-state"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.approved" arguments="{0: approval.approvedBy}" /></p>
+                                <p id="ws-approval-pending"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.approved" arguments="{0: approval.approvedBy}" /></p>
                                 <f:if condition="{approval.mayReset}">
                                     <p class="text-variant">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.reset.help')}</p>
                                     <button type="button" class="btn btn-default" id="ws-approval-reset">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.reset')}</button>
