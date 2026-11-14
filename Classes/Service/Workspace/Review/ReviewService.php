@@ -50,7 +50,9 @@ class ReviewService
     {
         $value = is_string($section[$field] ?? null) ? $section[$field] : '';
 
-        return $field === 'bodytext' ? PlainText::fromHtml($value) : ReviewInput::text($value);
+        // The same cleaning as the submitted text gets, so that an untouched field
+        // compares equal to what a browser sends back (stored CRLF becomes LF).
+        return ReviewInput::text($field === 'bodytext' ? PlainText::fromHtml($value) : $value);
     }
 
     public function comment(ReviewContext $context, string $sectionId, string $field, string $body, int $now): void

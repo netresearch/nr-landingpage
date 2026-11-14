@@ -325,6 +325,24 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
     }
 
     #[Test]
+    public function anUntouchedEditOfABodyTextStoredWithCrLfIsAccepted(): void
+    {
+        $this->getConnectionPool()->getConnectionForTable(DraftRepository::TABLE)->update(
+            DraftRepository::TABLE,
+            ['sections' => json_encode([['id' => 'aaaaaaaaaaaaaaaa', 'section' => 'hero', 'header' => 'H', 'bodytext' => "<p>a\r\nb</p>"]], JSON_THROW_ON_ERROR)],
+            ['uid' => $this->draftUid],
+        );
+        [$token] = $this->link(LinkPermission::Edit);
+        $session = $this->enter($token);
+
+        // A browser submits the base text it parsed from the hidden input: with LF.
+        $edit = $this->submit(self::BASE . '/edit', $this->withSession($session, ['section' => 'aaaaaaaaaaaaaaaa', 'field' => 'bodytext', 'base_text' => "a\nb", 'text' => "a\nb changed"]), $session['cookies']);
+
+        self::assertSame(303, $edit->getStatusCode());
+        self::assertSame('<p>a<br>' . "\n" . 'b changed</p>', $this->draft()->sections[0]['bodytext']);
+    }
+
+    #[Test]
     public function aLinkOfOneDraftCannotReachASectionOfAnother(): void
     {
         $other = $this->makeDraft(2, [], 'Other draft');
