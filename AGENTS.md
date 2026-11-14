@@ -42,7 +42,9 @@ nr_landingpage/
 │       ├── LandingPageDetectionService # Check if page is generated
 │       ├── PageCreatorService     # DataHandler page/content creation
 │       ├── PromptOptimizerService # AI prompt optimization
-│       └── TemplateService        # Template CRUD + access control
+│       ├── SectionNormalizer      # Typed sections for the wizard save and workspace drafts
+│       ├── TemplateService        # Template CRUD + access control
+│       └── Workspace/             # Content Workspace: drafts, share links, audit (ADR-0001)
 ├── Configuration/
 │   ├── Backend/                   # Module registration, AJAX routes
 │   ├── ShippedTemplates.json      # Template records that ship with the extension
@@ -180,6 +182,19 @@ are hidden via `displayCond`.
 - MIME type validation on AI-generated images before FAL storage
 - TCA fieldInformation uses only TYPO3-allowed HTML tags (architecture test enforced)
 - Modal content passed as DOM elements, never as HTML strings (Lit auto-escaping)
+
+## Content Workspace
+
+Drafts of landing page content that people without a TYPO3 login review by
+share link, before the page is created. The design and the security
+decisions are in [`docs/adr/0001-content-workspace-share-links.md`](docs/adr/0001-content-workspace-share-links.md);
+read it before changing anything here.
+
+- Tables `tx_nrlandingpage_workspace_*` have no TCA and are written only through the repositories in `Classes/Service/Workspace/`.
+- A share link's token is shown once and never stored: only its prefix and SHA-256 hash (`ShareToken`). Never log it, put it in a rendered page or in an exception message.
+- `DraftAccessGuard` decides who sees and shares a draft; a draft a user may not see is "not found".
+- State-changing backend routes (`nr_landingpage_workspace_*`) are covered by `WorkspaceRouteTokenTest`; add a new route to its data provider.
+- `workspace.*` extension configuration is read by `WorkspaceSettings` from `TYPO3_CONF_VARS`, not through `ExtensionConfiguration::get()`, which can write `LocalConfiguration` during a frontend request.
 
 ## Output Language
 

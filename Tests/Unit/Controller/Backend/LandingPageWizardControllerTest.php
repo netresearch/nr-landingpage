@@ -141,7 +141,7 @@ final class LandingPageWizardControllerTest extends UnitTestCase
             $this->pageCreatorService,
             $this->connectionPool,
             $this->createMock(SiteFinder::class),
-            new \Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer(),
+            new \Netresearch\NrLandingpage\Service\SectionNormalizer($this->imageSearchService, new \Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer()),
             $this->accessGuard,
             $this->promptOptimizerService,
         ];

@@ -27,6 +27,8 @@ class BackendAccessGuard
 {
     public const MODULE_IDENTIFIER = 'nr_landingpage';
 
+    public const WORKSPACE_MODULE_IDENTIFIER = 'nr_landingpage_workspace';
+
     public const TEMPLATE_TABLE = 'tx_nrlandingpage_domain_model_template';
 
     public function __construct(
@@ -43,6 +45,17 @@ class BackendAccessGuard
 
         return $backendUser !== null
             && $this->moduleProvider->accessGranted(self::MODULE_IDENTIFIER, $backendUser);
+    }
+
+    /**
+     * Whether the current user has access to the content workspace module.
+     */
+    public function mayUseWorkspace(): bool
+    {
+        $backendUser = $this->getBackendUser();
+
+        return $backendUser !== null
+            && $this->moduleProvider->accessGranted(self::WORKSPACE_MODULE_IDENTIFIER, $backendUser);
     }
 
     /**

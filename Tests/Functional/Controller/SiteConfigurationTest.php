@@ -20,6 +20,7 @@ use Netresearch\NrLandingpage\Service\ImageProviderService;
 use Netresearch\NrLandingpage\Service\ImageSearchService;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
 use Netresearch\NrLandingpage\Service\PromptOptimizerService;
+use Netresearch\NrLandingpage\Service\SectionNormalizer;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use Netresearch\NrLlm\Domain\Model\CompletionResponse;
 use Netresearch\NrLlm\Domain\Model\LlmConfiguration;
@@ -328,6 +329,8 @@ final class SiteConfigurationTest extends FunctionalTestCase
         /** @var UriBuilder $uriBuilder */
         $uriBuilder = (new ReflectionClass(UriBuilder::class))->newInstanceWithoutConstructor();
 
+        $imageSearchService = $this->createMock(ImageSearchService::class);
+
         return new LandingPageWizardController(
             $moduleTemplateFactory,
             $this->createMock(PageRenderer::class),
@@ -335,12 +338,12 @@ final class SiteConfigurationTest extends FunctionalTestCase
             new TemplateService($connectionPool),
             new BriefingService($completionService, $llmServiceManager, $configurationRepository),
             new ContentGeneratorService($completionService, $llmServiceManager, $configurationRepository, $cTypeMetadataService, $backendLayoutService, new CreativeHtmlSanitizer()),
-            $this->createMock(ImageSearchService::class),
+            $imageSearchService,
             $this->createMock(ImageProviderService::class),
             $this->createMock(PageCreatorService::class),
             $connectionPool,
             GeneralUtility::makeInstance(SiteFinder::class),
-            new CreativeHtmlSanitizer(),
+            new SectionNormalizer($imageSearchService, new CreativeHtmlSanitizer()),
             $this->get(BackendAccessGuard::class),
             new PromptOptimizerService($completionService, $llmServiceManager, $configurationRepository, $backendLayoutService),
         );

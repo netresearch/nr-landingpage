@@ -1,0 +1,51 @@
+<f:comment>SPDX-License-Identifier: GPL-2.0-or-later</f:comment>
+<f:comment>SPDX-FileCopyrightText: Netresearch DTT GmbH</f:comment>
+<f:layout name="Module" />
+<f:section name="Content">
+    <div class="nr-landingpage-workspace p-4" id="nr-landingpage-workspace">
+        <h1 class="mb-2"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.module.title" /></h1>
+        <p class="lead text-variant mb-4">
+            <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.index.description" />
+        </p>
+
+        <f:if condition="{drafts}">
+            <f:then>
+                <div class="table-fit">
+                    <table class="table table-striped table-hover" id="nr-landingpage-workspace-drafts">
+                        <thead>
+                            <tr>
+                                <th scope="col"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.index.col.title" /></th>
+                                <th scope="col"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.index.col.status" /></th>
+                                <th scope="col"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.index.col.sections" /></th>
+                                <th scope="col"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.index.col.owner" /></th>
+                                <th scope="col"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.index.col.updated" /></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <f:for each="{drafts}" as="draft">
+                                <tr data-draft-uid="{draft.uid}">
+                                    <td><a href="{draft.showUrl}">{draft.title}</a></td>
+                                    <td><span class="badge badge-default"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.status.{draft.status}" /></span></td>
+                                    <td>{draft.sectionCount}</td>
+                                    <td>{draft.owner}</td>
+                                    <td><f:format.date format="Y-m-d H:i">{draft.updated}</f:format.date></td>
+                                </tr>
+                            </f:for>
+                        </tbody>
+                    </table>
+                </div>
+            </f:then>
+            <f:else>
+                <div class="callout callout-info" id="nr-landingpage-workspace-empty">
+                    <div class="callout-content">
+                        <p class="mb-1"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.index.empty" /></p>
+                        <p class="mb-0">
+                            <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.index.howTo" />
+                            <a href="{wizardUrl}"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.index.openWizard" /></a>
+                        </p>
+                    </div>
+                </div>
+            </f:else>
+        </f:if>
+    </div>
+</f:section>
