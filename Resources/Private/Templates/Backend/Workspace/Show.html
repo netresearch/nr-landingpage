@@ -20,6 +20,20 @@
                 <f:if condition="{approval.isOpen}">
                     <f:then>
                         <p>{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.intro')}</p>
+                        <f:if condition="{approval.pageFields}">
+                            <h3 class="h5 mt-3" id="ws-page-fields-heading">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.pageFields')}</h3>
+                            <p class="text-variant">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.pageFields.help')}</p>
+                            <table class="table w-auto" id="ws-page-fields" aria-labelledby="ws-page-fields-heading">
+                                <tbody>
+                                    <f:for each="{approval.pageFields}" as="pageField">
+                                        <tr>
+                                            <th scope="row">{pageField.name}</th>
+                                            <td>{pageField.value}</td>
+                                        </tr>
+                                    </f:for>
+                                </tbody>
+                            </table>
+                        </f:if>
                         <form id="ws-approve-form" data-version="{approval.version}" novalidate>
                             <label class="form-label" for="ws-parent">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.approval.parent')}</label>
                             <input type="number" class="form-control w-auto mb-1" id="ws-parent" name="parentPageUid" min="1" value="{approval.parentPageUid}" required="required" aria-describedby="ws-parent-help" />
@@ -178,6 +192,7 @@
                 <article class="card mb-3" data-section-id="{section.id}">
                     <div class="card-body">
                         <p class="text-variant small mb-1">{iteration.cycle}. <f:if condition="{section.name}"><f:then>{section.name}</f:then><f:else><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.section.untitled" /></f:else></f:if></p>
+                        <p class="small mb-1"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.section.ctype" />: <code class="ws-section-ctype">{section.ctype}</code></p>
                         <f:if condition="{section.header}"><h3 class="h5">{section.header}</h3></f:if>
                         <f:if condition="{section.subheader}"><p class="fw-bold">{section.subheader}</p></f:if>
                         <f:for each="{section.lines}" as="line"><p class="mb-1">{line}</p></f:for>

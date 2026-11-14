@@ -119,6 +119,27 @@ final class WorkspaceTemplatesTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function theApproverSeesEachSectionsContentTypeAndThePageFieldsEscaped(): void
+    {
+        $html = $this->render('Show', $this->showVariables(mayShare: true));
+
+        self::assertMatchesRegularExpression('/<code class="ws-section-ctype">&lt;script&gt;alert\(1\)&lt;\/script&gt;[^<]*<\/code>/', $html, 'the content type of the section');
+        self::assertStringContainsString('id="ws-page-fields"', $html);
+        self::assertMatchesRegularExpression('/<th scope="row">[^<]*fe_group[^<]*<\/th>\s*<td>-2<\/td>/', $html, 'a page field with its value');
+        self::assertStringContainsString('Content type', $html);
+        $this->assertEscaped($html);
+    }
+
+    #[Test]
+    public function aDraftWithoutPageFieldsShowsNoPageFieldTable(): void
+    {
+        $variables = $this->showVariables(mayShare: true);
+        $variables['approval']['pageFields'] = [];
+
+        self::assertStringNotContainsString('id="ws-page-fields"', $this->render('Show', $variables));
+    }
+
+    #[Test]
     public function aCreatedDraftLinksToItsPageAndOffersNoApproval(): void
     {
         $variables = $this->showVariables(mayShare: true);
@@ -172,6 +193,7 @@ final class WorkspaceTemplatesTest extends FunctionalTestCase
             'draft' => ['uid' => 1, 'title' => self::PAYLOAD, 'status' => 'draft', 'version' => 3, 'owner' => self::PAYLOAD, 'updated' => 1800000000],
             'sections' => [[
                 'id' => 'aaaaaaaaaaaaaaaa',
+                'ctype' => '<script>alert(1)</script>',
                 'name' => self::PAYLOAD,
                 'header' => self::PAYLOAD,
                 'subheader' => self::PAYLOAD,
@@ -200,6 +222,7 @@ final class WorkspaceTemplatesTest extends FunctionalTestCase
             'approval' => [
                 'status' => 'draft', 'isOpen' => true, 'version' => 3, 'parentPageUid' => 6, 'parentPageTitle' => self::PAYLOAD, 'approvedBy' => '',
                 'approvedAt' => 0, 'createdPageUid' => 0, 'pageUrl' => '', 'mayReset' => false,
+                'pageFields' => [['name' => 'fe_group', 'value' => '-2'], ['name' => self::PAYLOAD, 'value' => self::PAYLOAD]],
             ],
             'linksEnabled' => true,
             'defaultLifetimeDays' => 7,

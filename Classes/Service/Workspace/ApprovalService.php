@@ -46,6 +46,7 @@ class ApprovalService implements LoggerAwareInterface
         private readonly SectionNormalizer $sectionNormalizer,
         private readonly PageCreatorService $pageCreator,
         private readonly WorkspacePages $pages,
+        private readonly ApprovalContentPolicy $policy,
     ) {}
 
     /**
@@ -79,6 +80,8 @@ class ApprovalService implements LoggerAwareInterface
         if ($sections === []) {
             throw new WorkspaceRefusedException('The draft has no section.', 1799600104);
         }
+        $this->policy->assertSections($template, $sections);
+        $this->policy->assertPageFields($template, $draft->pageFields);
         $animations = $this->sectionNormalizer->animations($draft->sections);
 
         $attempt = bin2hex(random_bytes(16));

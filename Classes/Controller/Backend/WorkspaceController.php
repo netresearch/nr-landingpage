@@ -145,7 +145,7 @@ final class WorkspaceController
      * comments, suggestions and logged edits of each.
      *
      * @param array<int, string> $names
-     * @return list<array{id: string, name: string, header: string, subheader: string, lines: list<string>, comments: list<array<string, mixed>>}>
+     * @return list<array{id: string, name: string, ctype: string, header: string, subheader: string, lines: list<string>, comments: list<array<string, mixed>>}>
      */
     private function sectionViews(WorkspaceDraft $draft, array $names): array
     {
@@ -161,6 +161,7 @@ final class WorkspaceController
             $views[] = [
                 'id' => $id,
                 'name' => $text('section'),
+                'ctype' => $text('ctype'),
                 'header' => $text('header'),
                 'subheader' => $text('subheader'),
                 'lines' => self::lines(PlainText::fromHtml($text('bodytext'))),
@@ -188,6 +189,7 @@ final class WorkspaceController
             'version' => $draft->version,
             'parentPageUid' => $draft->parentPageUid,
             'parentPageTitle' => $parentTitle ?? '',
+            'pageFields' => $this->pageFieldViews($draft),
             'approvedBy' => $names[$draft->approvedBy] ?? '',
             'approvedAt' => $draft->approvedAt,
             'createdPageUid' => $draft->createdPageUid,
@@ -199,6 +201,23 @@ final class WorkspaceController
                 && $now - $draft->approvedAt >= ApprovalService::RESET_AFTER
                 && $this->accessGuard->checkParentPage($draft->parentPageUid) === ParentPageVerdict::Allowed,
         ];
+    }
+
+    /**
+     * The page fields the new page gets, as the approver should see them.
+     *
+     * @return list<array{name: string, value: string}>
+     */
+    private function pageFieldViews(WorkspaceDraft $draft): array
+    {
+        $views = [];
+        foreach ($draft->pageFields as $name => $value) {
+            if (is_string($value) && $value !== '') {
+                $views[] = ['name' => (string) $name, 'value' => $value];
+            }
+        }
+
+        return $views;
     }
 
     /**

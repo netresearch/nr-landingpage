@@ -21,6 +21,7 @@ use Netresearch\NrLandingpage\Service\BackendAccessGuard;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
 use Netresearch\NrLandingpage\Service\SectionNormalizer;
 use Netresearch\NrLandingpage\Service\TemplateService;
+use Netresearch\NrLandingpage\Service\Workspace\ApprovalContentPolicy;
 use Netresearch\NrLandingpage\Service\Workspace\ApprovalService;
 use Netresearch\NrLandingpage\Service\Workspace\AuditRepository;
 use Netresearch\NrLandingpage\Service\Workspace\CommentRepository;
@@ -57,6 +58,12 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
 
     /** "Restricted": nobody but its owner may. */
     private const RESTRICTED_PARENT = 2;
+
+    /** No content type and no page field list: the template leaves everything to the approval's own limits. */
+    private const OPEN_TEMPLATE = 2;
+
+    /** Lists html and text, and the page fields description and fe_group. */
+    private const HTML_TEMPLATE = 3;
 
     private int $draftUid = 0;
 
@@ -384,6 +391,149 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
         yield 'copyToLanguage' => ['copyToLanguage'];
     }
 
+    // ------------------------------- what an approval creates (owner's content, approver's rights)
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function contentTypesAnOwnerMustNotSmuggleIn(): iterable
+    {
+        yield 'html' => ['html'];
+        yield 'list' => ['list'];
+        yield 'shortcut' => ['shortcut'];
+        yield 'plugin' => ['menu_pages'];
+        yield 'form' => ['form_formframework'];
+        yield 'empty' => [''];
+    }
+
+    #[Test]
+    #[DataProvider('contentTypesAnOwnerMustNotSmuggleIn')]
+    public function aTemplateWithoutAContentTypeListRefusesEverythingTheWizardDoesNotProduce(string $ctype): void
+    {
+        $draftUid = $this->makeDraftOf(self::OPEN_TEMPLATE, [], [
+            $this->section('hero', 'text', 'Fine', '<p>ok</p>'),
+            $this->section('embed', $ctype, 'Embed', '<script>alert(1)</script>'),
+        ]);
+        $this->actAs(1);
+        $draft = $this->draftOf($draftUid);
+
+        try {
+            $this->approval()->approve($draftUid, $draft->version, self::OPEN_PARENT, self::NOW);
+            self::fail('A section of the type "' . $ctype . '" was approved.');
+        } catch (WorkspaceRefusedException $e) {
+            self::assertSame(WorkspaceRefusedException::INVALID, $e->reason);
+            self::assertStringContainsString('Section 2 (embed)', $e->getMessage(), 'the refusal names the section');
+        }
+
+        $after = $this->draftOf($draftUid);
+        self::assertSame(DraftStatus::Draft, $after->status, 'a refusal leaves the draft as it was');
+        self::assertSame($draft->version, $after->version);
+        self::assertSame(0, $after->approvedBy);
+        self::assertSame('', $after->approvalAttempt);
+        self::assertSame([], $this->pagesOfDraft($draftUid));
+        self::assertNotContains('approved', array_column($this->audit()->findByDraft($draftUid), 'action'));
+    }
+
+    #[Test]
+    public function aTemplateWithoutAContentTypeListApprovesTheTypesTheWizardProduces(): void
+    {
+        $draftUid = $this->makeDraftOf(self::OPEN_TEMPLATE, [], [
+            $this->section('a', 'text', 'A', '<p>a</p>'),
+            $this->section('b', 'textmedia', 'B', '<p>b</p>'),
+            $this->section('c', 'textpic', 'C', '<p>c</p>'),
+        ]);
+        $this->actAs(1);
+
+        $pageUid = $this->approval()->approve($draftUid, $this->draftOf($draftUid)->version, self::OPEN_PARENT, self::NOW);
+
+        self::assertSame(['A' => 'text', 'B' => 'textmedia', 'C' => 'textpic'], $this->typesByHeader($pageUid));
+    }
+
+    #[Test]
+    public function aContentTypeTheTemplateListNamesIsApprovedAndOneItDoesNotNameIsTurnedIntoText(): void
+    {
+        $draftUid = $this->makeDraftOf(self::HTML_TEMPLATE, [], [
+            $this->section('embed', 'html', 'Embed', '<p>x</p>'),
+            $this->section('list', 'list', 'List', '<p>y</p>'),
+        ]);
+        $this->actAs(1);
+
+        $pageUid = $this->approval()->approve($draftUid, $this->draftOf($draftUid)->version, self::OPEN_PARENT, self::NOW);
+
+        self::assertSame(['Embed' => 'html', 'List' => 'text'], $this->typesByHeader($pageUid), 'the allowlist of the template decides: html is its own, list is not');
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function pageFieldsAnOwnerMustNotSet(): iterable
+    {
+        yield 'content_from_pid' => ['content_from_pid', '7'];
+        yield 'fe_group' => ['fe_group', '-2'];
+        yield 'shortcut' => ['shortcut', '3'];
+        yield 'url' => ['url', 'https://evil.example/'];
+        yield 'nav_hide' => ['nav_hide', '1'];
+        yield 'target' => ['target', '_blank'];
+        yield 'extendToSubpages' => ['extendToSubpages', '1'];
+    }
+
+    #[Test]
+    #[DataProvider('pageFieldsAnOwnerMustNotSet')]
+    public function aTemplateWithoutAPageFieldListRefusesAFieldOutsideTheMetadataSet(string $field, string $value): void
+    {
+        $draftUid = $this->makeDraftOf(self::OPEN_TEMPLATE, ['description' => 'd', $field => $value], [$this->section('a', 'text', 'A', '<p>a</p>')]);
+        $this->actAs(1);
+        $draft = $this->draftOf($draftUid);
+
+        try {
+            $this->approval()->approve($draftUid, $draft->version, self::OPEN_PARENT, self::NOW);
+            self::fail('The page field "' . $field . '" was approved.');
+        } catch (WorkspaceRefusedException $e) {
+            self::assertSame(WorkspaceRefusedException::INVALID, $e->reason);
+            self::assertStringContainsString('"' . $field . '"', $e->getMessage());
+        }
+
+        $after = $this->draftOf($draftUid);
+        self::assertSame(DraftStatus::Draft, $after->status);
+        self::assertSame($draft->version, $after->version);
+        self::assertSame([], $this->pagesOfDraft($draftUid));
+    }
+
+    #[Test]
+    public function aTemplateWithoutAPageFieldListApprovesTheMetadataSetAndIgnoresReservedFields(): void
+    {
+        $fields = ['description' => 'Desc', 'abstract' => 'Abs', 'keywords' => 'a, b', 'author' => 'Ann', 'subtitle' => 'Sub', 'nav_title' => 'Nav', 'slug' => '/forged', 'doktype' => '254', 'hidden' => '0'];
+        $draftUid = $this->makeDraftOf(self::OPEN_TEMPLATE, $fields, [$this->section('a', 'text', 'A', '<p>a</p>')]);
+        $this->actAs(1);
+
+        $pageUid = $this->approval()->approve($draftUid, $this->draftOf($draftUid)->version, self::OPEN_PARENT, self::NOW);
+
+        $page = $this->row('pages', $pageUid);
+        self::assertSame('Desc', $page['description']);
+        self::assertSame('Abs', $page['abstract']);
+        self::assertSame('a, b', $page['keywords']);
+        self::assertSame('Ann', $page['author']);
+        self::assertSame('Sub', $page['subtitle']);
+        self::assertSame('Nav', $page['nav_title']);
+        self::assertSame(1, (int) $page['doktype'], 'a reserved field is dropped, as it always was');
+        self::assertSame(1, (int) $page['hidden']);
+        self::assertNotSame('/forged', $page['slug']);
+    }
+
+    #[Test]
+    public function aPageFieldTheTemplateListNamesIsAppliedAndOneItDoesNotNameIsDropped(): void
+    {
+        $draftUid = $this->makeDraftOf(self::HTML_TEMPLATE, ['description' => 'Desc', 'fe_group' => '-2', 'keywords' => 'k'], [$this->section('a', 'text', 'A', '<p>a</p>')]);
+        $this->actAs(1);
+
+        $pageUid = $this->approval()->approve($draftUid, $this->draftOf($draftUid)->version, self::OPEN_PARENT, self::NOW);
+
+        $page = $this->row('pages', $pageUid);
+        self::assertSame('Desc', $page['description']);
+        self::assertSame('-2', (string) $page['fe_group'], 'the template list is the template admin\'s decision');
+        self::assertSame('', (string) $page['keywords'], 'a field outside the template list is dropped');
+    }
+
     #[Test]
     public function aCreatedDraftHasNothingToReset(): void
     {
@@ -555,6 +705,7 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
             new SectionNormalizer($imageSearch, new \Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer()),
             $creator ?? $this->creator(),
             $this->container(WorkspacePages::class),
+            new ApprovalContentPolicy(),
         );
     }
 
@@ -609,6 +760,44 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
         self::assertNotNull($template);
 
         return $template;
+    }
+
+    /**
+     * A draft of the given template with the given page fields and sections, owned by user 2.
+     *
+     * @param array<string, string> $pageFields
+     * @param list<array<string, mixed>> $sections
+     */
+    private function makeDraftOf(int $templateUid, array $pageFields, array $sections): int
+    {
+        return $this->container(DraftRepository::class)->insert(2, 'Owned content', $templateUid, 0, [], $pageFields, $sections, [1], self::NOW);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function section(string $name, string $ctype, string $header, string $bodytext): array
+    {
+        return ['id' => bin2hex(random_bytes(8)), 'section' => $name, 'ctype' => $ctype, 'header' => $header, 'subheader' => '', 'bodytext' => $bodytext, 'imageUid' => 0, 'imageorient' => 0, 'colPos' => 0, 'animation' => []];
+    }
+
+    /**
+     * @return array<string, mixed> the content type of each element, by header
+     */
+    private function typesByHeader(int $pageUid): array
+    {
+        $types = array_column($this->contentOf($pageUid), 'CType', 'header');
+        ksort($types);
+
+        return $types;
+    }
+
+    private function draftOf(int $uid): WorkspaceDraft
+    {
+        $draft = $this->container(DraftRepository::class)->findByUid($uid);
+        self::assertNotNull($draft);
+
+        return $draft;
     }
 
     private function draft(): WorkspaceDraft
@@ -671,13 +860,14 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
     /**
      * @return list<int>
      */
-    private function pagesOfDraft(): array
+    private function pagesOfDraft(?int $draftUid = null): array
     {
+        $draftUid ??= $this->draftUid;
         $builder = $this->getConnectionPool()->getQueryBuilderForTable('pages');
         $builder->getRestrictions()->removeAll();
         $rows = $builder->select('uid')->from('pages')
             ->where(
-                $builder->expr()->like('tx_nrlandingpage_workspace_ref', $builder->createNamedParameter($this->draftUid . ':%')),
+                $builder->expr()->like('tx_nrlandingpage_workspace_ref', $builder->createNamedParameter($draftUid . ':%')),
                 $builder->expr()->eq('deleted', $builder->createNamedParameter(0, \TYPO3\CMS\Core\Database\Connection::PARAM_INT)),
             )
             ->executeQuery()->fetchFirstColumn();

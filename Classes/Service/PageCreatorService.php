@@ -28,7 +28,8 @@ class PageCreatorService implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
-    private const RESERVED_PAGE_FIELDS = [
+    /** Page fields no draft or wizard input may set; the page creation drops them. */
+    public const RESERVED_PAGE_FIELDS = [
         'uid',
         'pid',
         'doktype',

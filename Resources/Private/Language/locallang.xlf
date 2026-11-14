@@ -714,6 +714,15 @@
             <trans-unit id="workspace.show.section.untitled" resname="workspace.show.section.untitled">
                 <source>Section</source>
             </trans-unit>
+            <trans-unit id="workspace.show.section.ctype" resname="workspace.show.section.ctype">
+                <source>Content type</source>
+            </trans-unit>
+            <trans-unit id="workspace.approval.pageFields" resname="workspace.approval.pageFields">
+                <source>Page fields</source>
+            </trans-unit>
+            <trans-unit id="workspace.approval.pageFields.help" resname="workspace.approval.pageFields.help">
+                <source>These page fields are set on the new page. The owner of the draft chose them; an approval refuses fields outside the title, description and SEO metadata unless the template lists them.</source>
+            </trans-unit>
             <trans-unit id="workspace.show.links" resname="workspace.show.links">
                 <source>Share links</source>
             </trans-unit>
