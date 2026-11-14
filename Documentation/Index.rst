@@ -43,4 +43,5 @@ step-by-step backend wizard.
    Installation/Index
    Configuration/Index
    Usage/Index
+   Workspace/Index
    Troubleshooting/Index

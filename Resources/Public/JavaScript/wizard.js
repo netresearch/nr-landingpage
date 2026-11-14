@@ -1932,10 +1932,95 @@ class LandingPageWizard {
 
         this.renderSummary(container);
         this.appendSeoCheck(container, form);
+        this.appendDraftOption(container, form);
 
         // Repurpose the Next button as "Generate Landing Page" action
         this.replaceNextButtonWithGenerate(form);
         this.focusStep(container);
+    }
+
+    /**
+     * "Save as workspace draft" (ADR-0001): keep the content as a draft in the
+     * Content Workspace instead of creating the page now. Offered for
+     * structured content only; the page is created after an approval there.
+     *
+     * @param {HTMLElement} container
+     * @param {HTMLFormElement} form
+     */
+    appendDraftOption(container, form) {
+        if (!this.getAjaxUrl('saveDraft') || WizardState.generationMode === 'creative') {
+            return;
+        }
+        const card = document.createElement('div');
+        card.className = 'card mt-4';
+        card.dataset.draftOption = '';
+        const body = document.createElement('div');
+        body.className = 'card-body d-flex flex-wrap align-items-center gap-3';
+        const help = document.createElement('p');
+        help.className = 'mb-0 flex-grow-1';
+        help.textContent = this.label('wizard.draft.help');
+        const button = this.createButton(this.label('wizard.button.saveDraft'), 'btn btn-default', () => {
+            void this.saveDraft(form, button);
+        });
+        button.dataset.saveDraft = '';
+        body.append(help, button);
+        card.appendChild(body);
+        container.appendChild(card);
+    }
+
+    /**
+     * Save the wizard's content as a workspace draft, then open the draft.
+     *
+     * @param {HTMLFormElement} form
+     * @param {HTMLButtonElement} button
+     */
+    async saveDraft(form, button) {
+        if (this.isBusy()) {
+            return;
+        }
+        const template = WizardState.getTemplate();
+        if (!template || !template.uid) {
+            Notification.error(this.label('wizard.error.templateMissing'), '');
+            return;
+        }
+        const titleInput = form.querySelector('#placement_title');
+        const title = titleInput?.value?.trim() || '';
+        if (!title) {
+            Notification.warning(
+                this.label('wizard.notification.titleRequired'),
+                this.label('wizard.notification.pageTitleRequired'),
+            );
+            titleInput?.focus();
+            return;
+        }
+        const parentPageId = Number.parseInt(form.querySelector('#placement_parent')?.value || '0', 10);
+
+        const owner = this.takeBusy(null);
+        button.disabled = true;
+        try {
+            const result = await this.fetchJson(this.getAjaxUrl('saveDraft'), {
+                templateUid: template.uid,
+                parentPageId: Math.max(parentPageId, 0),
+                title: title,
+                pageFields: WizardState.getPageFields(),
+                contentSections: WizardState.getContentSections(),
+                briefingAnswers: WizardState.getBriefingAnswers(),
+            }, 0);
+            Notification.success(
+                this.label('wizard.draft.saved'),
+                this.label('wizard.draft.savedMessage', title),
+            );
+            MultiStepWizard.dismiss();
+            const showUrl = TYPO3.settings.NrLandingpage?.moduleUrls?.workspaceShow || '';
+            if (result.draftUid && showUrl) {
+                top.TYPO3.Backend.ContentContainer.setUrl(showUrl + '&draft=' + encodeURIComponent(result.draftUid));
+            }
+        } catch (error) {
+            button.disabled = false;
+            Notification.error(this.label('wizard.draft.failed', error.message), '');
+        } finally {
+            this.releaseBusy(owner);
+        }
     }
 
     /**

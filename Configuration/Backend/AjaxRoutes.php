@@ -8,6 +8,7 @@ declare(strict_types=1);
  */
 
 use Netresearch\NrLandingpage\Controller\Backend\LandingPageWizardController;
+use Netresearch\NrLandingpage\Controller\Backend\WorkspaceAjaxController;
 
 return [
     'nr_landingpage_templates' => [
@@ -61,5 +62,17 @@ return [
     'nr_landingpage_generation_info' => [
         'path' => '/nr-landingpage/wizard/generation-info',
         'target' => LandingPageWizardController::class . '::generationInfoAction',
+    ],
+    'nr_landingpage_workspace_save_draft' => [
+        'path' => '/nr-landingpage/workspace/save-draft',
+        'target' => WorkspaceAjaxController::class . '::saveDraftAction',
+    ],
+    'nr_landingpage_workspace_create_link' => [
+        'path' => '/nr-landingpage/workspace/create-link',
+        'target' => WorkspaceAjaxController::class . '::createLinkAction',
+    ],
+    'nr_landingpage_workspace_revoke_link' => [
+        'path' => '/nr-landingpage/workspace/revoke-link',
+        'target' => WorkspaceAjaxController::class . '::revokeLinkAction',
     ],
 ];

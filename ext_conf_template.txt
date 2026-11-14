@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
+
+workspace {
+    # cat=workspace; type=boolean; label=Enable the review page for share links: Answers below /nr-landingpage/review. When off, the site answers its standard 404.
+    enabled = 1
+
+    # cat=workspace; type=int+; label=Default link lifetime in days: The lifetime the share link form offers (never above the maximum).
+    defaultLinkLifetimeDays = 7
+
+    # cat=workspace; type=int+; label=Maximum link lifetime in days: No share link lives longer. Values above 90 count as 90.
+    maxLinkLifetimeDays = 30
+
+    # cat=workspace; type=string; label=Public base URL: Origin the share links are built from (https://host, no path). Empty uses the origin of the backend request.
+    publicBaseUrl =
+
+    # cat=workspace; type=boolean; label=Allow the review page over plain HTTP: For local development and tests only. Off, a request TYPO3 does not see as HTTPS gets a 404.
+    allowInsecureHttp = 0
+}

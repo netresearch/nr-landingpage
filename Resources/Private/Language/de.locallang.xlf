@@ -873,6 +873,314 @@
                 <source>The chosen image file has no alternative text. Add one in the file's metadata.</source>
                 <target>Die gewählte Bilddatei hat keinen Alternativtext. Ergänzen Sie ihn in den Metadaten der Datei.</target>
             </trans-unit>
+            <trans-unit id="workspace.module.title" resname="workspace.module.title">
+                <source>Content Workspace</source>
+                <target>Content Workspace</target>
+            </trans-unit>
+            <trans-unit id="workspace.index.description" resname="workspace.index.description">
+                <source>Drafts of landing page content. Share a draft by link with people who have no TYPO3 login, collect their comments, and approve it before the page is created.</source>
+                <target>Entwürfe für Landing-Page-Inhalte. Teilen Sie einen Entwurf per Link mit Personen ohne TYPO3-Login, sammeln Sie deren Kommentare und geben Sie ihn frei, bevor die Seite angelegt wird.</target>
+            </trans-unit>
+            <trans-unit id="workspace.index.empty" resname="workspace.index.empty">
+                <source>There are no drafts you may see yet.</source>
+                <target>Es gibt noch keine Entwürfe, die Sie sehen dürfen.</target>
+            </trans-unit>
+            <trans-unit id="workspace.index.howTo" resname="workspace.index.howTo">
+                <source>A draft is saved from the last step of the landing page wizard ("Save as workspace draft").</source>
+                <target>Einen Entwurf speichern Sie im letzten Schritt des Landing-Page-Assistenten („Als Workspace-Entwurf speichern“).</target>
+            </trans-unit>
+            <trans-unit id="workspace.index.openWizard" resname="workspace.index.openWizard">
+                <source>Open the wizard</source>
+                <target>Assistenten öffnen</target>
+            </trans-unit>
+            <trans-unit id="workspace.index.col.title" resname="workspace.index.col.title">
+                <source>Title</source>
+                <target>Titel</target>
+            </trans-unit>
+            <trans-unit id="workspace.index.col.status" resname="workspace.index.col.status">
+                <source>Status</source>
+                <target>Status</target>
+            </trans-unit>
+            <trans-unit id="workspace.index.col.sections" resname="workspace.index.col.sections">
+                <source>Sections</source>
+                <target>Abschnitte</target>
+            </trans-unit>
+            <trans-unit id="workspace.index.col.owner" resname="workspace.index.col.owner">
+                <source>Owner</source>
+                <target>Besitzer</target>
+            </trans-unit>
+            <trans-unit id="workspace.index.col.updated" resname="workspace.index.col.updated">
+                <source>Changed</source>
+                <target>Geändert</target>
+            </trans-unit>
+            <trans-unit id="workspace.status.draft" resname="workspace.status.draft">
+                <source>Draft</source>
+                <target>Entwurf</target>
+            </trans-unit>
+            <trans-unit id="workspace.status.approved" resname="workspace.status.approved">
+                <source>Approved</source>
+                <target>Freigegeben</target>
+            </trans-unit>
+            <trans-unit id="workspace.status.created" resname="workspace.status.created">
+                <source>Page created</source>
+                <target>Seite angelegt</target>
+            </trans-unit>
+            <trans-unit id="workspace.show.back" resname="workspace.show.back">
+                <source>All drafts</source>
+                <target>Alle Entwürfe</target>
+            </trans-unit>
+            <trans-unit id="workspace.show.version" resname="workspace.show.version">
+                <source>Version %s</source>
+                <target>Version %s</target>
+            </trans-unit>
+            <trans-unit id="workspace.show.owner" resname="workspace.show.owner">
+                <source>Owner</source>
+                <target>Besitzer</target>
+            </trans-unit>
+            <trans-unit id="workspace.show.sections" resname="workspace.show.sections">
+                <source>Content</source>
+                <target>Inhalt</target>
+            </trans-unit>
+            <trans-unit id="workspace.show.sections.note" resname="workspace.show.sections.note">
+                <source>The text as reviewers see it: plain text, without formatting.</source>
+                <target>Der Text, wie ihn Prüfende sehen: reiner Text ohne Formatierung.</target>
+            </trans-unit>
+            <trans-unit id="workspace.show.section.untitled" resname="workspace.show.section.untitled">
+                <source>Section</source>
+                <target>Abschnitt</target>
+            </trans-unit>
+            <trans-unit id="workspace.show.links" resname="workspace.show.links">
+                <source>Share links</source>
+                <target>Freigabelinks</target>
+            </trans-unit>
+            <trans-unit id="workspace.show.audit" resname="workspace.show.audit">
+                <source>History</source>
+                <target>Verlauf</target>
+            </trans-unit>
+            <trans-unit id="workspace.links.empty" resname="workspace.links.empty">
+                <source>No share link yet.</source>
+                <target>Noch kein Freigabelink.</target>
+            </trans-unit>
+            <trans-unit id="workspace.links.col.label" resname="workspace.links.col.label">
+                <source>Label</source>
+                <target>Bezeichnung</target>
+            </trans-unit>
+            <trans-unit id="workspace.links.col.permission" resname="workspace.links.col.permission">
+                <source>Permission</source>
+                <target>Berechtigung</target>
+            </trans-unit>
+            <trans-unit id="workspace.links.col.expires" resname="workspace.links.col.expires">
+                <source>Expires</source>
+                <target>Läuft ab</target>
+            </trans-unit>
+            <trans-unit id="workspace.links.col.uses" resname="workspace.links.col.uses">
+                <source>Used</source>
+                <target>Genutzt</target>
+            </trans-unit>
+            <trans-unit id="workspace.links.col.state" resname="workspace.links.col.state">
+                <source>State</source>
+                <target>Zustand</target>
+            </trans-unit>
+            <trans-unit id="workspace.links.col.created" resname="workspace.links.col.created">
+                <source>Created by</source>
+                <target>Erstellt von</target>
+            </trans-unit>
+            <trans-unit id="workspace.links.passphrase" resname="workspace.links.passphrase">
+                <source>passphrase</source>
+                <target>Passphrase</target>
+            </trans-unit>
+            <trans-unit id="workspace.links.unlimited" resname="workspace.links.unlimited">
+                <source>unlimited</source>
+                <target>unbegrenzt</target>
+            </trans-unit>
+            <trans-unit id="workspace.perm.view" resname="workspace.perm.view">
+                <source>View</source>
+                <target>Ansehen</target>
+            </trans-unit>
+            <trans-unit id="workspace.perm.comment" resname="workspace.perm.comment">
+                <source>Comment</source>
+                <target>Kommentieren</target>
+            </trans-unit>
+            <trans-unit id="workspace.perm.edit" resname="workspace.perm.edit">
+                <source>Edit</source>
+                <target>Bearbeiten</target>
+            </trans-unit>
+            <trans-unit id="workspace.link.state.active" resname="workspace.link.state.active">
+                <source>Active</source>
+                <target>Aktiv</target>
+            </trans-unit>
+            <trans-unit id="workspace.link.state.expired" resname="workspace.link.state.expired">
+                <source>Expired</source>
+                <target>Abgelaufen</target>
+            </trans-unit>
+            <trans-unit id="workspace.link.state.revoked" resname="workspace.link.state.revoked">
+                <source>Revoked</source>
+                <target>Widerrufen</target>
+            </trans-unit>
+            <trans-unit id="workspace.link.state.usedUp" resname="workspace.link.state.usedUp">
+                <source>Used up</source>
+                <target>Ausgeschöpft</target>
+            </trans-unit>
+            <trans-unit id="workspace.link.revoke" resname="workspace.link.revoke">
+                <source>Revoke</source>
+                <target>Widerrufen</target>
+            </trans-unit>
+            <trans-unit id="workspace.link.revoke.confirm" resname="workspace.link.revoke.confirm">
+                <source>Revoke this link? People who have it lose access at once.</source>
+                <target>Diesen Link widerrufen? Wer ihn hat, verliert sofort den Zugriff.</target>
+            </trans-unit>
+            <trans-unit id="workspace.link.revoke.failed" resname="workspace.link.revoke.failed">
+                <source>The link could not be revoked.</source>
+                <target>Der Link konnte nicht widerrufen werden.</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.heading" resname="workspace.form.heading">
+                <source>Create a share link</source>
+                <target>Freigabelink erstellen</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.noShare" resname="workspace.form.noShare">
+                <source>Only the owner and administrators create or revoke share links.</source>
+                <target>Nur der Besitzer und Administratoren erstellen oder widerrufen Freigabelinks.</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.label" resname="workspace.form.label">
+                <source>Label (who is it for?)</source>
+                <target>Bezeichnung (für wen ist er?)</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.permission" resname="workspace.form.permission">
+                <source>Permission</source>
+                <target>Berechtigung</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.permission.view" resname="workspace.form.permission.view">
+                <source>View: read the draft and the comments</source>
+                <target>Ansehen: Entwurf und Kommentare lesen</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.permission.comment" resname="workspace.form.permission.comment">
+                <source>Comment: also comment and suggest changes</source>
+                <target>Kommentieren: zusätzlich kommentieren und Änderungen vorschlagen</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.permission.edit" resname="workspace.form.permission.edit">
+                <source>Edit: also change the texts directly</source>
+                <target>Bearbeiten: zusätzlich Texte direkt ändern</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.lifetime" resname="workspace.form.lifetime">
+                <source>Valid for (days, at most %s)</source>
+                <target>Gültig für (Tage, höchstens %s)</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.passphrase" resname="workspace.form.passphrase">
+                <source>Passphrase (optional)</source>
+                <target>Passphrase (optional)</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.passphrase.help" resname="workspace.form.passphrase.help">
+                <source>At least 8 characters. Pass it on separately from the link.</source>
+                <target>Mindestens 8 Zeichen. Geben Sie sie getrennt vom Link weiter.</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.maxUses" resname="workspace.form.maxUses">
+                <source>Usage limit (optional)</source>
+                <target>Nutzungslimit (optional)</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.maxUses.help" resname="workspace.form.maxUses.help">
+                <source>How often the link may be opened. Empty means no limit.</source>
+                <target>Wie oft der Link geöffnet werden darf. Leer bedeutet unbegrenzt.</target>
+            </trans-unit>
+            <trans-unit id="workspace.form.submit" resname="workspace.form.submit">
+                <source>Create link</source>
+                <target>Link erstellen</target>
+            </trans-unit>
+            <trans-unit id="workspace.reveal.heading" resname="workspace.reveal.heading">
+                <source>Your new share link</source>
+                <target>Ihr neuer Freigabelink</target>
+            </trans-unit>
+            <trans-unit id="workspace.reveal.note" resname="workspace.reveal.note">
+                <source>This link is shown once. Copy it now: it cannot be shown again, and a lost link has to be revoked and replaced.</source>
+                <target>Dieser Link wird nur einmal angezeigt. Kopieren Sie ihn jetzt: Er lässt sich nicht erneut anzeigen, ein verlorener Link muss widerrufen und ersetzt werden.</target>
+            </trans-unit>
+            <trans-unit id="workspace.reveal.field" resname="workspace.reveal.field">
+                <source>Share link</source>
+                <target>Freigabelink</target>
+            </trans-unit>
+            <trans-unit id="workspace.reveal.copy" resname="workspace.reveal.copy">
+                <source>Copy link</source>
+                <target>Link kopieren</target>
+            </trans-unit>
+            <trans-unit id="workspace.reveal.copied" resname="workspace.reveal.copied">
+                <source>The link is in the clipboard.</source>
+                <target>Der Link liegt in der Zwischenablage.</target>
+            </trans-unit>
+            <trans-unit id="workspace.reveal.copyFailed" resname="workspace.reveal.copyFailed">
+                <source>The link could not be copied. It is selected: copy it by hand.</source>
+                <target>Der Link ließ sich nicht kopieren. Er ist markiert: Kopieren Sie ihn von Hand.</target>
+            </trans-unit>
+            <trans-unit id="workspace.reveal.close" resname="workspace.reveal.close">
+                <source>I have copied it, close</source>
+                <target>Ich habe ihn kopiert, schließen</target>
+            </trans-unit>
+            <trans-unit id="workspace.error.generic" resname="workspace.error.generic">
+                <source>The request failed.</source>
+                <target>Die Anfrage ist fehlgeschlagen.</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.empty" resname="workspace.audit.empty">
+                <source>Nothing has happened yet.</source>
+                <target>Bisher ist nichts passiert.</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.link_created" resname="workspace.audit.link_created">
+                <source>Link %s created</source>
+                <target>Link %s erstellt</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.link_opened" resname="workspace.audit.link_opened">
+                <source>Link %s opened</source>
+                <target>Link %s geöffnet</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.link_revoked" resname="workspace.audit.link_revoked">
+                <source>Link %s revoked</source>
+                <target>Link %s widerrufen</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.suggestion_accepted" resname="workspace.audit.suggestion_accepted">
+                <source>Suggestion accepted</source>
+                <target>Vorschlag übernommen</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.suggestion_rejected" resname="workspace.audit.suggestion_rejected">
+                <source>Suggestion rejected</source>
+                <target>Vorschlag abgelehnt</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.approved" resname="workspace.audit.approved">
+                <source>Draft approved</source>
+                <target>Entwurf freigegeben</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.page_created" resname="workspace.audit.page_created">
+                <source>Page created</source>
+                <target>Seite angelegt</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.approval_reverted" resname="workspace.audit.approval_reverted">
+                <source>Approval reverted</source>
+                <target>Freigabe zurückgenommen</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.approval_reset" resname="workspace.audit.approval_reset">
+                <source>Approval reset</source>
+                <target>Freigabe zurückgesetzt</target>
+            </trans-unit>
+            <trans-unit id="wizard.button.saveDraft" resname="wizard.button.saveDraft">
+                <source>Save as workspace draft</source>
+                <target>Als Workspace-Entwurf speichern</target>
+            </trans-unit>
+            <trans-unit id="wizard.draft.help" resname="wizard.draft.help">
+                <source>Keep the content as a draft, share it by link for comments, and create the page after approval. The page is not created now.</source>
+                <target>Den Inhalt als Entwurf behalten, per Link zur Kommentierung freigeben und die Seite nach der Freigabe anlegen. Die Seite wird jetzt nicht angelegt.</target>
+            </trans-unit>
+            <trans-unit id="wizard.draft.saved" resname="wizard.draft.saved">
+                <source>Draft saved</source>
+                <target>Entwurf gespeichert</target>
+            </trans-unit>
+            <trans-unit id="wizard.draft.savedMessage" resname="wizard.draft.savedMessage">
+                <source>The draft "%s" is in the Content Workspace.</source>
+                <target>Der Entwurf „%s“ liegt im Content Workspace.</target>
+            </trans-unit>
+            <trans-unit id="wizard.draft.open" resname="wizard.draft.open">
+                <source>Open the draft</source>
+                <target>Entwurf öffnen</target>
+            </trans-unit>
+            <trans-unit id="wizard.draft.failed" resname="wizard.draft.failed">
+                <source>The draft could not be saved: %s</source>
+                <target>Der Entwurf konnte nicht gespeichert werden: %s</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

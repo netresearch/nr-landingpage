@@ -13,6 +13,12 @@ services:
   Netresearch\NrLandingpage\Controller\Backend\LandingPageWizardController:
     public: true
 
+  Netresearch\NrLandingpage\Controller\Backend\WorkspaceController:
+    public: true
+
+  Netresearch\NrLandingpage\Controller\Backend\WorkspaceAjaxController:
+    public: true
+
   Netresearch\NrLandingpage\Service\TemplateService:
     public: true
 
@@ -30,6 +36,30 @@ services:
     configurator: ['@Netresearch\NrLandingpage\Service\ImageGeneratorRegistrar', 'register']
 
   Netresearch\NrLandingpage\Service\PageCreatorService:
+    public: true
+
+  Netresearch\NrLandingpage\Service\SectionNormalizer:
+    public: true
+
+  Netresearch\NrLandingpage\Service\Workspace\DraftRepository:
+    public: true
+
+  Netresearch\NrLandingpage\Service\Workspace\ShareLinkRepository:
+    public: true
+
+  Netresearch\NrLandingpage\Service\Workspace\AuditRepository:
+    public: true
+
+  Netresearch\NrLandingpage\Service\Workspace\DraftAccessGuard:
+    public: true
+
+  Netresearch\NrLandingpage\Service\Workspace\DraftService:
+    public: true
+
+  Netresearch\NrLandingpage\Service\Workspace\ShareLinkService:
+    public: true
+
+  Netresearch\NrLandingpage\Service\Workspace\WorkspaceSettings:
     public: true
 
   Netresearch\NrLandingpage\Service\LandingPageDetectionService:

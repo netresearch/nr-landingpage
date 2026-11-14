@@ -15,12 +15,13 @@ use Netresearch\NrLandingpage\Domain\Model\SeoFinding;
 use Netresearch\NrLandingpage\Service\BackendAccessGuard;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
-use Netresearch\NrLandingpage\Service\CreativeHtmlSanitizer;
 use Netresearch\NrLandingpage\Service\GuardrailHintCapture;
+use Netresearch\NrLandingpage\Service\ImageNotReadableException;
 use Netresearch\NrLandingpage\Service\ImageProviderService;
 use Netresearch\NrLandingpage\Service\ImageSearchService;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
 use Netresearch\NrLandingpage\Service\PromptOptimizerService;
+use Netresearch\NrLandingpage\Service\SectionNormalizer;
 use Netresearch\NrLandingpage\Service\SeoCheckService;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use Psr\Http\Message\ResponseInterface;
@@ -60,7 +61,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
         private readonly PageCreatorService $pageCreatorService,
         private readonly ConnectionPool $connectionPool,
         private readonly SiteFinder $siteFinder,
-        private readonly CreativeHtmlSanitizer $creativeHtmlSanitizer,
+        private readonly SectionNormalizer $sectionNormalizer,
         private readonly BackendAccessGuard $accessGuard,
         private readonly ?PromptOptimizerService $promptOptimizerService = null,
         private readonly GuardrailHintCapture $hintCapture = new GuardrailHintCapture(),
@@ -428,47 +429,10 @@ final class LandingPageWizardController implements LoggerAwareInterface
             /** @var array<string, string> $stringPageFields */
             $stringPageFields = array_map(strval(...), array_filter($pageFields, is_string(...)));
 
-            $allowedCTypes = $template->allowedCTypes;
-
-            /** @var list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string}> $typedSections */
-            $typedSections = [];
-            foreach ($contentSections as $section) {
-                if (!is_array($section)) {
-                    continue;
-                }
-                $ctype = is_string($section['ctype'] ?? null) ? $section['ctype'] : '';
-                // Creative mode always uses CType "html" — skip allowlist enforcement
-                if (!$template->isCreativeMode() && $allowedCTypes !== [] && $ctype !== '' && !in_array($ctype, $allowedCTypes, true)) {
-                    $ctype = 'text';
-                }
-                $rawImageUid = $section['imageUid'] ?? 0;
-                $imageUid = is_numeric($rawImageUid) ? (int) $rawImageUid : 0;
-                if ($imageUid > 0 && !$this->imageSearchService->isReadable($imageUid)) {
-                    return $this->forbiddenResponse();
-                }
-
-                $rawColPos = $section['colPos'] ?? 0;
-                $colPos = is_numeric($rawColPos) ? (int) $rawColPos : 0;
-
-                $bodytext = is_string($section['bodytext'] ?? null) ? $section['bodytext'] : '';
-                // Re-sanitize creative mode content at save time (editors can edit source in wizard)
-                if ($template->isCreativeMode()) {
-                    $bodytext = $this->creativeHtmlSanitizer->sanitize($bodytext);
-                }
-
-                $rawImageorient = $section['imageorient'] ?? 0;
-                $imageorient = is_numeric($rawImageorient) ? (int) $rawImageorient : 0;
-
-                $typedSections[] = [
-                    'section' => is_string($section['section'] ?? null) ? $section['section'] : '',
-                    'ctype' => $ctype,
-                    'header' => is_string($section['header'] ?? null) ? $section['header'] : '',
-                    'subheader' => is_string($section['subheader'] ?? null) ? $section['subheader'] : '',
-                    'bodytext' => $bodytext,
-                    'imageUid' => $imageUid,
-                    'imageorient' => $imageorient,
-                    'colPos' => $colPos,
-                ];
+            try {
+                $typedSections = $this->sectionNormalizer->normalize($contentSections, $template);
+            } catch (ImageNotReadableException) {
+                return $this->forbiddenResponse();
             }
 
             $briefingAnswers = $this->extractArrayFromBody($body, 'briefingAnswers');
@@ -483,13 +447,7 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 sourcePageUid: $sourcePageUid,
             );
 
-            /** @var array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animations */
-            $animations = array_values(array_map(
-                static fn(mixed $section): array => is_array($section) && is_array($section['animation'] ?? null)
-                    ? $section['animation']
-                    : [],
-                $contentSections,
-            ));
+            $animations = $this->sectionNormalizer->animations($contentSections);
 
             $result = $this->pageCreatorService->createLandingPage(
                 $template,
@@ -806,11 +764,13 @@ final class LandingPageWizardController implements LoggerAwareInterface
                 'optimizePrompt' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_optimize_prompt'),
                 'checkParentPage' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_check_parent_page'),
                 'checkSeo' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_check_seo'),
+                'saveDraft' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_workspace_save_draft'),
             ],
             'moduleUrls' => [
                 'editRecord' => (string) $this->uriBuilder->buildUriFromRoute('record_edit'),
                 'pageLayout' => (string) $this->uriBuilder->buildUriFromRoute('web_layout'),
                 'pageBrowser' => $this->pageBrowserUrl(),
+                'workspaceShow' => (string) $this->uriBuilder->buildUriFromRoute('nr_landingpage_workspace.show'),
             ],
         ]);
 

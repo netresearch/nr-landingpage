@@ -1,0 +1,172 @@
+<f:comment>SPDX-License-Identifier: GPL-2.0-or-later</f:comment>
+<f:comment>SPDX-FileCopyrightText: Netresearch DTT GmbH</f:comment>
+<f:layout name="Module" />
+<f:section name="Content">
+    <div class="nr-landingpage-workspace p-4" id="nr-landingpage-workspace" data-draft-uid="{draft.uid}">
+        <p class="mb-2">
+            <a href="{indexUrl}">&larr; <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.back" /></a>
+        </p>
+        <h1 class="mb-1">{draft.title}</h1>
+        <p class="text-variant mb-4">
+            <span class="badge badge-default"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.status.{draft.status}" /></span>
+            <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.version" arguments="{0: draft.version}" />
+            &middot; <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.owner" />: {draft.owner}
+            &middot; <f:format.date format="Y-m-d H:i">{draft.updated}</f:format.date>
+        </p>
+
+        <section class="mb-5" aria-labelledby="ws-links-heading">
+            <h2 class="h4 mb-3" id="ws-links-heading"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.links" /></h2>
+
+            <f:if condition="{mayShare}">
+                <section class="card mb-4" id="ws-reveal" hidden tabindex="-1" aria-labelledby="ws-reveal-heading">
+                    <div class="card-body">
+                        <h3 class="h5" id="ws-reveal-heading"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.reveal.heading" /></h3>
+                        <p><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.reveal.note" /></p>
+                        <label class="form-label" for="ws-reveal-value">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.reveal.field')}</label>
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="ws-reveal-value" readonly autocomplete="off" spellcheck="false" />
+                            <button type="button" class="btn btn-default" id="ws-reveal-copy"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.reveal.copy" /></button>
+                        </div>
+                        <button type="button" class="btn btn-primary" id="ws-reveal-close"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.reveal.close" /></button>
+                    </div>
+                </section>
+            </f:if>
+
+            <f:if condition="{links}">
+                <f:then>
+                    <div class="table-fit">
+                        <table class="table table-striped" id="ws-links">
+                            <thead>
+                                <tr>
+                                    <th scope="col"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.links.col.label" /></th>
+                                    <th scope="col"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.links.col.permission" /></th>
+                                    <th scope="col"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.links.col.expires" /></th>
+                                    <th scope="col"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.links.col.uses" /></th>
+                                    <th scope="col"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.links.col.state" /></th>
+                                    <th scope="col"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.links.col.created" /></th>
+                                    <th scope="col"><span class="visually-hidden"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.link.revoke" /></span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <f:for each="{links}" as="link">
+                                    <tr data-link-uid="{link.uid}" data-link-state="{link.state}">
+                                        <td>
+                                            {link.label}
+                                            <code class="text-variant">{link.shortId}</code>
+                                            <f:if condition="{link.hasPassphrase}">
+                                                <span class="badge badge-info"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.links.passphrase" /></span>
+                                            </f:if>
+                                        </td>
+                                        <td><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.perm.{link.permission}" /></td>
+                                        <td><f:format.date format="Y-m-d H:i">{link.expires}</f:format.date></td>
+                                        <td>
+                                            {link.useCount} /
+                                            <f:if condition="{link.maxUses}">
+                                                <f:then>{link.maxUses}</f:then>
+                                                <f:else><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.links.unlimited" /></f:else>
+                                            </f:if>
+                                        </td>
+                                        <td><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.link.state.{link.state}" /></td>
+                                        <td>{link.createdBy}</td>
+                                        <td>
+                                            <f:if condition="{mayShare}">
+                                                <f:if condition="{link.active}">
+                                                    <button type="button" class="btn btn-sm btn-danger js-ws-revoke" data-link-uid="{link.uid}">
+                                                        <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.link.revoke" />
+                                                    </button>
+                                                </f:if>
+                                            </f:if>
+                                        </td>
+                                    </tr>
+                                </f:for>
+                            </tbody>
+                        </table>
+                    </div>
+                </f:then>
+                <f:else>
+                    <p class="text-variant" id="ws-links-empty"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.links.empty" /></p>
+                </f:else>
+            </f:if>
+
+            <f:if condition="{mayShare}">
+                <f:then>
+                    <f:if condition="{draft.status} == 'draft' && {linksEnabled}">
+                        <form class="card mt-4" id="ws-link-form" novalidate>
+                            <div class="card-body">
+                                <h3 class="h5 mb-3"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.heading" /></h3>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="ws-label">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.label')}</label>
+                                        <input type="text" class="form-control" id="ws-label" name="label" maxlength="255" autocomplete="off" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="ws-permission">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.permission')}</label>
+                                        <select class="form-select" id="ws-permission" name="permission">
+                                            <option value="view"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.permission.view" /></option>
+                                            <option value="comment" selected="selected"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.permission.comment" /></option>
+                                            <option value="edit"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.permission.edit" /></option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="ws-lifetime">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.lifetime', arguments: {0: maxLifetimeDays})}</label>
+                                        <input type="number" class="form-control" id="ws-lifetime" name="lifetimeDays" min="1" max="{maxLifetimeDays}" value="{defaultLifetimeDays}" required="required" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="ws-passphrase">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.passphrase')}</label>
+                                        <input type="password" class="form-control" id="ws-passphrase" name="passphrase" minlength="8" maxlength="200" autocomplete="new-password" aria-describedby="ws-passphrase-help" />
+                                        <div class="form-text" id="ws-passphrase-help"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.passphrase.help" /></div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="ws-maxuses">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.maxUses')}</label>
+                                        <input type="number" class="form-control" id="ws-maxuses" name="maxUses" min="1" max="1000" aria-describedby="ws-maxuses-help" />
+                                        <div class="form-text" id="ws-maxuses-help"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.maxUses.help" /></div>
+                                    </div>
+                                </div>
+                                <p class="text-danger mt-3 mb-0" id="ws-form-error" role="alert" hidden></p>
+                                <button type="submit" class="btn btn-primary mt-3" id="ws-form-submit"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.submit" /></button>
+                            </div>
+                        </form>
+                    </f:if>
+                </f:then>
+                <f:else>
+                    <p class="text-variant mt-3"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.form.noShare" /></p>
+                </f:else>
+            </f:if>
+        </section>
+
+        <section class="mb-5" aria-labelledby="ws-sections-heading">
+            <h2 class="h4 mb-1" id="ws-sections-heading"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.sections" /></h2>
+            <p class="text-variant"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.sections.note" /></p>
+            <f:for each="{sections}" as="section" iteration="iteration">
+                <article class="card mb-3" data-section-id="{section.id}">
+                    <div class="card-body">
+                        <p class="text-variant small mb-1">{iteration.cycle}. <f:if condition="{section.name}"><f:then>{section.name}</f:then><f:else><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.section.untitled" /></f:else></f:if></p>
+                        <f:if condition="{section.header}"><h3 class="h5">{section.header}</h3></f:if>
+                        <f:if condition="{section.subheader}"><p class="fw-bold">{section.subheader}</p></f:if>
+                        <f:for each="{section.lines}" as="line"><p class="mb-1">{line}</p></f:for>
+                    </div>
+                </article>
+            </f:for>
+        </section>
+
+        <section aria-labelledby="ws-audit-heading">
+            <h2 class="h4 mb-3" id="ws-audit-heading"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.audit" /></h2>
+            <f:if condition="{audit}">
+                <f:then>
+                    <ul class="list-unstyled" id="ws-audit">
+                        <f:for each="{audit}" as="entry">
+                            <li>
+                                <f:format.date format="Y-m-d H:i">{entry.when}</f:format.date>
+                                &middot; <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.audit.{entry.action}" arguments="{0: entry.linkUid}" />
+                                <f:if condition="{entry.user}">&middot; {entry.user}</f:if>
+                            </li>
+                        </f:for>
+                    </ul>
+                </f:then>
+                <f:else>
+                    <p class="text-variant"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.audit.empty" /></p>
+                </f:else>
+            </f:if>
+        </section>
+    </div>
+</f:section>
