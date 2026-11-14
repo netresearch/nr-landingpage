@@ -12,7 +12,11 @@ namespace Netresearch\NrLandingpage\Tests\Functional\Controller;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Routing\Exception\MethodNotAllowedException;
+use Symfony\Component\Routing\Matcher\UrlMatcher;
+use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route as SymfonyRoute;
+use Symfony\Component\Routing\RouteCollection;
 use Throwable;
 use TypeError;
 use TYPO3\CMS\Backend\Http\RouteDispatcher;
@@ -112,6 +116,36 @@ final class WorkspaceRouteTokenTest extends FunctionalTestCase
         }
 
         $this->addToAssertionCount(1);
+    }
+
+    /**
+     * The routes change state, so only POST reaches them: the URL matcher the
+     * router is built on refuses a GET (and anything but POST) before the token
+     * check or the controller.
+     */
+    #[Test]
+    #[DataProvider('routes')]
+    public function aRequestThatIsNotAPostIsRefusedByTheRouter(string $identifier): void
+    {
+        $path = $this->path($identifier);
+        $router = $this->get(Router::class);
+        self::assertInstanceOf(Router::class, $router);
+        $collection = new RouteCollection();
+        foreach ($router->getRoutes() as $name => $route) {
+            $collection->add($name, $route);
+        }
+
+        $post = (new UrlMatcher($collection, (new RequestContext())->setMethod('POST')))->match($path);
+        self::assertSame($identifier, $post['_route'], 'the control: a POST matches');
+
+        foreach (['GET', 'PUT', 'DELETE'] as $method) {
+            try {
+                (new UrlMatcher($collection, (new RequestContext())->setMethod($method)))->match($path);
+                self::fail($method . ' reached ' . $identifier);
+            } catch (MethodNotAllowedException $e) {
+                self::assertSame(['POST'], $e->getAllowedMethods());
+            }
+        }
     }
 
     /**
