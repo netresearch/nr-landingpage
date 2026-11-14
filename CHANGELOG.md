@@ -13,6 +13,12 @@ level lower.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-14
+
+### Fixed
+
+- Every form of the review page (entry, comment, suggestion, edit, leave) was refused with "The form has expired" in a real browser: the pages send `Referrer-Policy: no-referrer`, so the browser sends `Origin: null` with each post, and the origin check compared that with the host. `Origin: null` now counts as absent; another site is still refused through `Sec-Fetch-Site`, and the form tokens and the `SameSite=Strict` cookie stay in place ([#143](https://github.com/netresearch/nr-landingpage/pull/143) by @CybotTM).
+
 ## [0.7.0] - 2026-11-14
 
 ### Added
@@ -450,7 +456,8 @@ Additive/non-breaking 0.x patch. See [#7](https://github.com/netresearch/nr-land
 ### Changes
 Initial release
 
-[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/netresearch/nr-landingpage/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/netresearch/nr-landingpage/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/netresearch/nr-landingpage/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/netresearch/nr-landingpage/compare/v0.6.0...v0.6.1
