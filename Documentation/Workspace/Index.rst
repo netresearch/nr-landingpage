@@ -64,6 +64,70 @@ The list of links shows label, permission, expiry, use count and state, and
 the first eight characters of the link's identifier to tell links apart.
 The history below it records who created and who revoked a link.
 
+The review page
+===============
+
+A share link opens the review page without a TYPO3 login. The link looks
+like ``https://host/nr-landingpage/review#<code>``: the access code sits
+behind the ``#``, which a browser never sends to a server, so it appears in
+no access log and no referrer. The entry page copies the code into its form;
+the visitor enters a name and, if there is one, the passphrase, and presses
+:guilabel:`Open review`. Without JavaScript the code is pasted by hand.
+
+What the visitor may do depends on the link:
+
+-  :guilabel:`View` reads the draft and the comments.
+-  :guilabel:`Comment` also comments on a section or one of its fields and
+   suggests a replacement text for a field.
+-  :guilabel:`Edit` also changes the heading, subheading and text of a
+   section. The change applies at once and is recorded with the name given.
+
+Text is plain text everywhere: a body text appears without its formatting,
+and a text written through a link is stored as paragraphs. A reviewer's name
+is whatever the visitor typed; it is shown as untrusted text and never as a
+backend user.
+
+Every refusal, whether the code is unknown, wrong, expired, revoked, used up
+or the passphrase is wrong, gets the same page with the same status (404), so
+the page does not tell whether a link exists. Too many failed attempts from
+one address, or too many guesses of one link's passphrase, answer 429. The
+page is served with ``Cache-Control: no-store``, ``Referrer-Policy:
+no-referrer``, ``X-Robots-Tag: noindex`` and a content security policy that
+allows only the extension's own script and style files, and it works only
+over HTTPS (see :confval:`workspace.allowInsecureHttp`).
+
+The limits are TYPO3 rate limiters and can be tuned under
+``$GLOBALS['TYPO3_CONF_VARS']['SYS']['rateLimiter']['<id>']``, with the keys
+``limit`` and ``interval``:
+
+``nrlp-review-enter``
+   Failed entries per source address (default 10 per 15 minutes).
+
+``nrlp-review-link``
+   Entries to a passphrase-protected link by someone who holds its access
+   code, per link (default 5 per 15 minutes). It caps guessing the
+   passphrase.
+
+``nrlp-review-write``
+   Comments, suggestions and changes per review session (default 30 per 10
+   minutes).
+
+``nrlp-review-request``
+   All entry attempts per source address, before any passphrase hash runs
+   (default 60 per 15 minutes).
+
+A draft takes at most 500 comments, suggestions and changes through links.
+
+An approved draft can still be read through a link, but takes no more
+comments and no more changes.
+
+Comments in the backend
+=======================
+
+The draft's page in the module lists every comment, suggestion and edit
+under its section, with the author, the time and the state. A reviewer's
+entries are marked as such.
+
 Configuration
 =============
 

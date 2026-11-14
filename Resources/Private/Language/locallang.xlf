@@ -888,6 +888,54 @@
             <trans-unit id="wizard.draft.failed" resname="wizard.draft.failed">
                 <source>The draft could not be saved: %s</source>
             </trans-unit>
+            <trans-unit id="workspace.comments.heading" resname="workspace.comments.heading">
+                <source>Comments and suggestions</source>
+            </trans-unit>
+            <trans-unit id="workspace.comments.none" resname="workspace.comments.none">
+                <source>Nothing here yet.</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.kind.comment" resname="workspace.comment.kind.comment">
+                <source>commented</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.kind.suggestion" resname="workspace.comment.kind.suggestion">
+                <source>suggested a change</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.kind.edit" resname="workspace.comment.kind.edit">
+                <source>changed the text</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.status.open" resname="workspace.comment.status.open">
+                <source>open</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.status.accepted" resname="workspace.comment.status.accepted">
+                <source>accepted</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.status.rejected" resname="workspace.comment.status.rejected">
+                <source>rejected</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.status.stale" resname="workspace.comment.status.stale">
+                <source>outdated</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.status.applied" resname="workspace.comment.status.applied">
+                <source>applied</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.field.header" resname="workspace.comment.field.header">
+                <source>heading</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.field.subheader" resname="workspace.comment.field.subheader">
+                <source>subheading</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.field.bodytext" resname="workspace.comment.field.bodytext">
+                <source>text</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.byReviewer" resname="workspace.comment.byReviewer">
+                <source>reviewer (no login)</source>
+            </trans-unit>
+            <trans-unit id="workspace.comment.byEditor" resname="workspace.comment.byEditor">
+                <source>editor</source>
+            </trans-unit>
+            <trans-unit id="workspace.show.commentsCount" resname="workspace.show.commentsCount">
+                <source>%s comments and suggestions</source>
+            </trans-unit>
         </body>
     </file>
 </xliff>

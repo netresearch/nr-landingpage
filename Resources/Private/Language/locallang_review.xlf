@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+    <file source-language="en" datatype="plaintext" original="messages" date="2026-11-14T00:00:00Z" product-name="nr_landingpage">
+        <header/>
+        <body>
+            <trans-unit id="page_title" resname="page_title">
+                <source>Content review</source>
+            </trans-unit>
+            <trans-unit id="skip_to_content" resname="skip_to_content">
+                <source>Skip to the content</source>
+            </trans-unit>
+            <trans-unit id="entry_title" resname="entry_title">
+                <source>Open a review link</source>
+            </trans-unit>
+            <trans-unit id="entry_intro" resname="entry_intro">
+                <source>Enter the access code of your link. If you opened the link in a browser, it is filled in for you.</source>
+            </trans-unit>
+            <trans-unit id="entry_token" resname="entry_token">
+                <source>Access code</source>
+            </trans-unit>
+            <trans-unit id="entry_passphrase" resname="entry_passphrase">
+                <source>Passphrase (only if you were given one)</source>
+            </trans-unit>
+            <trans-unit id="entry_name" resname="entry_name">
+                <source>Your name (shown with your comments)</source>
+            </trans-unit>
+            <trans-unit id="entry_submit" resname="entry_submit">
+                <source>Open review</source>
+            </trans-unit>
+            <trans-unit id="entry_noscript" resname="entry_noscript">
+                <source>Without JavaScript, paste the code: the part of the link after the # sign.</source>
+            </trans-unit>
+            <trans-unit id="entry_invalid" resname="entry_invalid">
+                <source>This link is not valid or has expired.</source>
+            </trans-unit>
+            <trans-unit id="entry_form_expired" resname="entry_form_expired">
+                <source>The form has expired. Reload the page and try again.</source>
+            </trans-unit>
+            <trans-unit id="entry_limited" resname="entry_limited">
+                <source>Too many attempts. Try again in a few minutes.</source>
+            </trans-unit>
+            <trans-unit id="draft_review_of" resname="draft_review_of">
+                <source>Content draft for review</source>
+            </trans-unit>
+            <trans-unit id="draft_reviewer" resname="draft_reviewer">
+                <source>You review as</source>
+            </trans-unit>
+            <trans-unit id="draft_leave" resname="draft_leave">
+                <source>Leave the review</source>
+            </trans-unit>
+            <trans-unit id="draft_expires" resname="draft_expires">
+                <source>The link works until</source>
+            </trans-unit>
+            <trans-unit id="permission_view" resname="permission_view">
+                <source>You can read this draft.</source>
+            </trans-unit>
+            <trans-unit id="permission_comment" resname="permission_comment">
+                <source>You can read, comment and suggest changes.</source>
+            </trans-unit>
+            <trans-unit id="permission_edit" resname="permission_edit">
+                <source>You can read, comment and change the texts.</source>
+            </trans-unit>
+            <trans-unit id="status_approved" resname="status_approved">
+                <source>This draft is approved and can no longer be changed.</source>
+            </trans-unit>
+            <trans-unit id="status_created" resname="status_created">
+                <source>The page for this draft has been created.</source>
+            </trans-unit>
+            <trans-unit id="section" resname="section">
+                <source>Section</source>
+            </trans-unit>
+            <trans-unit id="field_header" resname="field_header">
+                <source>Heading</source>
+            </trans-unit>
+            <trans-unit id="field_subheader" resname="field_subheader">
+                <source>Subheading</source>
+            </trans-unit>
+            <trans-unit id="field_bodytext" resname="field_bodytext">
+                <source>Text</source>
+            </trans-unit>
+            <trans-unit id="field_all" resname="field_all">
+                <source>The whole section</source>
+            </trans-unit>
+            <trans-unit id="comments_heading" resname="comments_heading">
+                <source>Comments and suggestions</source>
+            </trans-unit>
+            <trans-unit id="comments_none" resname="comments_none">
+                <source>Nothing here yet.</source>
+            </trans-unit>
+            <trans-unit id="comment_form" resname="comment_form">
+                <source>Add a comment</source>
+            </trans-unit>
+            <trans-unit id="comment_about" resname="comment_about">
+                <source>About</source>
+            </trans-unit>
+            <trans-unit id="comment_text" resname="comment_text">
+                <source>Your comment</source>
+            </trans-unit>
+            <trans-unit id="comment_submit" resname="comment_submit">
+                <source>Post comment</source>
+            </trans-unit>
+            <trans-unit id="suggest_summary" resname="suggest_summary">
+                <source>Suggest a change to</source>
+            </trans-unit>
+            <trans-unit id="suggest_help" resname="suggest_help">
+                <source>Your text replaces the current text of this field. An editor accepts or rejects it.</source>
+            </trans-unit>
+            <trans-unit id="suggest_text" resname="suggest_text">
+                <source>Your proposed text</source>
+            </trans-unit>
+            <trans-unit id="suggest_submit" resname="suggest_submit">
+                <source>Send suggestion</source>
+            </trans-unit>
+            <trans-unit id="edit_summary" resname="edit_summary">
+                <source>Change directly</source>
+            </trans-unit>
+            <trans-unit id="edit_help" resname="edit_help">
+                <source>The change applies at once and is recorded with your name.</source>
+            </trans-unit>
+            <trans-unit id="edit_text" resname="edit_text">
+                <source>New text</source>
+            </trans-unit>
+            <trans-unit id="edit_submit" resname="edit_submit">
+                <source>Save change</source>
+            </trans-unit>
+            <trans-unit id="kind_comment" resname="kind_comment">
+                <source>commented</source>
+            </trans-unit>
+            <trans-unit id="kind_suggestion" resname="kind_suggestion">
+                <source>suggested a change</source>
+            </trans-unit>
+            <trans-unit id="kind_edit" resname="kind_edit">
+                <source>changed the text</source>
+            </trans-unit>
+            <trans-unit id="state_open" resname="state_open">
+                <source>open</source>
+            </trans-unit>
+            <trans-unit id="state_accepted" resname="state_accepted">
+                <source>accepted</source>
+            </trans-unit>
+            <trans-unit id="state_rejected" resname="state_rejected">
+                <source>rejected</source>
+            </trans-unit>
+            <trans-unit id="state_stale" resname="state_stale">
+                <source>outdated</source>
+            </trans-unit>
+            <trans-unit id="state_applied" resname="state_applied">
+                <source>applied</source>
+            </trans-unit>
+            <trans-unit id="reviewer_tag" resname="reviewer_tag">
+                <source>reviewer</source>
+            </trans-unit>
+            <trans-unit id="editor_tag" resname="editor_tag">
+                <source>editor</source>
+            </trans-unit>
+            <trans-unit id="done_comment" resname="done_comment">
+                <source>Your comment was posted.</source>
+            </trans-unit>
+            <trans-unit id="done_suggest" resname="done_suggest">
+                <source>Your suggestion was sent.</source>
+            </trans-unit>
+            <trans-unit id="done_edit" resname="done_edit">
+                <source>Your change was saved.</source>
+            </trans-unit>
+            <trans-unit id="error_csrf" resname="error_csrf">
+                <source>The page has expired. Reload it and try again.</source>
+            </trans-unit>
+            <trans-unit id="error_forbidden" resname="error_forbidden">
+                <source>This link does not allow that.</source>
+            </trans-unit>
+            <trans-unit id="error_invalid" resname="error_invalid">
+                <source>That could not be saved. Check the text and try again.</source>
+            </trans-unit>
+            <trans-unit id="error_conflict" resname="error_conflict">
+                <source>The text changed in the meantime, or the draft is closed. Reload the page.</source>
+            </trans-unit>
+            <trans-unit id="error_limited" resname="error_limited">
+                <source>Too many changes in a short time. Wait a moment.</source>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>

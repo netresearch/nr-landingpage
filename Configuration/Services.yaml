@@ -74,3 +74,15 @@ services:
     public: true
     arguments:
       $container: '@service_container'
+
+  # The three limiters of the review page keep their state in TYPO3's caching
+  # framework, like nr-llm's A2A authenticator.
+  Netresearch\NrLandingpage\Service\Workspace\Review\ReviewRateLimits:
+    arguments:
+      $storage: '@TYPO3\CMS\Core\RateLimiter\Storage\CachingFrameworkStorage'
+
+  Netresearch\NrLandingpage\Controller\Frontend\ReviewController:
+    public: true
+
+  Netresearch\NrLandingpage\Middleware\ReviewPageMiddleware:
+    public: true

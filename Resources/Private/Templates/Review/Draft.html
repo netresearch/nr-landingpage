@@ -1,0 +1,159 @@
+<f:comment>SPDX-License-Identifier: GPL-2.0-or-later</f:comment>
+<f:comment>SPDX-FileCopyrightText: Netresearch DTT GmbH</f:comment>
+<f:layout name="Review" />
+<f:section name="Content">
+    <header class="page-header">
+        <p class="eyebrow">{labels.draft_review_of}</p>
+        <h1>{title}</h1>
+        <p class="meta">
+            <f:switch expression="{permission}">
+                <f:case value="view">{labels.permission_view}</f:case>
+                <f:case value="comment">{labels.permission_comment}</f:case>
+                <f:case value="edit">{labels.permission_edit}</f:case>
+            </f:switch>
+            &middot; {labels.draft_reviewer}: <strong>{reviewerName}</strong>
+            &middot; {labels.draft_expires} {expires}
+        </p>
+        <f:if condition="{draftStatus} == 'approved'"><p class="message message-info" role="status">{labels.status_approved}</p></f:if>
+        <f:if condition="{draftStatus} == 'created'"><p class="message message-info" role="status">{labels.status_created}</p></f:if>
+        <f:if condition="{message}">
+            <p class="message {f:if(condition: isError, then: 'message-error', else: 'message-ok')}" role="{f:if(condition: isError, then: 'alert', else: 'status')}" id="review-message">{message}</p>
+        </f:if>
+        <form method="post" action="{leavePath}">
+            <input type="hidden" name="form_token" value="{formToken}">
+            <button type="submit" class="link-button">{labels.draft_leave}</button>
+        </form>
+    </header>
+
+    <f:for each="{sections}" as="section">
+        <section class="card" id="section-{section.id}" aria-labelledby="section-title-{section.id}">
+            <h2 id="section-title-{section.id}">{labels.section} {section.number}<f:if condition="{section.name}">: {section.name}</f:if></h2>
+
+            <f:for each="{section.fields}" as="field">
+                <f:if condition="{field.empty}">
+                    <f:else>
+                        <div class="field">
+                            <h3>
+                                <f:switch expression="{field.name}">
+                                    <f:case value="header">{labels.field_header}</f:case>
+                                    <f:case value="subheader">{labels.field_subheader}</f:case>
+                                    <f:case value="bodytext">{labels.field_bodytext}</f:case>
+                                </f:switch>
+                            </h3>
+                            <f:for each="{field.lines}" as="line"><p>{line}</p></f:for>
+                        </div>
+                    </f:else>
+                </f:if>
+            </f:for>
+
+            <section class="comments" aria-labelledby="comments-{section.id}">
+                <h3 id="comments-{section.id}">{labels.comments_heading}</h3>
+                <f:if condition="{section.comments}">
+                    <f:then>
+                        <ul class="comment-list">
+                            <f:for each="{section.comments}" as="comment">
+                                <li class="comment comment-{comment.kind}">
+                                    <p class="comment-head">
+                                        <strong>{comment.author}</strong>
+                                        <span class="tag"><f:if condition="{comment.fromEditor}"><f:then>{labels.editor_tag}</f:then><f:else>{labels.reviewer_tag}</f:else></f:if></span>
+                                        <f:switch expression="{comment.kind}">
+                                            <f:case value="comment">{labels.kind_comment}</f:case>
+                                            <f:case value="suggestion">{labels.kind_suggestion}</f:case>
+                                            <f:case value="edit">{labels.kind_edit}</f:case>
+                                        </f:switch>
+                                        <f:if condition="{comment.field}">
+                                            <f:switch expression="{comment.field}">
+                                                <f:case value="header">({labels.field_header})</f:case>
+                                                <f:case value="subheader">({labels.field_subheader})</f:case>
+                                                <f:case value="bodytext">({labels.field_bodytext})</f:case>
+                                            </f:switch>
+                                        </f:if>
+                                        &middot; {comment.when}
+                                        <f:if condition="{comment.isComment}">
+                                            <f:else>
+                                                &middot;
+                                                <f:switch expression="{comment.status}">
+                                                    <f:case value="open">{labels.state_open}</f:case>
+                                                    <f:case value="accepted">{labels.state_accepted}</f:case>
+                                                    <f:case value="rejected">{labels.state_rejected}</f:case>
+                                                    <f:case value="stale">{labels.state_stale}</f:case>
+                                                    <f:case value="applied">{labels.state_applied}</f:case>
+                                                </f:switch>
+                                            </f:else>
+                                        </f:if>
+                                    </p>
+                                    <f:for each="{comment.bodyLines}" as="line"><p class="comment-body">{line}</p></f:for>
+                                </li>
+                            </f:for>
+                        </ul>
+                    </f:then>
+                    <f:else><p class="help">{labels.comments_none}</p></f:else>
+                </f:if>
+            </section>
+
+            <f:if condition="{canComment}">
+                <details class="action">
+                    <summary>{labels.comment_form}</summary>
+                    <form method="post" action="{commentPath}" class="stack">
+                        <input type="hidden" name="form_token" value="{formToken}">
+                        <input type="hidden" name="section" value="{section.id}">
+                        <label for="c-field-{section.id}">{labels.comment_about}</label>
+                        <select id="c-field-{section.id}" name="field">
+                            <option value="">{labels.field_all}</option>
+                            <option value="header">{labels.field_header}</option>
+                            <option value="subheader">{labels.field_subheader}</option>
+                            <option value="bodytext">{labels.field_bodytext}</option>
+                        </select>
+                        <label for="c-text-{section.id}">{labels.comment_text}</label>
+                        <textarea id="c-text-{section.id}" name="text" rows="4" maxlength="2000" required>{section.commentText}</textarea>
+                        <button type="submit">{labels.comment_submit}</button>
+                    </form>
+                </details>
+                <f:for each="{section.fields}" as="field">
+                    <details class="action">
+                        <summary>{labels.suggest_summary}:
+                            <f:switch expression="{field.name}">
+                                <f:case value="header">{labels.field_header}</f:case>
+                                <f:case value="subheader">{labels.field_subheader}</f:case>
+                                <f:case value="bodytext">{labels.field_bodytext}</f:case>
+                            </f:switch>
+                        </summary>
+                        <form method="post" action="{suggestPath}" class="stack">
+                            <input type="hidden" name="form_token" value="{formToken}">
+                            <input type="hidden" name="section" value="{section.id}">
+                            <input type="hidden" name="field" value="{field.name}">
+                            <p class="help">{labels.suggest_help}</p>
+                            <label for="s-text-{section.id}-{field.name}">{labels.suggest_text}</label>
+                            <textarea id="s-text-{section.id}-{field.name}" name="text" rows="6" maxlength="{field.maxLength}">{field.suggestText}</textarea>
+                            <button type="submit">{labels.suggest_submit}</button>
+                        </form>
+                    </details>
+                </f:for>
+            </f:if>
+
+            <f:if condition="{canEdit}">
+                <f:for each="{section.fields}" as="field">
+                    <details class="action">
+                        <summary>{labels.edit_summary}:
+                            <f:switch expression="{field.name}">
+                                <f:case value="header">{labels.field_header}</f:case>
+                                <f:case value="subheader">{labels.field_subheader}</f:case>
+                                <f:case value="bodytext">{labels.field_bodytext}</f:case>
+                            </f:switch>
+                        </summary>
+                        <form method="post" action="{editPath}" class="stack">
+                            <input type="hidden" name="form_token" value="{formToken}">
+                            <input type="hidden" name="section" value="{section.id}">
+                            <input type="hidden" name="field" value="{field.name}">
+                            <input type="hidden" name="base_text" value="{field.text}">
+                            <p class="help">{labels.edit_help}</p>
+                            <label for="e-text-{section.id}-{field.name}">{labels.edit_text}</label>
+                            <textarea id="e-text-{section.id}-{field.name}" name="text" rows="6" maxlength="{field.maxLength}">{field.editText}</textarea>
+                            <button type="submit">{labels.edit_submit}</button>
+                        </form>
+                    </details>
+                </f:for>
+            </f:if>
+        </section>
+    </f:for>
+</f:section>

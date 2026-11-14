@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+    <file source-language="en" target-language="de" datatype="plaintext" original="messages" date="2026-11-14T00:00:00Z" product-name="nr_landingpage">
+        <header/>
+        <body>
+            <trans-unit id="page_title" resname="page_title">
+                <source>Content review</source>
+                <target>Inhalte prüfen</target>
+            </trans-unit>
+            <trans-unit id="skip_to_content" resname="skip_to_content">
+                <source>Skip to the content</source>
+                <target>Zum Inhalt springen</target>
+            </trans-unit>
+            <trans-unit id="entry_title" resname="entry_title">
+                <source>Open a review link</source>
+                <target>Prüflink öffnen</target>
+            </trans-unit>
+            <trans-unit id="entry_intro" resname="entry_intro">
+                <source>Enter the access code of your link. If you opened the link in a browser, it is filled in for you.</source>
+                <target>Geben Sie den Zugangscode Ihres Links ein. Haben Sie den Link im Browser geöffnet, ist er bereits eingetragen.</target>
+            </trans-unit>
+            <trans-unit id="entry_token" resname="entry_token">
+                <source>Access code</source>
+                <target>Zugangscode</target>
+            </trans-unit>
+            <trans-unit id="entry_passphrase" resname="entry_passphrase">
+                <source>Passphrase (only if you were given one)</source>
+                <target>Passphrase (nur, wenn Sie eine erhalten haben)</target>
+            </trans-unit>
+            <trans-unit id="entry_name" resname="entry_name">
+                <source>Your name (shown with your comments)</source>
+                <target>Ihr Name (wird bei Ihren Kommentaren angezeigt)</target>
+            </trans-unit>
+            <trans-unit id="entry_submit" resname="entry_submit">
+                <source>Open review</source>
+                <target>Prüfung öffnen</target>
+            </trans-unit>
+            <trans-unit id="entry_noscript" resname="entry_noscript">
+                <source>Without JavaScript, paste the code: the part of the link after the # sign.</source>
+                <target>Ohne JavaScript fügen Sie den Code ein: den Teil des Links nach dem Zeichen #.</target>
+            </trans-unit>
+            <trans-unit id="entry_invalid" resname="entry_invalid">
+                <source>This link is not valid or has expired.</source>
+                <target>Dieser Link ist ungültig oder abgelaufen.</target>
+            </trans-unit>
+            <trans-unit id="entry_form_expired" resname="entry_form_expired">
+                <source>The form has expired. Reload the page and try again.</source>
+                <target>Das Formular ist abgelaufen. Laden Sie die Seite neu und versuchen Sie es erneut.</target>
+            </trans-unit>
+            <trans-unit id="entry_limited" resname="entry_limited">
+                <source>Too many attempts. Try again in a few minutes.</source>
+                <target>Zu viele Versuche. Versuchen Sie es in einigen Minuten erneut.</target>
+            </trans-unit>
+            <trans-unit id="draft_review_of" resname="draft_review_of">
+                <source>Content draft for review</source>
+                <target>Inhaltsentwurf zur Prüfung</target>
+            </trans-unit>
+            <trans-unit id="draft_reviewer" resname="draft_reviewer">
+                <source>You review as</source>
+                <target>Sie prüfen als</target>
+            </trans-unit>
+            <trans-unit id="draft_leave" resname="draft_leave">
+                <source>Leave the review</source>
+                <target>Prüfung verlassen</target>
+            </trans-unit>
+            <trans-unit id="draft_expires" resname="draft_expires">
+                <source>The link works until</source>
+                <target>Der Link gilt bis</target>
+            </trans-unit>
+            <trans-unit id="permission_view" resname="permission_view">
+                <source>You can read this draft.</source>
+                <target>Sie können diesen Entwurf lesen.</target>
+            </trans-unit>
+            <trans-unit id="permission_comment" resname="permission_comment">
+                <source>You can read, comment and suggest changes.</source>
+                <target>Sie können lesen, kommentieren und Änderungen vorschlagen.</target>
+            </trans-unit>
+            <trans-unit id="permission_edit" resname="permission_edit">
+                <source>You can read, comment and change the texts.</source>
+                <target>Sie können lesen, kommentieren und die Texte ändern.</target>
+            </trans-unit>
+            <trans-unit id="status_approved" resname="status_approved">
+                <source>This draft is approved and can no longer be changed.</source>
+                <target>Dieser Entwurf ist freigegeben und kann nicht mehr geändert werden.</target>
+            </trans-unit>
+            <trans-unit id="status_created" resname="status_created">
+                <source>The page for this draft has been created.</source>
+                <target>Die Seite zu diesem Entwurf wurde angelegt.</target>
+            </trans-unit>
+            <trans-unit id="section" resname="section">
+                <source>Section</source>
+                <target>Abschnitt</target>
+            </trans-unit>
+            <trans-unit id="field_header" resname="field_header">
+                <source>Heading</source>
+                <target>Überschrift</target>
+            </trans-unit>
+            <trans-unit id="field_subheader" resname="field_subheader">
+                <source>Subheading</source>
+                <target>Unterüberschrift</target>
+            </trans-unit>
+            <trans-unit id="field_bodytext" resname="field_bodytext">
+                <source>Text</source>
+                <target>Text</target>
+            </trans-unit>
+            <trans-unit id="field_all" resname="field_all">
+                <source>The whole section</source>
+                <target>Der ganze Abschnitt</target>
+            </trans-unit>
+            <trans-unit id="comments_heading" resname="comments_heading">
+                <source>Comments and suggestions</source>
+                <target>Kommentare und Vorschläge</target>
+            </trans-unit>
+            <trans-unit id="comments_none" resname="comments_none">
+                <source>Nothing here yet.</source>
+                <target>Hier ist noch nichts.</target>
+            </trans-unit>
+            <trans-unit id="comment_form" resname="comment_form">
+                <source>Add a comment</source>
+                <target>Kommentar hinzufügen</target>
+            </trans-unit>
+            <trans-unit id="comment_about" resname="comment_about">
+                <source>About</source>
+                <target>Bezogen auf</target>
+            </trans-unit>
+            <trans-unit id="comment_text" resname="comment_text">
+                <source>Your comment</source>
+                <target>Ihr Kommentar</target>
+            </trans-unit>
+            <trans-unit id="comment_submit" resname="comment_submit">
+                <source>Post comment</source>
+                <target>Kommentar senden</target>
+            </trans-unit>
+            <trans-unit id="suggest_summary" resname="suggest_summary">
+                <source>Suggest a change to</source>
+                <target>Änderung vorschlagen für</target>
+            </trans-unit>
+            <trans-unit id="suggest_help" resname="suggest_help">
+                <source>Your text replaces the current text of this field. An editor accepts or rejects it.</source>
+                <target>Ihr Text ersetzt den aktuellen Text dieses Feldes. Eine Redakteurin oder ein Redakteur übernimmt oder lehnt ihn ab.</target>
+            </trans-unit>
+            <trans-unit id="suggest_text" resname="suggest_text">
+                <source>Your proposed text</source>
+                <target>Ihr vorgeschlagener Text</target>
+            </trans-unit>
+            <trans-unit id="suggest_submit" resname="suggest_submit">
+                <source>Send suggestion</source>
+                <target>Vorschlag senden</target>
+            </trans-unit>
+            <trans-unit id="edit_summary" resname="edit_summary">
+                <source>Change directly</source>
+                <target>Direkt ändern</target>
+            </trans-unit>
+            <trans-unit id="edit_help" resname="edit_help">
+                <source>The change applies at once and is recorded with your name.</source>
+                <target>Die Änderung gilt sofort und wird mit Ihrem Namen vermerkt.</target>
+            </trans-unit>
+            <trans-unit id="edit_text" resname="edit_text">
+                <source>New text</source>
+                <target>Neuer Text</target>
+            </trans-unit>
+            <trans-unit id="edit_submit" resname="edit_submit">
+                <source>Save change</source>
+                <target>Änderung speichern</target>
+            </trans-unit>
+            <trans-unit id="kind_comment" resname="kind_comment">
+                <source>commented</source>
+                <target>hat kommentiert</target>
+            </trans-unit>
+            <trans-unit id="kind_suggestion" resname="kind_suggestion">
+                <source>suggested a change</source>
+                <target>hat eine Änderung vorgeschlagen</target>
+            </trans-unit>
+            <trans-unit id="kind_edit" resname="kind_edit">
+                <source>changed the text</source>
+                <target>hat den Text geändert</target>
+            </trans-unit>
+            <trans-unit id="state_open" resname="state_open">
+                <source>open</source>
+                <target>offen</target>
+            </trans-unit>
+            <trans-unit id="state_accepted" resname="state_accepted">
+                <source>accepted</source>
+                <target>übernommen</target>
+            </trans-unit>
+            <trans-unit id="state_rejected" resname="state_rejected">
+                <source>rejected</source>
+                <target>abgelehnt</target>
+            </trans-unit>
+            <trans-unit id="state_stale" resname="state_stale">
+                <source>outdated</source>
+                <target>veraltet</target>
+            </trans-unit>
+            <trans-unit id="state_applied" resname="state_applied">
+                <source>applied</source>
+                <target>angewendet</target>
+            </trans-unit>
+            <trans-unit id="reviewer_tag" resname="reviewer_tag">
+                <source>reviewer</source>
+                <target>Prüfer</target>
+            </trans-unit>
+            <trans-unit id="editor_tag" resname="editor_tag">
+                <source>editor</source>
+                <target>Redaktion</target>
+            </trans-unit>
+            <trans-unit id="done_comment" resname="done_comment">
+                <source>Your comment was posted.</source>
+                <target>Ihr Kommentar wurde gesendet.</target>
+            </trans-unit>
+            <trans-unit id="done_suggest" resname="done_suggest">
+                <source>Your suggestion was sent.</source>
+                <target>Ihr Vorschlag wurde gesendet.</target>
+            </trans-unit>
+            <trans-unit id="done_edit" resname="done_edit">
+                <source>Your change was saved.</source>
+                <target>Ihre Änderung wurde gespeichert.</target>
+            </trans-unit>
+            <trans-unit id="error_csrf" resname="error_csrf">
+                <source>The page has expired. Reload it and try again.</source>
+                <target>Die Seite ist abgelaufen. Laden Sie sie neu und versuchen Sie es erneut.</target>
+            </trans-unit>
+            <trans-unit id="error_forbidden" resname="error_forbidden">
+                <source>This link does not allow that.</source>
+                <target>Dieser Link erlaubt das nicht.</target>
+            </trans-unit>
+            <trans-unit id="error_invalid" resname="error_invalid">
+                <source>That could not be saved. Check the text and try again.</source>
+                <target>Das konnte nicht gespeichert werden. Prüfen Sie den Text und versuchen Sie es erneut.</target>
+            </trans-unit>
+            <trans-unit id="error_conflict" resname="error_conflict">
+                <source>The text changed in the meantime, or the draft is closed. Reload the page.</source>
+                <target>Der Text hat sich inzwischen geändert, oder der Entwurf ist geschlossen. Laden Sie die Seite neu.</target>
+            </trans-unit>
+            <trans-unit id="error_limited" resname="error_limited">
+                <source>Too many changes in a short time. Wait a moment.</source>
+                <target>Zu viele Änderungen in kurzer Zeit. Warten Sie einen Moment.</target>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>

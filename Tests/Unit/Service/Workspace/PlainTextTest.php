@@ -74,6 +74,14 @@ final class PlainTextTest extends TestCase
     }
 
     #[Test]
+    public function aSingleLineBreakSurvivesTheRoundTrip(): void
+    {
+        foreach (["a\nb", "a\nb\nc", "a\nb\n\nc\nd", "one\n\ntwo"] as $text) {
+            self::assertSame($text, PlainText::fromHtml(PlainText::toBodytextHtml($text)), json_encode($text, JSON_THROW_ON_ERROR));
+        }
+    }
+
+    #[Test]
     public function theRoundTripKeepsThePlainText(): void
     {
         $text = "Alpha <b> & beta\n\nGamma \"quoted\"";

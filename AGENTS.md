@@ -194,6 +194,7 @@ read it before changing anything here.
 - A share link's token is shown once and never stored: only its prefix and SHA-256 hash (`ShareToken`). Never log it, put it in a rendered page or in an exception message.
 - `DraftAccessGuard` decides who sees and shares a draft; a draft a user may not see is "not found".
 - State-changing backend routes (`nr_landingpage_workspace_*`) are covered by `WorkspaceRouteTokenTest`; add a new route to its data provider.
+- The review page (`ReviewPageMiddleware`, `Controller/Frontend/ReviewController`, `Service/Workspace/Review/`) answers `/nr-landingpage/review` before the site is resolved. Every refusal is the same 404; keep it that way when adding a check (`ReviewPageTest::everyKindOfRefusedEntryLooksTheSame`). Test through `executeFrontendSubRequest`; settings for a sub request are written to LocalConfiguration, and the rate limiters' state outlives a test, so each test uses its own source address.
 - `workspace.*` extension configuration is read by `WorkspaceSettings` from `TYPO3_CONF_VARS`, not through `ExtensionConfiguration::get()`, which can write `LocalConfiguration` during a frontend request.
 
 ## Output Language
