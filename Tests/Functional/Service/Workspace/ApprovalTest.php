@@ -920,8 +920,32 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
             'pagetypes_select' => '1',
             'db_mountpoints' => '1',
         ], ['uid' => 1]);
+        $this->writeEnglishSite();
         $user = $this->actAs($uid);
         $user->groupData['explicit_allowdeny'] = 'tt_content:CType:text,tt_content:CType:textmedia,tt_content:CType:html';
+    }
+
+    /**
+     * A site with one language above the open parent. DataHandler of TYPO3 13.4 fills the language of a new
+     * record for a user who is no administrator from the site language list of the page (there is no site,
+     * no language, and the access check fails with "languageField ... not found in testing record").
+     * Every real installation has a site above the pages an editor creates.
+     */
+    private function writeEnglishSite(): void
+    {
+        $directory = Environment::getConfigPath() . '/sites/approval-editor';
+        GeneralUtility::mkdir_deep($directory);
+        GeneralUtility::writeFile($directory . '/config.yaml', implode("\n", [
+            'rootPageId: 1',
+            "base: 'https://workspace.example/'",
+            'languages:',
+            '  - title: English',
+            '    enabled: true',
+            '    languageId: 0',
+            "    base: '/'",
+            '    locale: en_US.UTF-8',
+            '',
+        ]));
     }
 
     /**
