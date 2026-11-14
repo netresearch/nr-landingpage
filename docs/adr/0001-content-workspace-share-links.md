@@ -339,7 +339,10 @@ markup. A reviewer name is untrusted display text: it is shown as "name
   `409`, a reload and nothing written; there is no read-modify-write of the
   `sections` JSON outside this statement. A link edit also carries the field's
   `base_text` and is refused when the current text differs, so two reviewers
-  cannot silently overwrite each other.
+  cannot silently overwrite each other. A refused form is shown again with
+  what the reviewer typed and with the `base_text` they submitted, not the
+  refreshed text, so sending it again stays a conflict until the page is
+  reloaded.
 - An `edit` link changes `header`, `subheader` and `bodytext` of existing
   sections of its own draft, and nothing else. The server looks the section up
   by `section_id` inside that draft; an id of another draft is not found. The
