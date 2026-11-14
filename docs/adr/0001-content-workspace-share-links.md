@@ -187,7 +187,8 @@ log, a proxy log, a CDN cache key or a referrer header, and a link preview bot
 that fetches the URL only receives the static entry page. A small script
 (`Resources/Public/JavaScript/review-entry.js`, served from the extension, no
 inline script) copies the fragment into the form and removes it with
-`history.replaceState`. **It only prefills.** Entry needs a click on "Open
+`history.replaceState`, on load and again on every `hashchange`, so a second
+link opened in the same tab works too. **It only prefills.** Entry needs a click on "Open
 review", so a mail scanner that runs a headless browser cannot use up a usage
 limit by loading the page. The click **POSTs** the token to
 `/nr-landingpage/review/enter`. Without JavaScript the same form takes the code

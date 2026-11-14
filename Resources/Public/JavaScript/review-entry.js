@@ -11,19 +11,26 @@
  * copies the code from the fragment into the form and removes it from the
  * address bar. It does not submit anything: opening the review takes a click,
  * so a mail scanner that runs a headless browser cannot use up a usage limit
- * by loading the page.
+ * by loading the page. The fragment is taken when the page loads and again
+ * whenever it changes, so a second link opened in the same tab works too.
  */
 (() => {
     const field = document.getElementById('review-token');
     if (!field) {
         return;
     }
-    const fragment = window.location.hash.replace(/^#/, '');
-    if (fragment === '') {
-        return;
-    }
-    field.value = fragment;
-    window.history.replaceState(null, '', window.location.pathname + window.location.search);
     const name = document.getElementById('review-name');
-    (name || document.querySelector('button[type="submit"]'))?.focus();
+    const takeFragment = () => {
+        const fragment = window.location.hash.replace(/^#/, '');
+        if (fragment === '') {
+            return;
+        }
+        field.value = fragment;
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        (name || document.querySelector('button[type="submit"]'))?.focus();
+    };
+    takeFragment();
+    // A second link opened in the same tab only changes the fragment: the page
+    // is not loaded again, so the code has to be taken on `hashchange` too.
+    window.addEventListener('hashchange', takeFragment);
 })();
