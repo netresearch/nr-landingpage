@@ -13,6 +13,20 @@ level lower.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-14
+
+### Added
+
+- Content Workspace: the last wizard step offers *Save as workspace draft*, which keeps the generated page fields and sections as a draft and opens it in the new module *Web > Content Workspace*. No page is created at that point. The owner of a draft and administrators create share links for people without a TYPO3 login ([#139](https://github.com/netresearch/nr-landingpage/pull/139) by @CybotTM, design in [#138](https://github.com/netresearch/nr-landingpage/pull/138)).
+- A share link opens a review page below `/nr-landingpage/review`. A link lets its holder read the draft, comment, suggest replacement texts, or change the texts directly; each link can carry a passphrase, a lifetime of at most 90 days and a use limit, and can be revoked. The backend lists the comments, suggestions and edits. All comments of a draft are visible to every link of that draft ([#140](https://github.com/netresearch/nr-landingpage/pull/140) by @CybotTM).
+- A backend user who sees a draft accepts or rejects suggestions and approves the draft below a parent page they may create pages under. Approval creates the page from the draft and records who approved it; no share link level can approve ([#141](https://github.com/netresearch/nr-landingpage/pull/141) by @CybotTM).
+- Extension configuration `workspace.*`: switch the review page on or off, the default and maximum link lifetime, the public base URL of share links, and an HTTP allowance for development.
+
+### Changed
+
+- New tables for drafts, share links, comments, review sessions and the audit trail, and a marker column on pages: run `extension:setup` (or the database schema update) after the update.
+- An approval creates only the content types `text`, `textmedia` and `textpic` and the title, description and SEO page fields, unless the template names its own lists, because a draft is written by its owner and created with the rights of the approver.
+
 ## [0.6.2] - 2026-11-14
 
 ### Changed
@@ -436,7 +450,8 @@ Additive/non-breaking 0.x patch. See [#7](https://github.com/netresearch/nr-land
 ### Changes
 Initial release
 
-[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/netresearch/nr-landingpage/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/netresearch/nr-landingpage/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/netresearch/nr-landingpage/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/netresearch/nr-landingpage/compare/v0.5.0...v0.6.0
