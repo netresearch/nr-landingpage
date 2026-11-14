@@ -448,19 +448,20 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
     }
 
     #[Test]
-    public function anAddressThatAsksForTooMuchWorkIsStoppedBeforeAnyHashEvenWithAValidLink(): void
+    public function anAddressThatSendsTooManyUnmatchedTokensIsStoppedBeforeAnyHashButAValidLinkStillEnters(): void
     {
         $this->setConfig('SYS/rateLimiter/nrlp-review-request/limit', 2);
         [$token] = $this->link(LinkPermission::View);
 
         self::assertSame(404, $this->enter('not a token')['response']->getStatusCode());
         self::assertSame(404, $this->enter('not a token')['response']->getStatusCode());
-        $third = $this->enter($token)['response'];
+        $third = $this->enter('not a token')['response'];
+        $valid = $this->enter($token)['response'];
 
         self::assertSame(429, $third->getStatusCode());
         self::assertGreaterThan(0, (int) $third->getHeaderLine('Retry-After'));
         self::assertSame([], $this->cookieHeaders($third, '__Host-nrws_session'));
-        self::assertSame(0, $this->links()->findByDraft($this->draftUid)[0]->useCount, 'the link was not used');
+        self::assertSame(303, $valid->getStatusCode(), 'a valid token is not locked out by other clients behind the same address');
     }
 
     #[Test]

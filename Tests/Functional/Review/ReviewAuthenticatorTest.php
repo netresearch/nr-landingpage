@@ -14,6 +14,7 @@ use Netresearch\NrLandingpage\Domain\Model\Workspace\LinkPermission;
 use Netresearch\NrLandingpage\Service\Workspace\DraftRepository;
 use Netresearch\NrLandingpage\Service\Workspace\Review\EnterStatus;
 use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewAuthenticator;
+use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewRateLimits;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkRepository;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkService;
 use Netresearch\NrLandingpage\Tests\Functional\Service\Workspace\AbstractWorkspaceTestCase;
@@ -155,6 +156,76 @@ final class ReviewAuthenticatorTest extends AbstractWorkspaceTestCase
         $this->getConnectionPool()->getConnectionForTable(DraftRepository::TABLE)->update(DraftRepository::TABLE, ['status' => DraftStatus::Approved->value], ['uid' => $this->draftUid]);
         self::assertFalse($repository->updateSections($this->draftUid, [['id' => 'aaaaaaaaaaaaaaaa', 'header' => 'Late']], $current->version, self::NOW + 3));
         self::assertSame('Changed', $repository->findByUid($this->draftUid)?->sections[0]['header']);
+    }
+
+    #[Test]
+    public function garbageFromOneAddressNeverLocksOutAValidTokenButIsStillLimited(): void
+    {
+        $this->limitTo(ReviewRateLimits::REQUEST, 3);
+        $this->limitTo(ReviewRateLimits::ENTER, 1000);
+        $address = $this->freshAddress();
+        $token = $this->issue(7);
+
+        $statuses = [];
+        for ($i = 0; $i < 6; ++$i) {
+            $statuses[] = $this->authenticator->enter('garbage-' . $i, '', 'a', $address, self::NOW)->status;
+        }
+        $valid = $this->authenticator->enter($token, '', 'a', $address, self::NOW);
+
+        self::assertSame(
+            [EnterStatus::Invalid, EnterStatus::Invalid, EnterStatus::Invalid, EnterStatus::Limited, EnterStatus::Limited, EnterStatus::Limited],
+            $statuses,
+            'garbage-only traffic is still limited per address',
+        );
+        self::assertSame(EnterStatus::Opened, $valid->status, 'the holder of a valid token is not locked out by other clients on the same address');
+    }
+
+    #[Test]
+    public function aValidTokenDoesNotConsumeTheAddressRequestAllowance(): void
+    {
+        $this->limitTo(ReviewRateLimits::REQUEST, 2);
+        $address = $this->freshAddress();
+        $token = $this->issue(7);
+
+        for ($i = 0; $i < 5; ++$i) {
+            self::assertSame(EnterStatus::Opened, $this->authenticator->enter($token, '', 'a', $address, self::NOW + $i)->status);
+        }
+
+        self::assertSame(EnterStatus::Invalid, $this->authenticator->enter('garbage-a', '', 'a', $address, self::NOW + 5)->status);
+        self::assertSame(EnterStatus::Invalid, $this->authenticator->enter('garbage-b', '', 'a', $address, self::NOW + 5)->status);
+        self::assertSame(EnterStatus::Limited, $this->authenticator->enter('garbage-c', '', 'a', $address, self::NOW + 5)->status);
+    }
+
+    /** @var array<string, mixed> */
+    private array $savedLimiterConfig = [];
+
+    /**
+     * The limiter factory reads the globals on every call, and the state of a
+     * limiter outlives a test: set a limit here, put the old value back in tearDown().
+     */
+    private function limitTo(string $limiter, int $limit): void
+    {
+        $this->savedLimiterConfig[$limiter] ??= $GLOBALS['TYPO3_CONF_VARS']['SYS']['rateLimiter'][$limiter] ?? null;
+        $GLOBALS['TYPO3_CONF_VARS']['SYS']['rateLimiter'][$limiter]['limit'] = $limit;
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ($this->savedLimiterConfig as $limiter => $saved) {
+            if ($saved === null) {
+                unset($GLOBALS['TYPO3_CONF_VARS']['SYS']['rateLimiter'][$limiter]);
+            } else {
+                $GLOBALS['TYPO3_CONF_VARS']['SYS']['rateLimiter'][$limiter] = $saved;
+            }
+        }
+        $this->savedLimiterConfig = [];
+        parent::tearDown();
+    }
+
+    /** A source address no earlier test used: the limiters' state outlives a test. */
+    private function freshAddress(): string
+    {
+        return sprintf('10.%d.%d.%d', random_int(1, 250), random_int(1, 250), random_int(1, 250));
     }
 
     private function issue(int $days, int $maxUses = 0): string

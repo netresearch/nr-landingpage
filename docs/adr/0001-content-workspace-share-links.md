@@ -211,7 +211,10 @@ Exchange (`POST /nr-landingpage/review/enter`, body: `token`, `passphrase`,
    about the token), refuses `Sec-Fetch-Site: cross-site` and `same-site`, and a
    present `Origin` that differs from the request's own origin.
 2. **Link limit before the passphrase, verify before the address limit.** It
-   finds the link as in section 3 and checks revocation and expiry. For a link
+   finds the link as in section 3 and matches the token (a SHA-256 lookup, no
+   password hash); only a request whose token did **not** match consumes
+   `nrlp-review-request` and gets `429` once that is exhausted. It then checks
+   revocation and expiry. For a link
    with a passphrase whose token hash matched, `nrlp-review-link` is consumed
    first: while it is exhausted the answer is `429` and **no passphrase hash
    runs**, so a correct guess is refused too (guessing is capped; section 4
@@ -265,7 +268,7 @@ revoked-link session answers the same 404 entry page):
 | `nrlp-review-enter` | source address | sliding window, 10 per 15 minutes | each failed exchange |
 | `nrlp-review-link` | token prefix | 5 per 15 minutes | each exchange for a passphrase-protected link **whose token hash matched**, before the passphrase is checked |
 | `nrlp-review-write` | session id hash | 30 per 10 minutes | each POST in a session |
-| `nrlp-review-request` | source address | sliding window, 60 per 15 minutes | **every** entry attempt, before any hash runs |
+| `nrlp-review-request` | source address | sliding window, 60 per 15 minutes | every entry attempt **whose token did not match**, before any password hash runs |
 
 `nrlp-review-link` is consumed only by someone who holds the secret (the token
 hash matched), so a stranger who hammers a known prefix cannot lock the real
@@ -274,10 +277,12 @@ uses one of the five for each opening of the link. A limit that is hit answers
 `429` with `Retry-After`. `nrlp-review-enter` is keyed by the source address and
 `nrlp-review-write` by a session the caller owns, so `429` does not tell a real
 link from an invented one. `nrlp-review-request` bounds the hash work an address
-can ask for (the entry page hands out a valid form token to anyone), at a rate
-far above what recipients behind one address need; an address that exceeds it is
-refused with `429` even with a valid token, which is the one case where
-"verify first" does not hold. A passphrase longer than 256 bytes never reaches
+can ask for without holding a token (the entry page hands out a valid form token
+to anyone), at a rate far above what recipients behind one address need. It is
+not consumed when the token matched, so clients that share an address (a
+reverse proxy that does not forward the client address) cannot lock out the
+holder of a valid link by posting garbage; a holder of a valid token is bounded
+by the link and failure limiters instead. A passphrase longer than 256 bytes never reaches
 the hasher: it is hashed as an empty one and counts as wrong. The source address comes from
 TYPO3's `NormalizedParams` (the reverse-proxy configuration of the
 installation applies).
@@ -461,7 +466,8 @@ Each of these is a test and not only a sentence:
   is a passphrase-protected link whose `nrlp-review-link` limiter is exhausted:
   `429` and no hash at all, also for the correct passphrase;
 - a valid token and passphrase succeed from an address whose
-  `nrlp-review-enter` limiter is exhausted; hammering a known prefix with wrong
+  `nrlp-review-enter` or `nrlp-review-request` limiter is exhausted by other
+  clients; garbage-only traffic from one address is still limited; hammering a known prefix with wrong
   secrets does not block the right token; invented prefixes create no limiter
   state;
 - a form token made for one entry cookie is refused with another entry cookie

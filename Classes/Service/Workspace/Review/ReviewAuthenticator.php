@@ -43,11 +43,15 @@ class ReviewAuthenticator
     /**
      * Try to open a review session.
      *
-     * Verify first, limit on failure: a request that passes every check
-     * succeeds whatever the address limiter holds. For a passphrase-protected
-     * link whose token matched, the link limiter is consumed before the
-     * passphrase is looked at, so guessing it is capped (and a correct guess
-     * is refused while the limiter is exhausted, without a hash).
+     * Order: the token is matched first (a SHA-256 lookup, no password hash).
+     * A request whose token did not match consumes the per-address request
+     * limiter and is refused with a limit once that is exhausted; a request
+     * with a matching token never consumes it, so other clients behind the
+     * same address cannot lock out its holder. For a passphrase-protected link
+     * whose token matched, the link limiter is consumed before the passphrase
+     * is looked at, so guessing it is capped (and a correct guess is refused
+     * while the limiter is exhausted, without a hash). Every failure then
+     * consumes the per-address failure limiter.
      */
     public function enter(
         #[SensitiveParameter]
@@ -58,18 +62,18 @@ class ReviewAuthenticator
         string $sourceAddress,
         int $now,
     ): EnterOutcome {
-        // Bound the work an address can ask for before any hash runs.
-        $wait = $this->limits->consumeRequest($sourceAddress, $now);
-        if ($wait !== null) {
-            return EnterOutcome::limited($wait);
-        }
-
         $prefix = ShareToken::prefixOf($token);
         $link = $prefix !== null ? $this->links->findByPrefix($prefix) : null;
         // Always compared, against a constant when there is no row.
         $tokenMatches = ShareToken::matches($link?->tokenHash, $token);
         if (!$tokenMatches) {
             $link = null;
+            // Only a request without a matching token is bounded per address, before
+            // any password hash runs: a shared address cannot lock out a valid token.
+            $wait = $this->limits->consumeRequest($sourceAddress, $now);
+            if ($wait !== null) {
+                return EnterOutcome::limited($wait);
+            }
         }
 
         if ($link !== null && $link->hasPassphrase()) {

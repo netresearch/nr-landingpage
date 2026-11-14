@@ -113,8 +113,10 @@ The limits are TYPO3 rate limiters and can be tuned under
    minutes).
 
 ``nrlp-review-request``
-   All entry attempts per source address, before any passphrase hash runs
-   (default 60 per 15 minutes).
+   Entry attempts without a matching access code per source address, before
+   any passphrase hash runs (default 60 per 15 minutes). A request with a
+   valid code does not count, so other visitors behind the same address
+   cannot lock out its holder.
 
 A draft takes at most 500 comments, suggestions and changes through links.
 
