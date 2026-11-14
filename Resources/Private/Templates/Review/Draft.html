@@ -19,6 +19,7 @@
         <f:if condition="{message}">
             <p class="message {f:if(condition: isError, then: 'message-error', else: 'message-ok')}" role="{f:if(condition: isError, then: 'alert', else: 'status')}" id="review-message">{message}</p>
         </f:if>
+        <f:comment>nosemgrep: python.django.security.django-no-csrf-token.django-no-csrf-token (Fluid, not Django: the hidden form_token field carries the CSRF token)</f:comment>
         <form method="post" action="{leavePath}">
             <input type="hidden" name="form_token" value="{formToken}">
             <button type="submit" class="link-button">{labels.draft_leave}</button>
@@ -94,6 +95,7 @@
             <f:if condition="{canComment}">
                 <details class="action">
                     <summary>{labels.comment_form}</summary>
+                    <f:comment>nosemgrep: python.django.security.django-no-csrf-token.django-no-csrf-token (Fluid, not Django: the hidden form_token field carries the CSRF token)</f:comment>
                     <form method="post" action="{commentPath}" class="stack">
                         <input type="hidden" name="form_token" value="{formToken}">
                         <input type="hidden" name="section" value="{section.id}">
@@ -118,6 +120,7 @@
                                 <f:case value="bodytext">{labels.field_bodytext}</f:case>
                             </f:switch>
                         </summary>
+                        <f:comment>nosemgrep: python.django.security.django-no-csrf-token.django-no-csrf-token (Fluid, not Django: the hidden form_token field carries the CSRF token)</f:comment>
                         <form method="post" action="{suggestPath}" class="stack">
                             <input type="hidden" name="form_token" value="{formToken}">
                             <input type="hidden" name="section" value="{section.id}">
@@ -141,6 +144,7 @@
                                 <f:case value="bodytext">{labels.field_bodytext}</f:case>
                             </f:switch>
                         </summary>
+                        <f:comment>nosemgrep: python.django.security.django-no-csrf-token.django-no-csrf-token (Fluid, not Django: the hidden form_token field carries the CSRF token)</f:comment>
                         <form method="post" action="{editPath}" class="stack">
                             <input type="hidden" name="form_token" value="{formToken}">
                             <input type="hidden" name="section" value="{section.id}">

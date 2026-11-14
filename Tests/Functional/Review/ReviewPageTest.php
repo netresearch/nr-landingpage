@@ -585,7 +585,7 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
         $this->setConfig('EXTENSIONS/nr_landingpage/workspace/enabled', '0');
         $off = $this->fetch(self::BASE);
         $this->setConfig('EXTENSIONS/nr_landingpage/workspace/enabled', '1');
-        $http = $this->fetch(self::BASE, [], 'http://typo3-testing.local');
+        $http = $this->fetch(self::BASE, [], 'http://typo3-testing.local'); // NOSONAR
 
         foreach ([$off, $http] as $response) {
             self::assertStringNotContainsString('name="form_token"', (string) $response->getBody());
@@ -599,7 +599,7 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
     {
         $this->setConfig('EXTENSIONS/nr_landingpage/workspace/allowInsecureHttp', '1');
 
-        $response = $this->fetch(self::BASE, [], 'http://typo3-testing.local');
+        $response = $this->fetch(self::BASE, [], 'http://typo3-testing.local'); // NOSONAR
 
         self::assertSame(200, $response->getStatusCode());
         $cookie = $this->cookieHeader($response, 'nrws_entry');
