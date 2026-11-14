@@ -477,7 +477,7 @@ UPDATE draft SET status = 'approved', approved_by = :u, approved_at = :now,
 6. A PHP crash between steps 2 and 3 leaves the draft `approved`, possibly with
    a partial page. After 10 minutes an editor who may approve can reset it
    (`approval_reset` in the audit table): the pages below the approved parent
-   that carry the attempt's exact reference are deleted through DataHandler (a delete that reports errors refuses the reset and keeps the approval, with
+   that carry the attempt's exact reference are deleted through DataHandler (a delete that reports errors, leaves the page in place (DataHandler only discards a page of a non-live workspace) or meets a page that has a child page, which is foreign because an approval makes one flat page, refuses the reset and keeps the approval, with
    `approval_cleanup_failed` in the audit table), then step 4's update runs with
    the attempt read from the draft, which clears `approval_attempt` and so
    fences any attempt still running. A new approval gets a new attempt.

@@ -61,19 +61,47 @@ class WorkspacePages implements LoggerAwareInterface
      * DataHandler refuses stays and is logged. DataHandler also reports no error
      * for a page it only discards (one that lives in a non-live workspace), so
      * every requested page is read back and counts as an error while it remains.
+     * DataHandler deletes a page's whole permitted branch, and an approval makes
+     * one flat page, so a page that has a child page is refused, never deleted:
+     * the child is foreign (an editor moved it there) and would be lost with it.
      *
      * @param list<int> $pageUids
      * @return int how many errors DataHandler reported plus how many pages remain, 0 when every page is gone
      */
     public function delete(array $pageUids): int
     {
-        $errors = $this->pageCreator->deletePages($pageUids);
+        $withChildren = $this->withChildPages($pageUids);
+        $errors = $this->pageCreator->deletePages(array_values(array_diff($pageUids, $withChildren)));
         $remaining = $this->stillThere($pageUids);
         if ($errors > 0 || $remaining !== []) {
-            $this->logger?->error('Deleting the pages of an undone workspace approval failed', ['pages' => $pageUids, 'errors' => $errors, 'remaining' => $remaining]);
+            $this->logger?->error('Deleting the pages of an undone workspace approval failed', ['pages' => $pageUids, 'errors' => $errors, 'remaining' => $remaining, 'withChildPages' => $withChildren]);
         }
 
         return $errors + count($remaining);
+    }
+
+    /**
+     * @param list<int> $pageUids
+     * @return list<int> the requested pages that have at least one child page that is not deleted
+     */
+    private function withChildPages(array $pageUids): array
+    {
+        if ($pageUids === []) {
+            return [];
+        }
+        $builder = $this->connectionPool->getQueryBuilderForTable('pages');
+        $builder->getRestrictions()->removeAll();
+        $rows = $builder->select('pid')
+            ->from('pages')
+            ->where(
+                $builder->expr()->in('pid', $builder->createNamedParameter($pageUids, Connection::PARAM_INT_ARRAY)),
+                $builder->expr()->eq('deleted', $builder->createNamedParameter(0, Connection::PARAM_INT)),
+            )
+            ->groupBy('pid')
+            ->executeQuery()
+            ->fetchFirstColumn();
+
+        return array_values(array_map(static fn(mixed $uid): int => is_numeric($uid) ? (int) $uid : 0, $rows));
     }
 
     /**

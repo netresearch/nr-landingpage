@@ -644,6 +644,35 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
     }
 
     #[Test]
+    public function aResetRefusesToDeleteAPageThatGotAForeignChildPage(): void
+    {
+        $this->actAsAnEditor(3);
+        $drafts = $this->container(DraftRepository::class);
+        self::assertTrue($drafts->approve($this->draftUid, $this->draft()->version, self::OPEN_PARENT, 3, 'crashedcrashedcrashedcrashed0000', self::NOW));
+        $partial = $this->pageWithMarker($this->draftUid . ':crashedcrashedcrashedcrashed0000');
+        // An editor moved an unrelated page (with content) below the stalled approval's page.
+        $foreign = $this->pageWithMarker('');
+        $this->getConnectionPool()->getConnectionForTable('pages')->update('pages', ['pid' => $partial], ['uid' => $foreign]);
+
+        try {
+            $this->approval()->reset($this->draftUid, self::NOW + ApprovalService::RESET_AFTER);
+            self::fail('The reset deleted a page that holds a foreign page.');
+        } catch (WorkspaceRefusedException $e) {
+            self::assertSame(WorkspaceRefusedException::FAILED, $e->reason);
+        }
+
+        self::assertSame(0, (int) $this->row('pages', $partial)['deleted'], 'the marked page stays');
+        self::assertSame(0, (int) $this->row('pages', $foreign)['deleted'], 'the foreign page survives');
+        self::assertCount(1, $this->contentOf($foreign), 'and so does its content');
+        $after = $this->draft();
+        self::assertSame(DraftStatus::Approved, $after->status);
+        self::assertSame('crashedcrashedcrashedcrashed0000', $after->approvalAttempt);
+        $actions = array_column($this->audit()->findByDraft($this->draftUid), 'action');
+        self::assertContains('approval_cleanup_failed', $actions);
+        self::assertNotContains('approval_reset', $actions);
+    }
+
+    #[Test]
     public function anApprovalThatLostTheDraftAndDeletesItsPageLeavesAnAuditRow(): void
     {
         $this->actAs(1);
