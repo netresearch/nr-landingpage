@@ -12,6 +12,8 @@ namespace Netresearch\NrLandingpage\Tests\Functional;
 use Netresearch\NrLandingpage\Controller\Backend\LandingPageWizardController;
 use Netresearch\NrLandingpage\Controller\Backend\WorkspaceAjaxController;
 use Netresearch\NrLandingpage\Controller\Backend\WorkspaceController;
+use Netresearch\NrLandingpage\Controller\Frontend\ReviewController;
+use Netresearch\NrLandingpage\Middleware\ReviewPageMiddleware;
 use Netresearch\NrLandingpage\Service\BriefingService;
 use Netresearch\NrLandingpage\Service\ContentGeneratorService;
 use Netresearch\NrLandingpage\Service\GuardrailHintCapture;
@@ -22,6 +24,8 @@ use Netresearch\NrLandingpage\Service\PromptOptimizerService;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use Netresearch\NrLandingpage\Service\Workspace\DraftAccessGuard;
 use Netresearch\NrLandingpage\Service\Workspace\DraftService;
+use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewAuthenticator;
+use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewService;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkService;
 use Netresearch\NrLandingpage\Service\Workspace\WorkspaceSettings;
 use PHPUnit\Framework\Attributes\Test;
@@ -66,6 +70,10 @@ final class DependencyInjectionTest extends FunctionalTestCase
             DraftService::class,
             ShareLinkService::class,
             WorkspaceSettings::class,
+            ReviewController::class,
+            ReviewPageMiddleware::class,
+            ReviewAuthenticator::class,
+            ReviewService::class,
         ];
 
         foreach ($services as $className) {

@@ -84,6 +84,27 @@ class DraftRepository
     }
 
     /**
+     * Write new sections: the one write rule of ADR-0001, section 6. The row
+     * changes only when the draft is still open and still at the version the
+     * caller read together with the content it changed, and the version rises
+     * in the same statement. False means someone else wrote first (or the
+     * draft is approved): nothing was written.
+     *
+     * @param list<array<string, mixed>> $sections
+     */
+    public function updateSections(int $uid, array $sections, int $readVersion, int $now): bool
+    {
+        $affected = $this->connectionPool->getConnectionForTable(self::TABLE)->executeStatement(
+            'UPDATE ' . self::TABLE . ' SET sections = ?, version = version + 1, tstamp = ?'
+            . ' WHERE uid = ? AND deleted = 0 AND status = ? AND version = ?',
+            [WorkspaceDraft::encode($sections), $now, $uid, DraftStatus::Draft->value, $readVersion],
+            [Connection::PARAM_STR, Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_STR, Connection::PARAM_INT],
+        );
+
+        return $affected === 1;
+    }
+
+    /**
      * The drafts a backend user sees: all of them for an administrator, else
      * the user's own and those shared with one of the user's groups. A group
      * is matched with the platform's set function, never with LIKE, so group

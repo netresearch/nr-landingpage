@@ -187,7 +187,8 @@ log, a proxy log, a CDN cache key or a referrer header, and a link preview bot
 that fetches the URL only receives the static entry page. A small script
 (`Resources/Public/JavaScript/review-entry.js`, served from the extension, no
 inline script) copies the fragment into the form and removes it with
-`history.replaceState`. **It only prefills.** Entry needs a click on "Open
+`history.replaceState`, on load and again on every `hashchange`, so a second
+link opened in the same tab works too. **It only prefills.** Entry needs a click on "Open
 review", so a mail scanner that runs a headless browser cannot use up a usage
 limit by loading the page. The click **POSTs** the token to
 `/nr-landingpage/review/enter`. Without JavaScript the same form takes the code
@@ -211,7 +212,10 @@ Exchange (`POST /nr-landingpage/review/enter`, body: `token`, `passphrase`,
    about the token), refuses `Sec-Fetch-Site: cross-site` and `same-site`, and a
    present `Origin` that differs from the request's own origin.
 2. **Link limit before the passphrase, verify before the address limit.** It
-   finds the link as in section 3 and checks revocation and expiry. For a link
+   finds the link as in section 3 and matches the token (a SHA-256 lookup, no
+   password hash); only a request whose token did **not** match consumes
+   `nrlp-review-request` and gets `429` once that is exhausted. It then checks
+   revocation and expiry. For a link
    with a passphrase whose token hash matched, `nrlp-review-link` is consumed
    first: while it is exhausted the answer is `429` and **no passphrase hash
    runs**, so a correct guess is refused too (guessing is capped; section 4
@@ -251,6 +255,9 @@ revoked-link session answers the same 404 entry page):
 - `GET /nr-landingpage/review/draft`: the draft, its sections, comments and
   suggestions, and the forms the permission allows. Forms are only rendered for
   what the level permits, and every handler re-checks the level on the server.
+  A draft's comments, suggestions and reviewer names are shared by all of its
+  links: every link sees what any other link of the draft wrote. Separate
+  audiences get separate drafts.
 - `POST .../comment`, `.../suggest`, `.../edit`: one POST handler per action,
   each with its own permission check, a length limit, and `303` back to the
   draft view (Post/Redirect/Get).
@@ -265,6 +272,15 @@ revoked-link session answers the same 404 entry page):
 | `nrlp-review-enter` | source address | sliding window, 10 per 15 minutes | each failed exchange |
 | `nrlp-review-link` | token prefix | 5 per 15 minutes | each exchange for a passphrase-protected link **whose token hash matched**, before the passphrase is checked |
 | `nrlp-review-write` | session id hash | 30 per 10 minutes | each POST in a session |
+| `nrlp-review-link-write` | token prefix of the link | 100 per 24 hours | each POST through the link, in any of its sessions |
+| `nrlp-review-request` | source address | sliding window, 60 per 15 minutes | every entry attempt **whose token did not match**, before any password hash runs |
+
+Accepted limit: the limiters are built without a lock, as TYPO3 core builds its
+own login limiter, because `symfony/lock` is not a dependency of core 13.4 or
+14.3. The sliding window reads and saves its counter in two steps, so a burst
+of parallel requests can pass a few more attempts than the limit. For
+`nrlp-review-link` this means a few extra passphrase guesses per burst by
+someone who already holds the 256-bit token.
 
 `nrlp-review-link` is consumed only by someone who holds the secret (the token
 hash matched), so a stranger who hammers a known prefix cannot lock the real
@@ -272,7 +288,17 @@ recipient out, and invented prefixes create no limiter entries. A recipient
 uses one of the five for each opening of the link. A limit that is hit answers
 `429` with `Retry-After`. `nrlp-review-enter` is keyed by the source address and
 `nrlp-review-write` by a session the caller owns, so `429` does not tell a real
-link from an invented one. The source address comes from
+link from an invented one. Entering again gives a fresh session, so the session
+limit alone does not stop one link from filling the draft's cap of 500 entries
+for everyone else; `nrlp-review-link-write` counts the writes of all sessions of
+one link and is far below that cap. `nrlp-review-request` bounds the hash work an address
+can ask for without holding a token (the entry page hands out a valid form token
+to anyone), at a rate far above what recipients behind one address need. It is
+not consumed when the token matched, so clients that share an address (a
+reverse proxy that does not forward the client address) cannot lock out the
+holder of a valid link by posting garbage; a holder of a valid token is bounded
+by the link and failure limiters instead. A passphrase longer than 256 bytes never reaches
+the hasher: it is hashed as an empty one and counts as wrong. The source address comes from
 TYPO3's `NormalizedParams` (the reverse-proxy configuration of the
 installation applies).
 
@@ -320,7 +346,10 @@ markup. A reviewer name is untrusted display text: it is shown as "name
   `409`, a reload and nothing written; there is no read-modify-write of the
   `sections` JSON outside this statement. A link edit also carries the field's
   `base_text` and is refused when the current text differs, so two reviewers
-  cannot silently overwrite each other.
+  cannot silently overwrite each other. A refused form is shown again with
+  what the reviewer typed and with the `base_text` they submitted, not the
+  refreshed text, so sending it again stays a conflict until the page is
+  reloaded.
 - An `edit` link changes `header`, `subheader` and `bodytext` of existing
   sections of its own draft, and nothing else. The server looks the section up
   by `section_id` inside that draft; an id of another draft is not found. The
@@ -455,7 +484,8 @@ Each of these is a test and not only a sentence:
   is a passphrase-protected link whose `nrlp-review-link` limiter is exhausted:
   `429` and no hash at all, also for the correct passphrase;
 - a valid token and passphrase succeed from an address whose
-  `nrlp-review-enter` limiter is exhausted; hammering a known prefix with wrong
+  `nrlp-review-enter` or `nrlp-review-request` limiter is exhausted by other
+  clients; garbage-only traffic from one address is still limited; hammering a known prefix with wrong
   secrets does not block the right token; invented prefixes create no limiter
   state;
 - a form token made for one entry cookie is refused with another entry cookie

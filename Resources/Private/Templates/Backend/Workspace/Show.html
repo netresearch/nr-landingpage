@@ -144,6 +144,24 @@
                         <f:if condition="{section.header}"><h3 class="h5">{section.header}</h3></f:if>
                         <f:if condition="{section.subheader}"><p class="fw-bold">{section.subheader}</p></f:if>
                         <f:for each="{section.lines}" as="line"><p class="mb-1">{line}</p></f:for>
+                        <f:if condition="{section.comments}">
+                            <h4 class="h6 mt-3">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.comments.heading')}</h4>
+                            <ul class="list-unstyled mb-0 ws-comments">
+                                <f:for each="{section.comments}" as="comment">
+                                    <li class="border-top pt-2 mt-2" data-comment-kind="{comment.kind}">
+                                        <p class="small text-variant mb-1">
+                                            <strong>{comment.author}</strong>
+                                            <span class="badge badge-default"><f:if condition="{comment.fromReviewer}"><f:then><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.comment.byReviewer" /></f:then><f:else><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.comment.byEditor" /></f:else></f:if></span>
+                                            <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.comment.kind.{comment.kind}" />
+                                            <f:if condition="{comment.field}">(<f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.comment.field.{comment.field}" />)</f:if>
+                                            &middot; <f:format.date format="Y-m-d H:i">{comment.when}</f:format.date>
+                                            <f:if condition="{comment.isComment}"><f:else>&middot; <f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.comment.status.{comment.status}" /></f:else></f:if>
+                                        </p>
+                                        <f:for each="{comment.lines}" as="line"><p class="mb-1">{line}</p></f:for>
+                                    </li>
+                                </f:for>
+                            </ul>
+                        </f:if>
                     </div>
                 </article>
             </f:for>

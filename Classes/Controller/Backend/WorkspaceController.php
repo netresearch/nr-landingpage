@@ -9,9 +9,12 @@ declare(strict_types=1);
 
 namespace Netresearch\NrLandingpage\Controller\Backend;
 
+use Netresearch\NrLandingpage\Domain\Model\Workspace\CommentKind;
+use Netresearch\NrLandingpage\Domain\Model\Workspace\ReviewComment;
 use Netresearch\NrLandingpage\Domain\Model\Workspace\ShareLink;
 use Netresearch\NrLandingpage\Domain\Model\Workspace\WorkspaceDraft;
 use Netresearch\NrLandingpage\Service\Workspace\AuditRepository;
+use Netresearch\NrLandingpage\Service\Workspace\CommentRepository;
 use Netresearch\NrLandingpage\Service\Workspace\DraftAccessGuard;
 use Netresearch\NrLandingpage\Service\Workspace\PlainText;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkRepository;
@@ -39,6 +42,7 @@ final class WorkspaceController
         private readonly DraftAccessGuard $draftAccess,
         private readonly ShareLinkRepository $links,
         private readonly AuditRepository $audit,
+        private readonly CommentRepository $comments,
         private readonly WorkspaceSettings $settings,
     ) {}
 
@@ -97,7 +101,7 @@ final class WorkspaceController
 
         $moduleTemplate->assignMultiple([
             'draft' => $this->draftView($draft, $names),
-            'sections' => $this->sectionViews($draft),
+            'sections' => $this->sectionViews($draft, $names),
             'links' => array_map(fn(ShareLink $link): array => $this->linkView($link, $now, $names), $this->links->findByDraft($draft->uid)),
             'audit' => $this->auditViews($draft, $names),
             'mayShare' => $mayShare,
@@ -127,25 +131,62 @@ final class WorkspaceController
     }
 
     /**
-     * The sections as plain text: the same text a reviewer sees.
+     * The sections as plain text, the same text a reviewer sees, with the
+     * comments, suggestions and logged edits of each.
      *
-     * @return list<array{id: string, name: string, header: string, subheader: string, lines: list<string>}>
+     * @param array<int, string> $names
+     * @return list<array{id: string, name: string, header: string, subheader: string, lines: list<string>, comments: list<array<string, mixed>>}>
      */
-    private function sectionViews(WorkspaceDraft $draft): array
+    private function sectionViews(WorkspaceDraft $draft, array $names): array
     {
+        $bySection = [];
+        foreach ($this->comments->findByDraft($draft->uid) as $comment) {
+            $bySection[$comment->sectionId][] = $this->commentView($comment, $names);
+        }
+
         $views = [];
         foreach ($draft->sections as $section) {
             $text = static fn(string $key): string => is_string($section[$key] ?? null) ? $section[$key] : '';
+            $id = $text('id');
             $views[] = [
-                'id' => $text('id'),
+                'id' => $id,
                 'name' => $text('section'),
                 'header' => $text('header'),
                 'subheader' => $text('subheader'),
-                'lines' => array_values(array_filter(array_map(trim(...), explode("\n", PlainText::fromHtml($text('bodytext')))), static fn(string $line): bool => $line !== '')),
+                'lines' => self::lines(PlainText::fromHtml($text('bodytext'))),
+                'comments' => $bySection[$id] ?? [],
             ];
         }
 
         return $views;
+    }
+
+    /**
+     * @param array<int, string> $names
+     * @return array<string, mixed>
+     */
+    private function commentView(ReviewComment $comment, array $names): array
+    {
+        $isComment = $comment->kind === CommentKind::Comment;
+
+        return [
+            'author' => $comment->isFromReviewer() ? $comment->authorName : ($names[$comment->beUser] ?? $comment->authorName),
+            'fromReviewer' => $comment->isFromReviewer(),
+            'kind' => $comment->kind->value,
+            'isComment' => $isComment,
+            'field' => $comment->field,
+            'status' => $comment->status->value,
+            'lines' => self::lines($isComment ? $comment->body : $comment->suggestedText),
+            'when' => $comment->crdate,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function lines(string $text): array
+    {
+        return array_values(array_filter(array_map(trim(...), explode("\n", $text)), static fn(string $line): bool => $line !== ''));
     }
 
     /**

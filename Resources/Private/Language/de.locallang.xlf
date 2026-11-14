@@ -1181,6 +1181,70 @@
                 <source>The draft could not be saved: %s</source>
                 <target>Der Entwurf konnte nicht gespeichert werden: %s</target>
             </trans-unit>
+            <trans-unit id="workspace.comments.heading" resname="workspace.comments.heading">
+                <source>Comments and suggestions</source>
+                <target>Kommentare und Vorschläge</target>
+            </trans-unit>
+            <trans-unit id="workspace.comments.none" resname="workspace.comments.none">
+                <source>Nothing here yet.</source>
+                <target>Hier ist noch nichts.</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.kind.comment" resname="workspace.comment.kind.comment">
+                <source>commented</source>
+                <target>hat kommentiert</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.kind.suggestion" resname="workspace.comment.kind.suggestion">
+                <source>suggested a change</source>
+                <target>hat eine Änderung vorgeschlagen</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.kind.edit" resname="workspace.comment.kind.edit">
+                <source>changed the text</source>
+                <target>hat den Text geändert</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.status.open" resname="workspace.comment.status.open">
+                <source>open</source>
+                <target>offen</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.status.accepted" resname="workspace.comment.status.accepted">
+                <source>accepted</source>
+                <target>übernommen</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.status.rejected" resname="workspace.comment.status.rejected">
+                <source>rejected</source>
+                <target>abgelehnt</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.status.stale" resname="workspace.comment.status.stale">
+                <source>outdated</source>
+                <target>veraltet</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.status.applied" resname="workspace.comment.status.applied">
+                <source>applied</source>
+                <target>angewendet</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.field.header" resname="workspace.comment.field.header">
+                <source>heading</source>
+                <target>Überschrift</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.field.subheader" resname="workspace.comment.field.subheader">
+                <source>subheading</source>
+                <target>Unterüberschrift</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.field.bodytext" resname="workspace.comment.field.bodytext">
+                <source>text</source>
+                <target>Text</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.byReviewer" resname="workspace.comment.byReviewer">
+                <source>reviewer (no login)</source>
+                <target>Prüfer (ohne Login)</target>
+            </trans-unit>
+            <trans-unit id="workspace.comment.byEditor" resname="workspace.comment.byEditor">
+                <source>editor</source>
+                <target>Redaktion</target>
+            </trans-unit>
+            <trans-unit id="workspace.show.commentsCount" resname="workspace.show.commentsCount">
+                <source>%s comments and suggestions</source>
+                <target>%s Kommentare und Vorschläge</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>
