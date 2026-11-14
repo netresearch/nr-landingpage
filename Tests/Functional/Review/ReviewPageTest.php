@@ -266,6 +266,34 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
     }
 
     #[Test]
+    public function aStaleEditStaysAConflictWhenTheRefusedFormIsSubmittedAgainUnchanged(): void
+    {
+        [$token] = $this->link(LinkPermission::Edit);
+        $first = $this->enter($token, name: 'One');
+        $second = $this->enter($token, name: 'Two');
+        $fields = ['section' => 'aaaaaaaaaaaaaaaa', 'field' => 'header'];
+
+        $saved = $this->submit(self::BASE . '/edit', $this->withSession($second, $fields + ['base_text' => 'H', 'text' => 'By two']), $second['cookies']);
+        $stale = $this->submit(self::BASE . '/edit', $this->withSession($first, $fields + ['base_text' => 'H', 'text' => 'By one']), $first['cookies']);
+        $retried = $this->submit(self::BASE . '/edit', $this->withSession($first, $fields + $this->renderedEditForm($stale, 'aaaaaaaaaaaaaaaa', 'header')), $first['cookies']);
+
+        self::assertSame(303, $saved->getStatusCode());
+        self::assertSame(409, $stale->getStatusCode());
+        self::assertSame(409, $retried->getStatusCode(), 'resubmitting the re-rendered form is still a conflict');
+        self::assertSame('By two', $this->draft()->sections[0]['header'], 'the newer text of the other reviewer is intact');
+        self::assertSame('By one', $this->renderedEditForm($retried, 'aaaaaaaaaaaaaaaa', 'header')['text'], 'what the reviewer typed is kept');
+        self::assertSame('H', $this->renderedEditForm($retried, 'aaaaaaaaaaaaaaaa', 'header')['base_text'], 'the text the reviewer saw is kept as the base');
+
+        // After a reload the form carries the current text and the edit goes through.
+        $reloaded = $this->fetch(self::BASE . '/draft', $first['cookies']);
+        $form = $this->renderedEditForm($reloaded, 'aaaaaaaaaaaaaaaa', 'header');
+        self::assertSame('By two', $form['base_text']);
+        $again = $this->submit(self::BASE . '/edit', $this->withSession($first, $fields + ['base_text' => $form['base_text'], 'text' => 'By one, later']), $first['cookies']);
+        self::assertSame(303, $again->getStatusCode());
+        self::assertSame('By one, later', $this->draft()->sections[0]['header']);
+    }
+
+    #[Test]
     public function aLinkOfOneDraftCannotReachASectionOfAnother(): void
     {
         $other = $this->makeDraft(2, [], 'Other draft');
@@ -659,6 +687,26 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
         $issued = $this->service()->issue($draft, $permission, $lifetimeDays, 'test', $passphrase, $maxUses, 2, time());
 
         return [$issued['token'], $issued['uid']];
+    }
+
+    /**
+     * The edit form of one field as the page renders it: the hidden base text
+     * and the text area's content, as a browser would submit them.
+     *
+     * @return array{base_text: string, text: string}
+     */
+    private function renderedEditForm(ResponseInterface $response, string $section, string $field): array
+    {
+        preg_match_all('#<form method="post" action="' . preg_quote(self::BASE, '#') . '/edit"[^>]*>(.*?)</form>#s', (string) $response->getBody(), $forms);
+        foreach ($forms[1] as $form) {
+            if (str_contains($form, 'name="section" value="' . $section . '"') && str_contains($form, 'name="field" value="' . $field . '"')) {
+                self::assertSame(1, preg_match('#name="base_text" value="([^"]*)"#', $form, $base), 'a base text in the edit form');
+                self::assertSame(1, preg_match('#<textarea[^>]*name="text"[^>]*>(.*?)</textarea>#s', $form, $text), 'a text area in the edit form');
+
+                return ['base_text' => html_entity_decode($base[1]), 'text' => html_entity_decode($text[1])];
+            }
+        }
+        self::fail('no edit form for ' . $section . '/' . $field);
     }
 
     private function backdate(int $linkUid, int $expires): void

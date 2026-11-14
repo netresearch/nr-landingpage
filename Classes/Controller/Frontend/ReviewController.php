@@ -116,7 +116,7 @@ final class ReviewController
     }
 
     /**
-     * @param array{action: string, section: string, field: string, text: string}|null $retained what the reviewer typed, shown again after a refusal
+     * @param array{action: string, section: string, field: string, text: string, baseText: string}|null $retained what the reviewer typed and the text they saw, shown again after a refusal
      */
     private function draftPage(ServerRequestInterface $request, bool $secure, int $now, int $status = 200, string $messageId = '', int $retryAfter = 0, ?array $retained = null): ResponseInterface
     {
@@ -181,6 +181,9 @@ final class ReviewController
                 'section' => $this->string($body, 'section'),
                 'field' => $this->string($body, 'field'),
                 'text' => $this->string($body, 'text', false),
+                // The text the reviewer saw, not the refreshed one: a conflict stays a
+                // conflict until they reload the page.
+                'baseText' => $this->string($body, 'base_text'),
             ]);
         }
 
@@ -208,7 +211,7 @@ final class ReviewController
     }
 
     /**
-     * @param array{action: string, section: string, field: string, text: string}|null $retained
+     * @param array{action: string, section: string, field: string, text: string, baseText: string}|null $retained
      * @return array<string, mixed>
      */
     private function draftVariables(ReviewContext $context, string $messageId, bool $isError, ?array $retained = null): array
@@ -226,7 +229,8 @@ final class ReviewController
             $fields = [];
             foreach (ReviewService::FIELDS as $field) {
                 $text = ReviewService::fieldText($section, $field);
-                $typed = fn(string $action): string => $retained !== null && $retained['action'] === $action && $retained['section'] === $id && $retained['field'] === $field ? $retained['text'] : $text;
+                $kept = static fn(string $action): ?array => $retained !== null && $retained['action'] === $action && $retained['section'] === $id && $retained['field'] === $field ? $retained : null;
+                $typed = static fn(string $action): string => $kept($action)['text'] ?? $text;
                 $fields[] = [
                     'name' => $field,
                     'text' => $text,
@@ -234,6 +238,7 @@ final class ReviewController
                     'empty' => $text === '',
                     'suggestText' => $typed('suggest'),
                     'editText' => $typed('edit'),
+                    'baseText' => $kept('edit')['baseText'] ?? $text,
                     'maxLength' => $field === 'bodytext' ? ReviewInput::SUGGESTION_MAX : ReviewService::SHORT_FIELD_MAX,
                 ];
             }
