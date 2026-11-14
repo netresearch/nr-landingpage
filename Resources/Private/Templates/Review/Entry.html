@@ -7,7 +7,8 @@
     <f:if condition="{message}">
         <p class="message message-error" role="alert" id="review-message">{message}</p>
     </f:if>
-    <f:comment>nosemgrep: python.django.security.django-no-csrf-token.django-no-csrf-token (Fluid, not Django: the hidden form_token field carries the CSRF token)</f:comment>
+    <f:comment>Fluid, not Django: the hidden form_token field carries the CSRF token.</f:comment>
+    <f:comment>// nosemgrep: python.django.security.django-no-csrf-token.django-no-csrf-token</f:comment>
     <form method="post" action="{enterPath}" autocomplete="off" class="stack">
         <input type="hidden" name="form_token" value="{formToken}">
         <label for="review-token">{labels.entry_token}</label>
