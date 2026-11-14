@@ -99,7 +99,8 @@ suggestion was made), `suggested_text`, `status` (`open`, `accepted`,
 
 `uid`, `draft_uid`, `link_uid`, `be_user`, `action` (`link_created`,
 `link_opened`, `link_revoked`, `suggestion_accepted`, `suggestion_rejected`,
-`approved`, `page_created`, `approval_reverted`, `approval_reset`), `crdate`.
+`approved`, `page_created`, `approval_reverted`, `approval_reset`,
+`approval_conflict`, `approval_cleanup_failed`, `suggestion_stale`), `crdate`.
 No token, no passphrase, no reviewer text. Append-only by construction: the
 repository has an insert method and no update or delete method.
 
@@ -395,7 +396,8 @@ draft sees current and proposed text side by side and accepts or rejects.
 - **Approve:** everyone who may see it **and** may create a page below the
   parent page, checked with `BackendAccessGuard::checkParentPage()`, the check
   of the wizard's save action. A reviewer's link never carries this right.
-- All state-changing backend actions are POST routes of the backend. That the
+- All state-changing backend actions are POST-only routes of the backend
+  (`methods: ['POST']`, tested: a GET is refused by the router). That the
   core refuses such a request without its route token is **not assumed**: a
   functional test posts to each route without a token and expects a refusal,
   as nr-llm's `A2aTokenRouteTokenTest` does. The actions take a `draft` uid and
@@ -413,6 +415,20 @@ cannot approve content the editor was not shown.
 1. Checks `BackendAccessGuard::checkParentPage()` for the parent page the
    approver submitted (the form shows the stored `parent_page_uid` as its
    default; a draft saved without one needs the approver to choose it).
+   The draft's sections and page fields come from its owner, while the page is
+   created with the approver's rights, so the approval must not launder them.
+   Before the conditional update of step 2 (a refusal leaves the draft
+   untouched) `ApprovalContentPolicy` checks them. A template that lists no
+   content types allows only `text`, `textmedia` and `textpic`, which is what
+   the structured wizard produces without a list (a creative template: `html`);
+   a template that lists none of the page fields allows only `title`,
+   `subtitle`, `nav_title`, `seo_title`, `description`, `abstract`, `keywords`,
+   `author`, `no_index`, `og_title`, `og_description`, `twitter_title` and
+   `twitter_description` (reserved fields stay dropped by the page creation).
+   A template's own list applies where it has one. A draft outside the limit
+   is refused with the section (position and name) or the field named. The
+   approver sees each section's content type and the page fields in the
+   approval view.
 2. One conditional update, which also takes ownership of the creation:
 
 ```
@@ -444,7 +460,11 @@ UPDATE draft SET status = 'approved', approved_by = :u, approved_at = :now,
    approved_version = 0, approval_attempt = '' WHERE uid = :d AND status =
    'approved' AND approval_attempt = :mine` runs, and the pages whose
    `tx_nrlandingpage_workspace_ref` is `<draft uid>:<mine>` are deleted through
-   DataHandler first. An attempt whose finalising update in step 3 matches no
+   DataHandler first. When that delete reports errors (an edit-locked page, no
+   delete right), the draft is **not** reverted: it stays `approved` with its
+   attempt, so the page keeps its marker and a later reset finds it, and
+   `approval_cleanup_failed` goes to the audit table; reverting would orphan
+   the page and let a second approval create a duplicate. An attempt whose finalising update in step 3 matches no
    row (a reset or another approval took over) deletes the pages carrying its
    own reference and ends; it can neither finalise nor revert someone else's
    approval. `approval_reverted` goes to the audit table.
@@ -457,7 +477,8 @@ UPDATE draft SET status = 'approved', approved_by = :u, approved_at = :now,
 6. A PHP crash between steps 2 and 3 leaves the draft `approved`, possibly with
    a partial page. After 10 minutes an editor who may approve can reset it
    (`approval_reset` in the audit table): the pages below the approved parent
-   that carry the attempt's exact reference are deleted through DataHandler, then step 4's update runs with
+   that carry the attempt's exact reference are deleted through DataHandler (a delete that reports errors refuses the reset and keeps the approval, with
+   `approval_cleanup_failed` in the audit table), then step 4's update runs with
    the attempt read from the draft, which clears `approval_attempt` and so
    fences any attempt still running. A new approval gets a new attempt.
 
@@ -517,7 +538,14 @@ Each of these is a test and not only a sentence:
   `Origin` and an expired entry form token are refused, and no failure path
   sets a session cookie;
 - group 1 does not see a draft shared with group 12;
-- a backend POST without the route token is refused, for each route.
+- a backend POST without the route token is refused, for each route, and a
+  GET, PUT or DELETE is refused by the router;
+- an approval refuses a content type or page field outside the limit of
+  section 9 (html, list, shortcut, plugin types; content_from_pid, fe_group,
+  shortcut, url) and leaves the draft unchanged; a template's own lists still
+  apply;
+- an undo or reset whose page cannot be deleted keeps the approval and its
+  marker and is audited; rejecting a suggestion of a closed draft is refused.
 
 ## Consequences
 
