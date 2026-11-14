@@ -33,9 +33,12 @@ use Netresearch\NrLandingpage\Service\Workspace\SuggestionService;
 use Netresearch\NrLandingpage\Service\Workspace\WorkspacePages;
 use Netresearch\NrLandingpage\Service\Workspace\WorkspaceRefusedException;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
+use TYPO3\CMS\Core\Cache\CacheManager;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -333,6 +336,55 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
     }
 
     #[Test]
+    #[DataProvider('commandsThatCopyAPageIntoAnotherLanguage')]
+    public function aTranslationOfAMarkedPageDoesNotCarryTheMarker(string $command): void
+    {
+        $this->actAs(1);
+        $GLOBALS['LANG'] = $this->container(\TYPO3\CMS\Core\Localization\LanguageServiceFactory::class)->createFromUserPreferences($GLOBALS['BE_USER']);
+        $directory = Environment::getConfigPath() . '/sites/workspace-test';
+        GeneralUtility::mkdir_deep($directory);
+        GeneralUtility::writeFile($directory . '/config.yaml', implode("\n", [
+            'rootPageId: 1',
+            "base: 'https://workspace.example/'",
+            'languages:',
+            '  - title: English',
+            '    enabled: true',
+            '    languageId: 0',
+            "    base: '/'",
+            '    locale: en_US.UTF-8',
+            '  - title: Deutsch',
+            '    enabled: true',
+            '    languageId: 1',
+            "    base: '/de/'",
+            '    locale: de_DE.UTF-8',
+            '',
+        ]));
+        $cacheManager = GeneralUtility::makeInstance(CacheManager::class);
+        $cacheManager->getCache('core')->flush();
+        $cacheManager->getCache('runtime')->flush();
+        $marked = $this->pageWithMarker($this->draftUid . ':realrealrealrealrealrealreal0000');
+
+        $handler = GeneralUtility::makeInstance(DataHandler::class);
+        $handler->start([], ['pages' => [$marked => [$command => 1]]]);
+        $handler->process_cmdmap();
+
+        self::assertSame([], $handler->errorLog);
+        $translations = $this->uidsBelow(self::OPEN_PARENT, 'l10n_parent', $marked);
+        self::assertCount(1, $translations, 'the command made one translation');
+        self::assertSame('', $this->row('pages', $translations[0])['tx_nrlandingpage_workspace_ref'], 'a translation does not carry the marker');
+        self::assertSame($this->draftUid . ':realrealrealrealrealrealreal0000', $this->row('pages', $marked)['tx_nrlandingpage_workspace_ref'], 'the original keeps it');
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function commandsThatCopyAPageIntoAnotherLanguage(): iterable
+    {
+        yield 'localize' => ['localize'];
+        yield 'copyToLanguage' => ['copyToLanguage'];
+    }
+
+    #[Test]
     public function aCreatedDraftHasNothingToReset(): void
     {
         $this->actAs(1);
@@ -450,6 +502,23 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
             self::assertSame(WorkspaceRefusedException::CONFLICT, $e->reason);
         }
         self::assertSame('H', $this->draft()->sections[0]['header']);
+    }
+
+    #[Test]
+    public function aSuggestionOfAnApprovedDraftCannotBeRejected(): void
+    {
+        $this->actAs(1);
+        $suggestion = $this->suggest('header', 'H', 'A better heading');
+        $this->approval()->approve($this->draftUid, $this->draft()->version, self::OPEN_PARENT, self::NOW);
+
+        try {
+            $this->suggestions()->reject($this->draftUid, $suggestion, self::NOW + 2);
+            self::fail('A suggestion was rejected after the approval.');
+        } catch (WorkspaceRefusedException $e) {
+            self::assertSame(WorkspaceRefusedException::CONFLICT, $e->reason);
+        }
+        self::assertSame(CommentStatus::Open, $this->container(CommentRepository::class)->findInDraft($suggestion, $this->draftUid)?->status);
+        self::assertNotContains('suggestion_rejected', array_column($this->audit()->findByDraft($this->draftUid), 'action'));
     }
 
     #[Test]
@@ -614,6 +683,22 @@ final class ApprovalTest extends AbstractWorkspaceTestCase
             ->executeQuery()->fetchFirstColumn();
 
         return array_values(array_map(static fn(mixed $uid): int => (int) $uid, $rows));
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function uidsBelow(int $pid, string $column, int $value): array
+    {
+        $builder = $this->getConnectionPool()->getQueryBuilderForTable('pages');
+        $builder->getRestrictions()->removeAll();
+
+        return array_values(array_map(static fn(mixed $uid): int => (int) $uid, $builder->select('uid')->from('pages')
+            ->where(
+                $builder->expr()->eq('pid', $builder->createNamedParameter($pid, \TYPO3\CMS\Core\Database\Connection::PARAM_INT)),
+                $builder->expr()->eq($column, $builder->createNamedParameter($value, \TYPO3\CMS\Core\Database\Connection::PARAM_INT)),
+            )
+            ->executeQuery()->fetchFirstColumn()));
     }
 
     /**

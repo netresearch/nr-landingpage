@@ -90,7 +90,10 @@ class SuggestionService
     public function reject(int $draftUid, int $commentUid, int $now): void
     {
         $user = $this->access->currentUserUid();
-        $this->resolveDraft($draftUid);
+        $draft = $this->resolveDraft($draftUid);
+        if (!$draft->isDraft()) {
+            throw new WorkspaceRefusedException('The draft is closed.', 1799600009, WorkspaceRefusedException::CONFLICT);
+        }
         $suggestion = $this->suggestion($draftUid, $commentUid);
 
         if (!$this->comments->resolve($suggestion->uid, CommentStatus::Rejected, $user, $now)) {
