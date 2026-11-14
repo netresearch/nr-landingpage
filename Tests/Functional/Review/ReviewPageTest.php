@@ -18,6 +18,7 @@ use Netresearch\NrLandingpage\Service\Workspace\ShareLinkRepository;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkService;
 use Netresearch\NrLandingpage\Tests\Functional\Service\Workspace\AbstractWorkspaceTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Http\Message\ResponseInterface;
 use TYPO3\TestingFramework\Core\Functional\Framework\Frontend\InternalRequest;
@@ -291,6 +292,36 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
         $again = $this->submit(self::BASE . '/edit', $this->withSession($first, $fields + ['base_text' => $form['base_text'], 'text' => 'By one, later']), $first['cookies']);
         self::assertSame(303, $again->getStatusCode());
         self::assertSame('By one, later', $this->draft()->sections[0]['header']);
+    }
+
+    #[Test]
+    #[DataProvider('writeLimiters')]
+    public function aWriteRefusedByALimiterShowsWhatTheReviewerTypedAgain(string $limiter): void
+    {
+        $this->setConfig('SYS/rateLimiter/' . $limiter . '/limit', 1);
+        [$token] = $this->link(LinkPermission::Edit);
+        $session = $this->enter($token, name: 'Sam');
+        $fields = ['section' => 'aaaaaaaaaaaaaaaa', 'field' => 'header'];
+
+        $first = $this->submit(self::BASE . '/comment', $this->withSession($session, $fields + ['text' => 'uses the budget']), $session['cookies']);
+        $limited = $this->submit(self::BASE . '/edit', $this->withSession($session, $fields + ['base_text' => 'H', 'text' => 'A heading I typed']), $session['cookies']);
+
+        self::assertSame(303, $first->getStatusCode());
+        self::assertSame(429, $limited->getStatusCode());
+        self::assertGreaterThan(0, (int) $limited->getHeaderLine('Retry-After'));
+        self::assertSame(['base_text' => 'H', 'text' => 'A heading I typed'], $this->renderedEditForm($limited, 'aaaaaaaaaaaaaaaa', 'header'), 'the typed text and its base come back');
+        self::assertSame('H', $this->draft()->sections[0]['header']);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function writeLimiters(): array
+    {
+        return [
+            'per session' => ['nrlp-review-write'],
+            'per link' => ['nrlp-review-link-write'],
+        ];
     }
 
     #[Test]

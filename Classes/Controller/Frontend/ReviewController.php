@@ -154,15 +154,24 @@ final class ReviewController
         if (!$this->sameOrigin($request) || !$this->tokens->isValidSessionToken($context->sessionId, $this->string($body, 'form_token'))) {
             return $this->draftPage($request, $secure, $now, 400, 'error_csrf');
         }
+        $section = $this->string($body, 'section');
+        $field = $this->string($body, 'field');
+        $retained = [
+            'action' => $action,
+            'section' => $section,
+            'field' => $field,
+            'text' => $this->string($body, 'text', false),
+            // The text the reviewer saw, not the refreshed one: a conflict stays a
+            // conflict until they reload the page.
+            'baseText' => $this->string($body, 'base_text'),
+        ];
         $wait = $this->limits->consumeWrite(ReviewTokens::sessionHash($context->sessionId), $now)
             ?? $this->limits->consumeLinkWrite($context->link->tokenPrefix, $now);
         if ($wait !== null) {
-            return $this->draftPage($request, $secure, $now, 429, 'error_limited', $wait);
+            return $this->draftPage($request, $secure, $now, 429, 'error_limited', $wait, $retained);
         }
 
         try {
-            $section = $this->string($body, 'section');
-            $field = $this->string($body, 'field');
             match ($action) {
                 'comment' => $this->reviewService->comment($context, $section, $field, $this->string($body, 'text', false), $now),
                 'suggest' => $this->reviewService->suggest($context, $section, $field, $this->string($body, 'text', false), $now),
@@ -176,18 +185,10 @@ final class ReviewController
                 default => [400, 'error_invalid'],
             };
 
-            return $this->draftPage($request, $secure, $now, $status, $message, 0, [
-                'action' => $action,
-                'section' => $this->string($body, 'section'),
-                'field' => $this->string($body, 'field'),
-                'text' => $this->string($body, 'text', false),
-                // The text the reviewer saw, not the refreshed one: a conflict stays a
-                // conflict until they reload the page.
-                'baseText' => $this->string($body, 'base_text'),
-            ]);
+            return $this->draftPage($request, $secure, $now, $status, $message, 0, $retained);
         }
 
-        return $this->responder->redirect(self::BASE_PATH . '/draft?done=' . $action . '#section-' . rawurlencode($this->string($body, 'section')));
+        return $this->responder->redirect(self::BASE_PATH . '/draft?done=' . $action . '#section-' . rawurlencode($section));
     }
 
     private function leave(ServerRequestInterface $request, bool $secure, int $now): ResponseInterface
