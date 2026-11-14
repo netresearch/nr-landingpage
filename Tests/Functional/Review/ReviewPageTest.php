@@ -465,6 +465,34 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
     }
 
     #[Test]
+    public function reEnteringForAFreshSessionDoesNotResetTheWriteBudgetOfALink(): void
+    {
+        $this->setConfig('SYS/rateLimiter/nrlp-review-link-write/limit', 2);
+        [$token] = $this->link(LinkPermission::Comment);
+        [$otherToken] = $this->link(LinkPermission::Comment);
+        $first = $this->enter($token);
+        $second = $this->enter($token);
+        $other = $this->enter($otherToken);
+        $post = fn (array $session, string $text): ResponseInterface => $this->submit(
+            self::BASE . '/comment',
+            $this->withSession($session, ['section' => 'aaaaaaaaaaaaaaaa', 'field' => '', 'text' => $text]),
+            $session['cookies'],
+        );
+
+        self::assertSame(303, $post($first, 'one')->getStatusCode());
+        self::assertSame(303, $post($second, 'two')->getStatusCode(), 'a second session of the link shares its budget');
+        $third = $post($first, 'three');
+        $fourth = $post($second, 'four');
+        $unaffected = $post($other, 'other link');
+
+        self::assertSame(429, $third->getStatusCode());
+        self::assertGreaterThan(0, (int) $third->getHeaderLine('Retry-After'));
+        self::assertSame(429, $fourth->getStatusCode(), 'a fresh session does not reset the budget of its link');
+        self::assertSame(303, $unaffected->getStatusCode(), 'another link of the same draft keeps its own budget');
+        self::assertSame(3, $this->comments()->countByDraft($this->draftUid));
+    }
+
+    #[Test]
     public function aPassphraseOfMoreThan256BytesCountsAsWrong(): void
     {
         [$token] = $this->link(LinkPermission::View);

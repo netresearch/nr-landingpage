@@ -154,7 +154,8 @@ final class ReviewController
         if (!$this->sameOrigin($request) || !$this->tokens->isValidSessionToken($context->sessionId, $this->string($body, 'form_token'))) {
             return $this->draftPage($request, $secure, $now, 400, 'error_csrf');
         }
-        $wait = $this->limits->consumeWrite(ReviewTokens::sessionHash($context->sessionId), $now);
+        $wait = $this->limits->consumeWrite(ReviewTokens::sessionHash($context->sessionId), $now)
+            ?? $this->limits->consumeLinkWrite($context->link->tokenPrefix, $now);
         if ($wait !== null) {
             return $this->draftPage($request, $secure, $now, 429, 'error_limited', $wait);
         }

@@ -268,6 +268,7 @@ revoked-link session answers the same 404 entry page):
 | `nrlp-review-enter` | source address | sliding window, 10 per 15 minutes | each failed exchange |
 | `nrlp-review-link` | token prefix | 5 per 15 minutes | each exchange for a passphrase-protected link **whose token hash matched**, before the passphrase is checked |
 | `nrlp-review-write` | session id hash | 30 per 10 minutes | each POST in a session |
+| `nrlp-review-link-write` | token prefix of the link | 100 per 24 hours | each POST through the link, in any of its sessions |
 | `nrlp-review-request` | source address | sliding window, 60 per 15 minutes | every entry attempt **whose token did not match**, before any password hash runs |
 
 `nrlp-review-link` is consumed only by someone who holds the secret (the token
@@ -276,7 +277,10 @@ recipient out, and invented prefixes create no limiter entries. A recipient
 uses one of the five for each opening of the link. A limit that is hit answers
 `429` with `Retry-After`. `nrlp-review-enter` is keyed by the source address and
 `nrlp-review-write` by a session the caller owns, so `429` does not tell a real
-link from an invented one. `nrlp-review-request` bounds the hash work an address
+link from an invented one. Entering again gives a fresh session, so the session
+limit alone does not stop one link from filling the draft's cap of 500 entries
+for everyone else; `nrlp-review-link-write` counts the writes of all sessions of
+one link and is far below that cap. `nrlp-review-request` bounds the hash work an address
 can ask for without holding a token (the entry page hands out a valid form token
 to anyone), at a rate far above what recipients behind one address need. It is
 not consumed when the token matched, so clients that share an address (a

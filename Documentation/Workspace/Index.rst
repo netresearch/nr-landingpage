@@ -112,6 +112,10 @@ The limits are TYPO3 rate limiters and can be tuned under
    Comments, suggestions and changes per review session (default 30 per 10
    minutes).
 
+``nrlp-review-link-write``
+   Comments, suggestions and changes per share link, over all its sessions
+   (default 100 per 24 hours). Entering again does not reset it.
+
 ``nrlp-review-request``
    Entry attempts without a matching access code per source address, before
    any passphrase hash runs (default 60 per 15 minutes). A request with a

@@ -13,7 +13,7 @@ use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\RateLimiter\Storage\StorageInterface;
 
 /**
- * The three limiters of the review page (ADR-0001, section 5), on TYPO3's
+ * The limiters of the review page (ADR-0001, section 5), on TYPO3's
  * caching framework storage like nr-llm's A2A authenticator. Each can be
  * tuned under `$GLOBALS['TYPO3_CONF_VARS']['SYS']['rateLimiter'][<id>]`.
  *
@@ -28,12 +28,15 @@ class ReviewRateLimits
 
     public const WRITE = 'nrlp-review-write';
 
+    public const LINK_WRITE = 'nrlp-review-link-write';
+
     public const REQUEST = 'nrlp-review-request';
 
     private const DEFAULTS = [
         self::ENTER => ['policy' => 'sliding_window', 'limit' => 10, 'interval' => '15 minutes'],
         self::LINK => ['policy' => 'sliding_window', 'limit' => 5, 'interval' => '15 minutes'],
         self::WRITE => ['policy' => 'sliding_window', 'limit' => 30, 'interval' => '10 minutes'],
+        self::LINK_WRITE => ['policy' => 'sliding_window', 'limit' => 100, 'interval' => '24 hours'],
         self::REQUEST => ['policy' => 'sliding_window', 'limit' => 60, 'interval' => '15 minutes'],
     ];
 
@@ -74,6 +77,17 @@ class ReviewRateLimits
     public function consumeWrite(string $sessionHash, int $now): ?int
     {
         return $this->consume(self::WRITE, $sessionHash, $now);
+    }
+
+    /**
+     * A write through a link, keyed by the link's token prefix (unique per
+     * link and, unlike a uid, never reused). Entering again gives a fresh
+     * session but the same link, so the per-session limit alone does not stop
+     * one link from filling the draft's entry cap for everyone else.
+     */
+    public function consumeLinkWrite(string $tokenPrefix, int $now): ?int
+    {
+        return $this->consume(self::LINK_WRITE, $tokenPrefix, $now);
     }
 
     private function consume(string $id, string $key, int $now): ?int
