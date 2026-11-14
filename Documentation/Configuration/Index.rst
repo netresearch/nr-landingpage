@@ -322,7 +322,8 @@ services of nr-llm use the same key and model for every site.
 
    The width and height of the images the AI generates for this
    template: 1024 x 1024, 1536 x 1024, 1024 x 1536, 1792 x 1024 or
-   1024 x 1792. The size goes to the image service as the OpenAI
+   1024 x 1792. The size also sets the aspect ratio (1:1, 3:2, 2:3, 7:4
+   or 4:7); there is no separate ratio setting. The size goes to the image service as the OpenAI
    ``size`` and as the width and height fal.ai reads, so it applies to both.
 
    Which sizes work depends on the image model of the provider:
