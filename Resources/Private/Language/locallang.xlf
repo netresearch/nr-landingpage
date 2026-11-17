@@ -51,13 +51,13 @@
                 <source>Generating page fields...</source>
             </trans-unit>
             <trans-unit id="wizard.loading.content" resname="wizard.loading.content">
-                <source>Generating content sections...</source>
+                <source>Generating content sections. This can take more than a minute...</source>
             </trans-unit>
             <trans-unit id="wizard.loading.creating" resname="wizard.loading.creating">
                 <source>Creating landing page...</source>
             </trans-unit>
             <trans-unit id="wizard.loading.regenerating" resname="wizard.loading.regenerating">
-                <source>Regenerating section...</source>
+                <source>Regenerating section. This can take more than a minute...</source>
             </trans-unit>
             <trans-unit id="wizard.template.select" resname="wizard.template.select">
                 <source>Select a Template</source>
