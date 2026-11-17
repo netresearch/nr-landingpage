@@ -14,6 +14,7 @@ use Netresearch\NrLandingpage\Service\LandingPageDetectionService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionClass;
+use ReflectionMethod;
 use TYPO3\CMS\Backend\Controller\Event\ModifyPageLayoutContentEvent;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
@@ -31,7 +32,14 @@ final class AddRegenerateButtonListenerTest extends UnitTestCase
         /** @var ModuleTemplate $moduleTemplate */
         $moduleTemplate = (new ReflectionClass(ModuleTemplate::class))->newInstanceWithoutConstructor();
 
-        return new ModifyPageLayoutContentEvent($request, $moduleTemplate);
+        $arguments = [$request, $moduleTemplate];
+        // TYPO3 14.3.12 added the page context as a third argument; 13.4 and
+        // 14.3.11 take two. The listeners do not read the page context.
+        if ((new ReflectionMethod(ModifyPageLayoutContentEvent::class, '__construct'))->getNumberOfParameters() === 3) {
+            $arguments[] = (new ReflectionClass('TYPO3\\CMS\\Backend\\Context\\PageContext'))->newInstanceWithoutConstructor();
+        }
+
+        return new ModifyPageLayoutContentEvent(...$arguments);
     }
 
     #[Test]
