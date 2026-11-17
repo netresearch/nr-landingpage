@@ -11,6 +11,7 @@ namespace Netresearch\NrLandingpage\Service\Workspace;
 
 use Netresearch\NrLandingpage\Domain\Model\Workspace\AuditAction;
 use Netresearch\NrLandingpage\Domain\Model\Workspace\WorkspaceDraft;
+use TYPO3\CMS\Core\Database\ConnectionPool;
 
 /**
  * Discards a draft (ADR-0001, section 8): a soft delete of the draft, every
@@ -25,12 +26,24 @@ class DraftDiscardService
         private readonly ShareLinkRepository $links,
         private readonly SessionRepository $sessions,
         private readonly AuditRepository $audit,
+        private readonly ConnectionPool $connectionPool,
     ) {}
 
     /**
      * @throws WorkspaceRefusedException when the draft is gone already, or approved and creating its page
      */
     public function discard(WorkspaceDraft $draft, int $byUser, int $now): void
+    {
+        // One transaction: a failure half-way must not leave a deleted draft
+        // without its revocations and without the audit row that says who did it.
+        $this->connectionPool->getConnectionForTable(DraftRepository::TABLE)->transactional(
+            function () use ($draft, $byUser, $now): void {
+                $this->discardInTransaction($draft, $byUser, $now);
+            },
+        );
+    }
+
+    private function discardInTransaction(WorkspaceDraft $draft, int $byUser, int $now): void
     {
         // The conditional update decides, not the status the caller read: an
         // approval that starts in between is not discarded under its feet.

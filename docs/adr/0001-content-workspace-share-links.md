@@ -418,9 +418,15 @@ draft sees current and proposed text side by side and accepts or rejects.
     (`link_revoked` per link, by the discarding user), every review session of
     those links is deleted, and `draft_discarded` is written. The review page
     already refuses a deleted draft on every request (`ReviewAuthenticator`
-    loads the draft), so a crash between the update and the revocation leaves
-    no link working; the revocation makes the state explicit in the link list
-    and does not depend on that one check.
+    loads the draft); the revocation makes the state explicit in the link list.
+    The update, the revocations, the session deletes and the audit rows run in
+    one transaction, so a failure half-way writes none of them.
+  - Accepted limit: a link whose creation runs at the same moment as the
+    discard (both by the owner or an administrator) can be inserted after the
+    revocation pass and stay unrevoked. It opens nothing, because the review
+    page refuses the deleted draft on every request.
+  - An approved draft whose reset keeps failing cannot be discarded; its links
+    can still be revoked one by one.
 - **Comment, accept, reject, edit:** everyone who may see it.
 - **Approve:** everyone who may see it **and** may create a page below the
   parent page, checked with `BackendAccessGuard::checkParentPage()`, the check

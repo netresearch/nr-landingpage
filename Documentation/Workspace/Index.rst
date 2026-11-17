@@ -188,7 +188,8 @@ history stay in the database with the deleted record. A page that was already
 created from the draft stays.
 
 An approved draft whose page is still being created cannot be discarded: wait
-until the page exists, or reset the approval first.
+until the page exists, or reset the approval first. While it cannot be reset,
+revoke its links one by one to end access.
 
 Configuration
 =============
