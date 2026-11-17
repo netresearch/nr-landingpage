@@ -888,6 +888,27 @@
             <trans-unit id="workspace.audit.suggestion_stale" resname="workspace.audit.suggestion_stale">
                 <source>Suggestion outdated</source>
             </trans-unit>
+            <trans-unit id="workspace.discard.heading" resname="workspace.discard.heading">
+                <source>Discard draft</source>
+            </trans-unit>
+            <trans-unit id="workspace.discard.help" resname="workspace.discard.help">
+                <source>Deletes the draft and revokes every link to it at once; open review sessions end. Comments and the audit trail are kept with the deleted draft. A page created from it stays.</source>
+            </trans-unit>
+            <trans-unit id="workspace.discard.submit" resname="workspace.discard.submit">
+                <source>Discard draft</source>
+            </trans-unit>
+            <trans-unit id="workspace.discard.confirm" resname="workspace.discard.confirm">
+                <source>Discard this draft? It disappears from the workspace and every link to it stops working at once. This cannot be undone here.</source>
+            </trans-unit>
+            <trans-unit id="workspace.discard.failed" resname="workspace.discard.failed">
+                <source>The draft could not be discarded.</source>
+            </trans-unit>
+            <trans-unit id="workspace.discard.done" resname="workspace.discard.done">
+                <source>The draft was discarded.</source>
+            </trans-unit>
+            <trans-unit id="workspace.audit.draft_discarded" resname="workspace.audit.draft_discarded">
+                <source>Draft discarded</source>
+            </trans-unit>
             <trans-unit id="wizard.button.saveDraft" resname="wizard.button.saveDraft">
                 <source>Save as workspace draft</source>
             </trans-unit>

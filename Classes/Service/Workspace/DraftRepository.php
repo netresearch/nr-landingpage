@@ -163,6 +163,24 @@ class DraftRepository
     }
 
     /**
+     * Discard a draft: a soft delete, so its comments and its audit trail stay
+     * with it. Only an open draft or one whose page exists; an approved draft
+     * has a page creation in flight (or waiting for a reset) that owns it.
+     * False when nothing was discarded.
+     */
+    public function discard(int $uid, int $now): bool
+    {
+        $affected = $this->connectionPool->getConnectionForTable(self::TABLE)->executeStatement(
+            'UPDATE ' . self::TABLE . ' SET deleted = 1, tstamp = ?'
+            . ' WHERE uid = ? AND deleted = 0 AND status IN (?, ?)',
+            [$now, $uid, DraftStatus::Draft->value, DraftStatus::Created->value],
+            [Connection::PARAM_INT, Connection::PARAM_INT, Connection::PARAM_STR, Connection::PARAM_STR],
+        );
+
+        return $affected === 1;
+    }
+
+    /**
      * The drafts a backend user sees: all of them for an administrator, else
      * the user's own and those shared with one of the user's groups. A group
      * is matched with the platform's set function, never with LIKE, so group

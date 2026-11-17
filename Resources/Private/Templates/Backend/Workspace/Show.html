@@ -235,6 +235,16 @@
             </f:for>
         </section>
 
+        <f:if condition="{mayDiscard}">
+            <section class="card border-danger mb-5" aria-labelledby="ws-discard-heading" id="ws-discard">
+                <div class="card-body">
+                    <h2 class="h4" id="ws-discard-heading">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.discard.heading')}</h2>
+                    <p class="text-variant" id="ws-discard-help">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.discard.help')}</p>
+                    <button type="button" class="btn btn-danger" id="ws-discard-submit" aria-describedby="ws-discard-help">{f:translate(key: 'LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.discard.submit')}</button>
+                </div>
+            </section>
+        </f:if>
+
         <section aria-labelledby="ws-audit-heading">
             <h2 class="h4 mb-3" id="ws-audit-heading"><f:translate key="LLL:EXT:nr_landingpage/Resources/Private/Language/locallang.xlf:workspace.show.audit" /></h2>
             <f:if condition="{audit}">

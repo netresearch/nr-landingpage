@@ -15,6 +15,7 @@ use Netresearch\NrLandingpage\Service\ImageNotReadableException;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use Netresearch\NrLandingpage\Service\Workspace\ApprovalService;
 use Netresearch\NrLandingpage\Service\Workspace\DraftAccessGuard;
+use Netresearch\NrLandingpage\Service\Workspace\DraftDiscardService;
 use Netresearch\NrLandingpage\Service\Workspace\DraftService;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkService;
 use Netresearch\NrLandingpage\Service\Workspace\SuggestionService;
@@ -29,7 +30,7 @@ use TYPO3\CMS\Core\Http\JsonResponse;
 
 /**
  * The state-changing actions of the content workspace (ADR-0001): save a
- * draft from the wizard, create a share link, revoke one.
+ * draft from the wizard, create a share link, revoke one, discard a draft.
  *
  * Every route is a backend route the core protects with its route token; each
  * action checks again who the user is and what they may do with the draft.
@@ -51,6 +52,7 @@ final class WorkspaceAjaxController implements LoggerAwareInterface
         private readonly WorkspaceSettings $settings,
         private readonly ApprovalService $approval,
         private readonly SuggestionService $suggestions,
+        private readonly DraftDiscardService $discard,
     ) {}
 
     /**
@@ -162,6 +164,24 @@ final class WorkspaceAjaxController implements LoggerAwareInterface
         }
 
         return new JsonResponse(['success' => true]);
+    }
+
+    /**
+     * Discard a draft: it is deleted, every link to it revoked. The owner and
+     * administrators only; to everyone else the draft is not found.
+     */
+    public function discardDraftAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $draft = $this->draftAccess->load($this->int($this->body($request), 'draft'));
+        if ($draft === null || !$this->draftAccess->mayDiscard($draft)) {
+            return $this->forbidden();
+        }
+
+        return $this->attempt(function () use ($draft): array {
+            $this->discard->discard($draft, $this->draftAccess->currentUserUid(), time());
+
+            return [];
+        });
     }
 
     /**

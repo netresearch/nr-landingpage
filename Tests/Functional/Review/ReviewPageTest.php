@@ -12,6 +12,7 @@ namespace Netresearch\NrLandingpage\Tests\Functional\Review;
 use Netresearch\NrLandingpage\Domain\Model\Workspace\LinkPermission;
 use Netresearch\NrLandingpage\Middleware\ReviewPageMiddleware;
 use Netresearch\NrLandingpage\Service\Workspace\CommentRepository;
+use Netresearch\NrLandingpage\Service\Workspace\DraftDiscardService;
 use Netresearch\NrLandingpage\Service\Workspace\DraftRepository;
 use Netresearch\NrLandingpage\Service\Workspace\SessionRepository;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkRepository;
@@ -143,6 +144,9 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
         $deletedDraft = $this->makeDraft(2, [], 'gone');
         [$ofDeleted] = $this->link(LinkPermission::View, draftUid: $deletedDraft);
         $this->getConnectionPool()->getConnectionForTable(DraftRepository::TABLE)->update(DraftRepository::TABLE, ['deleted' => 1], ['uid' => $deletedDraft]);
+        $discardedDraft = $this->makeDraft(2, [], 'discarded');
+        [$ofDiscarded] = $this->link(LinkPermission::View, draftUid: $discardedDraft);
+        $this->container(DraftDiscardService::class)->discard($this->draft($discardedDraft), 2, time());
 
         $unknown = 'nrws_0000000000000000_' . str_repeat('A', 43);
         $refusals = [
@@ -155,6 +159,7 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
             'wrong passphrase' => $protected,
             'usage limit used up' => $once,
             'draft deleted' => $ofDeleted,
+            'draft discarded' => $ofDiscarded,
         ];
 
         $reference = null;
@@ -393,6 +398,26 @@ final class ReviewPageTest extends AbstractWorkspaceTestCase
         $open = $this->enter($second);
         $this->backdate($secondUid, expires: 1);
         self::assertSame(404, $this->fetch(self::BASE . '/draft', $open['cookies'])->getStatusCode());
+    }
+
+    #[Test]
+    public function discardingADraftEndsTheOpenSessionsOfItsLinks(): void
+    {
+        [$token, $linkUid] = $this->link(LinkPermission::Comment);
+        $session = $this->enter($token);
+        self::assertSame(200, $this->fetch(self::BASE . '/draft', $session['cookies'])->getStatusCode());
+
+        $this->container(DraftDiscardService::class)->discard($this->draft(), 2, time());
+
+        $page = $this->fetch(self::BASE . '/draft', $session['cookies']);
+        self::assertSame(404, $page->getStatusCode());
+        self::assertStringContainsString('not valid or has expired', (string) $page->getBody());
+        $write = $this->submit(self::BASE . '/comment', $this->withSession($session, ['section' => 'aaaaaaaaaaaaaaaa', 'text' => 'late']), $session['cookies']);
+        self::assertSame(404, $write->getStatusCode());
+        self::assertSame([], $this->comments()->findByDraft($this->draftUid));
+        self::assertTrue($this->links()->findByUid($linkUid)?->isRevoked(), 'the link is revoked, not only its draft hidden');
+        self::assertNull($this->sessions()->findByHash(hash('sha256', $session['cookies']['__Host-nrws_session'])), 'the open session row is deleted');
+        self::assertSame(404, $this->enter($token)['response']->getStatusCode(), 'the link does not open a new session');
     }
 
     #[Test]

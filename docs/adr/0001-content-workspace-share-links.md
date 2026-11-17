@@ -100,7 +100,8 @@ suggestion was made), `suggested_text`, `status` (`open`, `accepted`,
 `uid`, `draft_uid`, `link_uid`, `be_user`, `action` (`link_created`,
 `link_opened`, `link_revoked`, `suggestion_accepted`, `suggestion_rejected`,
 `approved`, `page_created`, `approval_reverted`, `approval_reset`,
-`approval_conflict`, `approval_cleanup_failed`, `suggestion_stale`), `crdate`.
+`approval_conflict`, `approval_cleanup_failed`, `suggestion_stale`,
+`draft_discarded`), `crdate`.
 No token, no passphrase, no reviewer text. Append-only by construction: the
 repository has an insert method and no update or delete method.
 
@@ -397,6 +398,38 @@ draft sees current and proposed text side by side and accepts or rejects.
   "forbidden", they get "not found", the same as for a draft that does not
   exist.
 - **Share and revoke links:** the owner and administrators.
+- **Discard** a draft: the owner and administrators, the same people who hand
+  it to the outside (added 2026-11-17, NEXT-181: before, a draft could only be
+  closed by approving it). A group member who sees the draft gets "not found",
+  as for the link actions. Discarding is the POST-only route
+  `nr_landingpage_workspace_discard_draft`:
+  - One conditional update, `UPDATE draft SET deleted = 1 WHERE uid = :d AND
+    deleted = 0 AND status IN ('draft', 'created')`. An `approved` draft is
+    refused with `409`: its page creation is in flight or waits for a reset
+    (section 9), and the attempt that owns it must not lose its draft. A draft
+    whose page exists can be discarded; the page stays.
+  - A **soft delete**, not a removal and not a new status: the audit table is
+    append-only and points at the draft, and comments and suggestions stay with
+    the deleted row for the same trail. Nothing in the backend or the review
+    page reads a deleted draft. Removing comments (reviewer names and texts) is
+    not part of discarding; an installation that must erase them does it in the
+    database.
+  - After the update every link of the draft that is not revoked yet is revoked
+    (`link_revoked` per link, by the discarding user), every review session of
+    those links is deleted, and `draft_discarded` is written. The review page
+    already refuses a deleted draft on every request (`ReviewAuthenticator`
+    loads the draft); the revocation makes the state explicit in the link list.
+    The update, the revocations, the session deletes and the audit rows run in
+    one transaction, so a failure half-way writes none of them.
+  - Accepted limit: a link whose creation runs at the same moment as the
+    discard (both by the owner or an administrator) can be inserted after the
+    revocation pass and stay unrevoked. It opens nothing, because the review
+    page refuses the deleted draft on every request. In the same way a
+    reviewer's comment or suggestion whose request read the draft just before
+    the discard committed can still be stored, on the deleted draft, where
+    nothing shows it.
+  - An approved draft whose reset keeps failing cannot be discarded; its links
+    can still be revoked one by one.
 - **Comment, accept, reject, edit:** everyone who may see it.
 - **Approve:** everyone who may see it **and** may create a page below the
   parent page, checked with `BackendAccessGuard::checkParentPage()`, the check
@@ -550,7 +583,12 @@ Each of these is a test and not only a sentence:
   shortcut, url) and leaves the draft unchanged; a template's own lists still
   apply;
 - an undo or reset whose page cannot be deleted keeps the approval and its
-  marker and is audited; rejecting a suggestion of a closed draft is refused.
+  marker and is audited; rejecting a suggestion of a closed draft is refused;
+- discarding: the owner and an administrator can, a group member who sees the
+  draft and a user who does not cannot (both "not found"); an approved draft is
+  refused and keeps its links; every link of a discarded draft is revoked, its
+  open sessions get the 404 entry page, and a fresh entry gets the same 404 as
+  every other refusal.
 
 ## Consequences
 
@@ -569,7 +607,8 @@ Each of these is a test and not only a sentence:
   standard 404.
 - There is no cleanup job: expired sessions are deleted on the next exchange,
   and expired links stay for the audit trail and are shown as expired.
-  Deleting a draft (soft delete) revokes its links.
+  Discarding a draft (soft delete, section 8) revokes its links and ends their
+  sessions; its comments and audit rows stay with the deleted draft.
 
 ## Alternatives considered
 

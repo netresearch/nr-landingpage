@@ -79,6 +79,15 @@ class DraftAccessGuard
         return $user->isAdmin() || $draft->owner === $this->userUid($user);
     }
 
+    /**
+     * Discarding a draft ends every link to it: the same people who hand it to
+     * the outside, the owner and administrators.
+     */
+    public function mayDiscard(WorkspaceDraft $draft): bool
+    {
+        return $this->mayShare($draft);
+    }
+
     public function currentUserUid(): int
     {
         $user = $this->backendUser();

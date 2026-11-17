@@ -102,7 +102,9 @@ final class WorkspaceController
                     'resetApproval' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_workspace_reset_approval'),
                     'acceptSuggestion' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_workspace_accept_suggestion'),
                     'rejectSuggestion' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_workspace_reject_suggestion'),
+                    'discardDraft' => (string) $this->uriBuilder->buildUriFromRoute('ajax_nr_landingpage_workspace_discard_draft'),
                 ],
+                'indexUrl' => (string) $this->uriBuilder->buildUriFromRoute('nr_landingpage_workspace'),
             ],
         ]);
         $this->pageRenderer->addInlineLanguageLabelFile('EXT:nr_landingpage/Resources/Private/Language/locallang.xlf', 'workspace.', '');
@@ -114,6 +116,8 @@ final class WorkspaceController
             'links' => array_map(fn(ShareLink $link): array => $this->linkView($link, $now, $names), $this->links->findByDraft($draft->uid)),
             'audit' => $this->auditViews($draft, $names),
             'mayShare' => $mayShare,
+            // An approved draft is creating its page; the server refuses it too.
+            'mayDiscard' => $this->draftAccess->mayDiscard($draft) && $draft->status !== DraftStatus::Approved,
             'approval' => $this->approvalView($draft, $names, $now),
             'linksEnabled' => $this->settings->isEnabled(),
             'defaultLifetimeDays' => $this->settings->defaultLifetimeDays(),
