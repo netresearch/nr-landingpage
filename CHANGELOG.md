@@ -13,6 +13,16 @@ level lower.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-17
+
+### Added
+
+- The owner of a workspace draft and administrators can discard it in the Content Workspace: the draft is deleted, every link to it is revoked and open review sessions end ([#153](https://github.com/netresearch/nr-landingpage/pull/153)).
+
+### Fixed
+
+- The wizard's generation steps wait for the server instead of giving up after 60 seconds, so a content generation that takes longer reaches the content step ([#152](https://github.com/netresearch/nr-landingpage/pull/152)).
+
 ## [0.7.4] - 2026-11-16
 
 ### Changed
@@ -474,7 +484,8 @@ Additive/non-breaking 0.x patch. See [#7](https://github.com/netresearch/nr-land
 ### Changes
 Initial release
 
-[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.7.4...HEAD
+[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/netresearch/nr-landingpage/compare/v0.7.4...v0.8.0
 [0.7.4]: https://github.com/netresearch/nr-landingpage/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/netresearch/nr-landingpage/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/netresearch/nr-landingpage/compare/v0.7.1...v0.7.2
