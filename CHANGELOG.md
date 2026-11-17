@@ -13,6 +13,12 @@ level lower.
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-17
+
+### Changed
+
+- nr-llm 0.50 is accepted beside 0.43.10 to 0.49 ([#156](https://github.com/netresearch/nr-landingpage/pull/156)).
+
 ## [0.8.0] - 2026-11-17
 
 ### Added
@@ -484,7 +490,8 @@ Additive/non-breaking 0.x patch. See [#7](https://github.com/netresearch/nr-land
 ### Changes
 Initial release
 
-[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/netresearch/nr-landingpage/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/netresearch/nr-landingpage/compare/v0.7.4...v0.8.0
 [0.7.4]: https://github.com/netresearch/nr-landingpage/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/netresearch/nr-landingpage/compare/v0.7.2...v0.7.3
