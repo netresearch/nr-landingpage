@@ -97,8 +97,9 @@ class LandingPageWizard {
      * for its own reasons: a generation can take more than a minute (71 and
      * 80 seconds for one template on the demo, NEXT-181), giving up does not
      * stop the server, which finishes and bills the generation anyway, and a
-     * request that hangs is ended on the server side (the provider timeout of
-     * nr-llm, the web server and any proxy in front of it).
+     * request that hangs is ended by the read timeout of the web server or a
+     * proxy in front of it (120 seconds on the demo). nr-llm's own provider
+     * timeout applies per attempt and can be retried, so it is no bound here.
      *
      * @param {string} url
      * @param {Object|null} data
