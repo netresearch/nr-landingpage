@@ -16,6 +16,9 @@ import '@typo3/backend/element/spinner-element.js';
 /** The most characters of a pasted source text the server uses (ContentGeneratorService). */
 const SOURCE_TEXT_MAX_LENGTH = 12000;
 
+/** No client timeout for a request that waits for the LLM (see fetchReply()). */
+const LLM_TIMEOUT = 0;
+
 /**
  * Landing Page Wizard using TYPO3 MultiStepWizard modal overlay.
  *
@@ -89,6 +92,13 @@ class LandingPageWizard {
      *
      * The error thrown for a reply carries its HTTP status as `status`; an
      * error without one means no reply arrived (network, timeout).
+     *
+     * Every request that waits for the LLM passes LLM_TIMEOUT, as the save does
+     * for its own reasons: a generation can take more than a minute (71 and
+     * 80 seconds for one template on the demo, NEXT-181), giving up does not
+     * stop the server, which finishes and bills the generation anyway, and a
+     * request that hangs is ended on the server side (the provider timeout of
+     * nr-llm, the web server and any proxy in front of it).
      *
      * @param {string} url
      * @param {Object|null} data
@@ -790,7 +800,7 @@ class LandingPageWizard {
             const reply = await this.fetchReply(this.getAjaxUrl('generateBriefing'), {
                 templateUid: template.uid,
                 parentPageId: WizardState.getParentPageId(),
-            });
+            }, LLM_TIMEOUT);
             const questions = reply.data;
             if (this.isStaleRender(token, container)) {
                 return;
@@ -975,7 +985,7 @@ class LandingPageWizard {
                 templateUid: template.uid,
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
-            });
+            }, LLM_TIMEOUT);
             const fields = reply.data;
             if (this.isStaleRender(token, container)) {
                 return;
@@ -1069,7 +1079,7 @@ class LandingPageWizard {
                 templateUid: template.uid,
                 briefingAnswers: WizardState.getBriefingAnswers(),
                 parentPageId: WizardState.getParentPageId(),
-            });
+            }, LLM_TIMEOUT);
             const result = reply.data;
             if (this.isStaleRender(token, container)) {
                 return;
@@ -1653,7 +1663,7 @@ class LandingPageWizard {
                             templateUid: template.uid,
                             imagePrompt: sectionData.imagePrompt || '',
                             sectionHeader: sectionData.header || sectionData.section || '',
-                        });
+                        }, LLM_TIMEOUT);
                         if (this.isStaleImageReply(run, imageList)) {
                             return;
                         }
@@ -1874,7 +1884,7 @@ class LandingPageWizard {
                 parentPageId: WizardState.getParentPageId(),
                 // Where the section stood in the generated answer, not in the list.
                 sectionIndex: WizardState.getContentSections()[index]?.originIndex ?? index,
-            });
+            }, LLM_TIMEOUT);
             if (this.isStaleSectionReply(run, card)) {
                 return;
             }
