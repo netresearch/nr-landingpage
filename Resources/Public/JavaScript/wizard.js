@@ -96,10 +96,11 @@ class LandingPageWizard {
      * Every request that waits for the LLM passes LLM_TIMEOUT, as the save does
      * for its own reasons: a generation can take more than a minute (71 and
      * 80 seconds for one template on the demo, NEXT-181), giving up does not
-     * stop the server, which finishes and bills the generation anyway, and a
-     * request that hangs is ended by the read timeout of the web server or a
-     * proxy in front of it (120 seconds on the demo). nr-llm's own provider
-     * timeout applies per attempt and can be retried, so it is no bound here.
+     * stop the server, which finishes and bills the generation anyway. How long
+     * a hanging request lasts is set by the installation: the read timeout of
+     * the web server or a proxy in front of it (120 seconds on the demo);
+     * nr-llm's provider timeout applies per attempt and can be retried. Back
+     * and Cancel stay usable while a step waits.
      *
      * @param {string} url
      * @param {Object|null} data
