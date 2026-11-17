@@ -98,4 +98,9 @@ return [
         'target' => WorkspaceAjaxController::class . '::rejectSuggestionAction',
         'methods' => ['POST'],
     ],
+    'nr_landingpage_workspace_discard_draft' => [
+        'path' => '/nr-landingpage/workspace/discard-draft',
+        'target' => WorkspaceAjaxController::class . '::discardDraftAction',
+        'methods' => ['POST'],
+    ],
 ];

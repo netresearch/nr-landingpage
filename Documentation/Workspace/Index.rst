@@ -177,6 +177,19 @@ minutes, :guilabel:`Reset the approval` removes any partial page and opens the
 draft again. A reset that cannot delete the page refuses and keeps the
 approval; remove the cause and reset again.
 
+Discarding a draft
+==================
+
+The owner of a draft and administrators can remove it with
+:guilabel:`Discard draft` at the end of the draft's page. Every link to the
+draft is revoked at once, and reviewers who have it open get the 404 page on
+their next request. The draft disappears from the module; its comments and its
+history stay in the database with the deleted record. A page that was already
+created from the draft stays.
+
+An approved draft whose page is still being created cannot be discarded: wait
+until the page exists, or reset the approval first.
+
 Configuration
 =============
 

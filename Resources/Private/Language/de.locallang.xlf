@@ -1181,6 +1181,34 @@
                 <source>Suggestion outdated</source>
                 <target>Vorschlag veraltet</target>
             </trans-unit>
+            <trans-unit id="workspace.discard.heading" resname="workspace.discard.heading">
+                <source>Discard draft</source>
+                <target>Entwurf verwerfen</target>
+            </trans-unit>
+            <trans-unit id="workspace.discard.help" resname="workspace.discard.help">
+                <source>Deletes the draft and revokes every link to it at once; open review sessions end. Comments and the audit trail are kept with the deleted draft. A page created from it stays.</source>
+                <target>Löscht den Entwurf und widerruft sofort jeden Link darauf; offene Review-Sitzungen enden. Kommentare und das Protokoll bleiben beim gelöschten Entwurf. Eine daraus erstellte Seite bleibt bestehen.</target>
+            </trans-unit>
+            <trans-unit id="workspace.discard.submit" resname="workspace.discard.submit">
+                <source>Discard draft</source>
+                <target>Entwurf verwerfen</target>
+            </trans-unit>
+            <trans-unit id="workspace.discard.confirm" resname="workspace.discard.confirm">
+                <source>Discard this draft? It disappears from the workspace and every link to it stops working at once. This cannot be undone here.</source>
+                <target>Diesen Entwurf verwerfen? Er verschwindet aus dem Workspace, und jeder Link darauf funktioniert sofort nicht mehr. Das lässt sich hier nicht rückgängig machen.</target>
+            </trans-unit>
+            <trans-unit id="workspace.discard.failed" resname="workspace.discard.failed">
+                <source>The draft could not be discarded.</source>
+                <target>Der Entwurf konnte nicht verworfen werden.</target>
+            </trans-unit>
+            <trans-unit id="workspace.discard.done" resname="workspace.discard.done">
+                <source>The draft was discarded.</source>
+                <target>Der Entwurf wurde verworfen.</target>
+            </trans-unit>
+            <trans-unit id="workspace.audit.draft_discarded" resname="workspace.audit.draft_discarded">
+                <source>Draft discarded</source>
+                <target>Entwurf verworfen</target>
+            </trans-unit>
             <trans-unit id="wizard.button.saveDraft" resname="wizard.button.saveDraft">
                 <source>Save as workspace draft</source>
                 <target>Als Workspace-Entwurf speichern</target>

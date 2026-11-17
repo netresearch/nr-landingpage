@@ -26,4 +26,5 @@ enum AuditAction: string
     case ApprovalConflict = 'approval_conflict';
     case ApprovalCleanupFailed = 'approval_cleanup_failed';
     case SuggestionStale = 'suggestion_stale';
+    case DraftDiscarded = 'draft_discarded';
 }

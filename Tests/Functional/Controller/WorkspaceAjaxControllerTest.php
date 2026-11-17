@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Netresearch\NrLandingpage\Tests\Functional\Controller;
 
 use Netresearch\NrLandingpage\Controller\Backend\WorkspaceAjaxController;
+use Netresearch\NrLandingpage\Service\Workspace\DraftRepository;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkRepository;
 use Netresearch\NrLandingpage\Service\Workspace\ShareToken;
 use Netresearch\NrLandingpage\Tests\Functional\Service\Workspace\AbstractWorkspaceTestCase;
@@ -191,6 +192,125 @@ final class WorkspaceAjaxControllerTest extends AbstractWorkspaceTestCase
         self::assertInstanceOf(ShareLinkRepository::class, $links);
         self::assertTrue($links->findByUid((int) $linkUid)?->isRevoked());
         self::assertSame(400, $this->controller->revokeLinkAction($this->post(['draft' => $uid, 'link' => $linkUid]))->getStatusCode());
+    }
+
+    #[Test]
+    public function theOwnerDiscardsADraftAndEveryLinkOfItIsRevoked(): void
+    {
+        $uid = $this->makeDraft(2);
+        $this->actAs(2);
+        $open = $this->json($this->controller->createLinkAction($this->post(['draft' => $uid, 'permission' => 'comment', 'lifetimeDays' => 7])))['uid'];
+        $revoked = $this->json($this->controller->createLinkAction($this->post(['draft' => $uid, 'permission' => 'view', 'lifetimeDays' => 7])))['uid'];
+        $this->controller->revokeLinkAction($this->post(['draft' => $uid, 'link' => $revoked]));
+        $other = $this->makeDraft(2, [], 'Other');
+        $otherLink = $this->json($this->controller->createLinkAction($this->post(['draft' => $other, 'permission' => 'view', 'lifetimeDays' => 7])))['uid'];
+
+        $response = $this->controller->discardDraftAction($this->post(['draft' => $uid]));
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertTrue($this->json($response)['success']);
+        self::assertNull($this->drafts()->findByUid($uid), 'the draft is gone');
+        self::assertTrue($this->links()->findByUid((int) $open)?->isRevoked(), 'the open link is revoked');
+        self::assertTrue($this->links()->findByUid((int) $revoked)?->isRevoked());
+        self::assertFalse($this->links()->findByUid((int) $otherLink)?->isRevoked(), 'a link of another draft stays');
+        self::assertNotNull($this->drafts()->findByUid($other));
+        $actions = array_map(static fn(array $row): string => (string) $row['action'], $this->auditRows($uid));
+        self::assertContains('draft_discarded', $actions);
+        self::assertSame(2, count(array_keys($actions, 'link_revoked', true)), 'one revocation by hand, one by the discard');
+
+        $again = $this->controller->discardDraftAction($this->post(['draft' => $uid]));
+        self::assertSame(404, $again->getStatusCode(), 'a discarded draft is not found');
+    }
+
+    #[Test]
+    public function anAdministratorDiscardsTheDraftOfSomeoneElse(): void
+    {
+        $uid = $this->makeDraft(2);
+        $this->actAs(1);
+
+        self::assertSame(200, $this->controller->discardDraftAction($this->post(['draft' => $uid]))->getStatusCode());
+        self::assertNull($this->drafts()->findByUid($uid));
+    }
+
+    #[Test]
+    public function aGroupMemberWhoSeesTheDraftCannotDiscardIt(): void
+    {
+        $uid = $this->makeDraft(2, [1]);
+        $this->actAs(3);
+
+        $response = $this->controller->discardDraftAction($this->post(['draft' => $uid]));
+
+        self::assertSame(404, $response->getStatusCode());
+        self::assertNotNull($this->drafts()->findByUid($uid), 'the draft is still there');
+    }
+
+    #[Test]
+    public function aUserWhoCannotSeeTheDraftGetsTheAnswerOfAMissingOne(): void
+    {
+        $uid = $this->makeDraft(2);
+        $this->actAs(4);
+
+        $hidden = $this->controller->discardDraftAction($this->post(['draft' => $uid]));
+        $missing = $this->controller->discardDraftAction($this->post(['draft' => 99999]));
+
+        self::assertSame(404, $hidden->getStatusCode());
+        self::assertSame((string) $missing->getBody(), (string) $hidden->getBody());
+        self::assertNotNull($this->drafts()->findByUid($uid));
+    }
+
+    #[Test]
+    public function anApprovedDraftIsNotDiscardedWhileItsPageIsBeingCreated(): void
+    {
+        $uid = $this->makeDraft(2);
+        $this->actAs(2);
+        $link = $this->json($this->controller->createLinkAction($this->post(['draft' => $uid, 'permission' => 'view', 'lifetimeDays' => 7])))['uid'];
+        $this->getConnectionPool()->getConnectionForTable(DraftRepository::TABLE)
+            ->update(DraftRepository::TABLE, ['status' => 'approved', 'approval_attempt' => str_repeat('a', 32)], ['uid' => $uid]);
+
+        $response = $this->controller->discardDraftAction($this->post(['draft' => $uid]));
+
+        self::assertSame(409, $response->getStatusCode());
+        self::assertNotNull($this->drafts()->findByUid($uid));
+        self::assertFalse($this->links()->findByUid((int) $link)?->isRevoked(), 'a refused discard revokes nothing');
+        self::assertNotContains('draft_discarded', array_map(static fn(array $row): string => (string) $row['action'], $this->auditRows($uid)));
+    }
+
+    #[Test]
+    public function aDraftWhosePageExistsCanBeDiscardedAndThePageStays(): void
+    {
+        $uid = $this->makeDraft(2);
+        $this->actAs(2);
+        $this->getConnectionPool()->getConnectionForTable(DraftRepository::TABLE)
+            ->update(DraftRepository::TABLE, ['status' => 'created', 'created_page_uid' => 4711], ['uid' => $uid]);
+
+        self::assertSame(200, $this->controller->discardDraftAction($this->post(['draft' => $uid]))->getStatusCode());
+        self::assertNull($this->drafts()->findByUid($uid));
+    }
+
+    private function drafts(): DraftRepository
+    {
+        $drafts = $this->get(DraftRepository::class);
+        self::assertInstanceOf(DraftRepository::class, $drafts);
+
+        return $drafts;
+    }
+
+    private function links(): ShareLinkRepository
+    {
+        $links = $this->get(ShareLinkRepository::class);
+        self::assertInstanceOf(ShareLinkRepository::class, $links);
+
+        return $links;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function auditRows(int $draftUid): array
+    {
+        return array_values($this->getConnectionPool()->getConnectionForTable('tx_nrlandingpage_workspace_audit')
+            ->select(['action'], 'tx_nrlandingpage_workspace_audit', ['draft_uid' => $draftUid])
+            ->fetchAllAssociative());
     }
 
     /**

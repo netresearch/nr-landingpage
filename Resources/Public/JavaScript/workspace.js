@@ -55,6 +55,10 @@ class Workspace {
             }
             if (event.target.closest('#ws-approval-reset')) {
                 this.confirmReset();
+                return;
+            }
+            if (event.target.closest('#ws-discard-submit')) {
+                this.confirmDiscard();
             }
         });
         document.getElementById('ws-approve-form')?.addEventListener('submit', (event) => {
@@ -212,6 +216,36 @@ class Workspace {
                 location.reload();
             } catch (error) {
                 Notification.error(this.label('approval.failed'), error.message);
+            }
+        });
+        modal.addEventListener('confirm.button.cancel', () => {
+            modal.hideModal();
+        });
+    }
+
+    /**
+     * Discard the draft: it is deleted and every link to it revoked. The
+     * page it was shown on is gone afterwards, so the module goes back to
+     * the list.
+     */
+    confirmDiscard() {
+        const modal = Modal.confirm(this.label('discard.heading'), this.label('discard.confirm'), Modal.sizes.small);
+        let answered = false;
+        modal.addEventListener('confirm.button.ok', async () => {
+            if (answered) {
+                return;
+            }
+            answered = true;
+            modal.hideModal();
+            const submit = document.getElementById('ws-discard-submit');
+            submit.disabled = true;
+            try {
+                await this.post(this.settings.ajaxUrls.discardDraft, { draft: this.settings.draftUid });
+                Notification.success(this.label('discard.done'), '');
+                location.assign(this.settings.indexUrl);
+            } catch (error) {
+                submit.disabled = false;
+                Notification.error(this.label('discard.failed'), error.message);
             }
         });
         modal.addEventListener('confirm.button.cancel', () => {

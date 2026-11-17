@@ -72,6 +72,7 @@ final class WorkspaceRouteTokenTest extends FunctionalTestCase
         yield 'reset approval' => ['ajax_nr_landingpage_workspace_reset_approval'];
         yield 'accept suggestion' => ['ajax_nr_landingpage_workspace_accept_suggestion'];
         yield 'reject suggestion' => ['ajax_nr_landingpage_workspace_reject_suggestion'];
+        yield 'discard draft' => ['ajax_nr_landingpage_workspace_discard_draft'];
     }
 
     #[Test]

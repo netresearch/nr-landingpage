@@ -65,6 +65,14 @@ class SessionRepository
     }
 
     /**
+     * End every open review session of a link.
+     */
+    public function deleteByLink(int $linkUid): void
+    {
+        $this->connectionPool->getConnectionForTable(self::TABLE)->delete(self::TABLE, ['link_uid' => $linkUid], [Connection::PARAM_INT]);
+    }
+
+    /**
      * Remove the sessions that ended; called when a new one opens, so no job
      * is needed.
      */
