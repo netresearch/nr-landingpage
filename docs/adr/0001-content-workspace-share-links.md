@@ -424,7 +424,10 @@ draft sees current and proposed text side by side and accepts or rejects.
   - Accepted limit: a link whose creation runs at the same moment as the
     discard (both by the owner or an administrator) can be inserted after the
     revocation pass and stay unrevoked. It opens nothing, because the review
-    page refuses the deleted draft on every request.
+    page refuses the deleted draft on every request. In the same way a
+    reviewer's comment or suggestion whose request read the draft just before
+    the discard committed can still be stored, on the deleted draft, where
+    nothing shows it.
   - An approved draft whose reset keeps failing cannot be discarded; its links
     can still be revoked one by one.
 - **Comment, accept, reject, edit:** everyone who may see it.

@@ -17,6 +17,7 @@ use Netresearch\NrLandingpage\Service\Workspace\DraftRepository;
 use Netresearch\NrLandingpage\Service\Workspace\SessionRepository;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkRepository;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkService;
+use Netresearch\NrLandingpage\Service\Workspace\WorkspaceRefusedException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -33,6 +34,8 @@ final class DraftDiscardTest extends AbstractWorkspaceTestCase
         $draft = $drafts->findByUid($uid);
         self::assertNotNull($draft);
         $issued = $this->service(ShareLinkService::class)->issue($draft, LinkPermission::View, 7, 'x', '', 0, 2, time());
+        $sessionHash = hash('sha256', 'an open review session');
+        $this->service(SessionRepository::class)->insert($issued['uid'], $sessionHash, 'Reviewer', time() + 3600, time());
 
         // The audit write of the discard itself fails, after the draft and the link were changed.
         $audit = new class ($this->service(ConnectionPool::class)) extends AuditRepository {
@@ -61,9 +64,33 @@ final class DraftDiscardTest extends AbstractWorkspaceTestCase
 
         self::assertNotNull($drafts->findByUid($uid), 'the draft is not deleted');
         self::assertFalse($this->service(ShareLinkRepository::class)->findByUid($issued['uid'])?->isRevoked(), 'the link is not revoked');
+        self::assertNotNull($this->service(SessionRepository::class)->findByHash($sessionHash), 'the open session is kept');
         $actions = array_column($this->getConnectionPool()->getConnectionForTable('tx_nrlandingpage_workspace_audit')
             ->select(['action'], 'tx_nrlandingpage_workspace_audit', ['draft_uid' => $uid])->fetchAllAssociative(), 'action');
         self::assertSame(['link_created'], $actions, 'no revocation is recorded');
+    }
+
+    #[Test]
+    public function aSecondDiscardOfTheSameDraftIsNotFoundAndRecordedOnce(): void
+    {
+        $uid = $this->makeDraft(2);
+        $draft = $this->service(DraftRepository::class)->findByUid($uid);
+        self::assertNotNull($draft);
+        $discard = $this->service(DraftDiscardService::class);
+
+        $discard->discard($draft, 2, time());
+        try {
+            // The same object the first caller held: a second request that loaded the draft before the first committed.
+            $discard->discard($draft, 1, time());
+            self::fail('a second discard must be refused');
+        } catch (WorkspaceRefusedException $e) {
+            self::assertSame(1799400301, $e->getCode());
+            self::assertSame(WorkspaceRefusedException::NOT_FOUND, $e->reason);
+        }
+
+        $actions = array_column($this->getConnectionPool()->getConnectionForTable('tx_nrlandingpage_workspace_audit')
+            ->select(['action'], 'tx_nrlandingpage_workspace_audit', ['draft_uid' => $uid])->fetchAllAssociative(), 'action');
+        self::assertSame(['draft_discarded'], $actions);
     }
 
     /**

@@ -239,8 +239,10 @@ final class WorkspaceAjaxControllerTest extends AbstractWorkspaceTestCase
         $this->actAs(3);
 
         $response = $this->controller->discardDraftAction($this->post(['draft' => $uid]));
+        $missing = $this->controller->discardDraftAction($this->post(['draft' => 99999]));
 
         self::assertSame(404, $response->getStatusCode());
+        self::assertSame((string) $missing->getBody(), (string) $response->getBody(), 'refused like a draft that does not exist');
         self::assertNotNull($this->drafts()->findByUid($uid), 'the draft is still there');
     }
 
