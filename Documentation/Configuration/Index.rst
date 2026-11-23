@@ -488,11 +488,15 @@ Content & Layout Tab
    fields an item has comes from the TCA, read through nr-llm's
    ``ContentElementComposer``. Such an element gets no section image.
 
-   The wizard offers only the types the editor may create on the target
-   page: its ``TCEFORM.tt_content.CType`` ``keepItems``/``removeItems``
-   and the editor's permissions, including ``tables_modify`` and the
-   field permissions for the item table. If none of the selected types is
-   left, generation is refused with a message that names the template.
+   Generation offers only the types the editor may create: the editor's
+   permissions, including ``tables_modify`` and the field permissions
+   for the item table, and, when the wizard was opened on a page, that
+   page's ``TCEFORM.tt_content.CType`` ``keepItems``/``removeItems``.
+   If none of the selected types is left, generation is refused with a
+   message that names the template. A parent page chosen later, in the
+   placement step, is checked when the page is saved: items that page or
+   the editor's permissions do not allow refuse the save with the reason,
+   before anything is written.
 
 .. confval:: Rules per content element
 

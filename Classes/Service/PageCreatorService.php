@@ -519,8 +519,9 @@ class PageCreatorService implements LoggerAwareInterface
      * The datamap rows of an element's child records, keyed by table and
      * placeholder (the element's own placeholder under `tt_content` holds the
      * columns to merge into it), or none. Refused as a whole when the records
-     * cannot be written; an element whose type a listener changed so that it
-     * no longer takes them loses them, which is logged.
+     * cannot be written. An element whose type a {@see BeforePageCreationEvent}
+     * listener changed to one without child records loses them, which is
+     * logged; a listener that keeps them must keep a type that takes them.
      *
      * @param array<string, mixed> $element
      * @return array<string, array<string, array<string, mixed>>>
@@ -537,6 +538,12 @@ class PageCreatorService implements LoggerAwareInterface
         $user = $GLOBALS['BE_USER'] ?? null;
         if (!$this->sectionChildren instanceof SectionChildren || !$user instanceof BackendUserAuthentication) {
             throw new SectionChildrenRefusedException('The child records of a section cannot be written without a backend user.', 1799700101);
+        }
+
+        if ($this->sectionChildren->describe([$ctype]) === []) {
+            $this->logger?->warning('Child records dropped: the element\'s type takes none', ['ctype' => $ctype]);
+
+            return [];
         }
 
         /** @var array<string, list<array<string, string>>> $children */

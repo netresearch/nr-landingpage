@@ -51,7 +51,7 @@ final class PageCreatorServiceChildrenTest extends UnitTestCase
     #[Test]
     public function theChildRowsGoIntoTheDatamapOfThePage(): void
     {
-        $children = $this->createMock(SectionChildren::class);
+        $children = $this->sectionChildren();
         $children->expects(self::once())->method('dataMap')
             ->with('accordion', 'NEW_content_0', self::ITEMS, 'NEW_page', 10)
             ->willReturn(new ContentElementDataMap([
@@ -88,7 +88,7 @@ final class PageCreatorServiceChildrenTest extends UnitTestCase
     #[Test]
     public function aRefusedChildRefusesThePageBeforeAnythingIsWritten(): void
     {
-        $children = $this->createMock(SectionChildren::class);
+        $children = $this->sectionChildren();
         $children->method('dataMap')->willReturn(ContentElementDataMap::refused('Refused: no "tables_modify" grant.'));
 
         $dataHandler = $this->dataHandler([]);
@@ -110,7 +110,7 @@ final class PageCreatorServiceChildrenTest extends UnitTestCase
     #[Test]
     public function anElementWithChildrenKeepsItsTypeAndGetsNoImage(): void
     {
-        $children = $this->createMock(SectionChildren::class);
+        $children = $this->sectionChildren();
         $children->method('dataMap')->willReturn(new ContentElementDataMap([
             'tt_content' => ['NEW_content_0' => ['tx_items' => 'NEWa']],
             'tx_item' => ['NEWa' => ['pid' => 'NEW_page', 'header' => 'Q1']],
@@ -141,7 +141,7 @@ final class PageCreatorServiceChildrenTest extends UnitTestCase
     #[Test]
     public function aListenerThatReordersTheElementsKeepsEachElementsChildren(): void
     {
-        $children = $this->createMock(SectionChildren::class);
+        $children = $this->sectionChildren();
         $children->expects(self::once())->method('dataMap')
             ->with('accordion', 'NEW_content_1')
             ->willReturn(new ContentElementDataMap(['tt_content' => ['NEW_content_1' => ['tx_items' => 'NEWa']], 'tx_item' => ['NEWa' => ['header' => 'Q1']]], []));
@@ -180,9 +180,46 @@ final class PageCreatorServiceChildrenTest extends UnitTestCase
     }
 
     #[Test]
+    public function aListenerThatChangesTheTypeToOneWithoutChildrenDropsThem(): void
+    {
+        $children = $this->sectionChildren();
+        $children->expects(self::never())->method('dataMap');
+
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function (object $event): object {
+            if ($event instanceof BeforePageCreationEvent) {
+                $elements = $event->contentElements;
+                $elements[0]['CType'] = 'text';
+                $event->contentElements = $elements;
+            }
+
+            return $event;
+        });
+
+        $written = null;
+        $dataHandler = $this->dataHandler(['NEW_page' => 1, 'NEW_content_0' => 2]);
+        $dataHandler->method('start')->willReturnCallback(static function (array $dataMap) use (&$written): void {
+            $written ??= $dataMap;
+        });
+
+        $this->service($dataHandler, $children, $dispatcher)->createLandingPage(
+            $this->template(),
+            10,
+            'Page',
+            '/page',
+            [],
+            [['section' => 'faq', 'ctype' => 'accordion', 'header' => 'FAQ', 'subheader' => '', 'bodytext' => '', 'children' => self::ITEMS]],
+        );
+
+        self::assertIsArray($written);
+        self::assertSame('text', $written['tt_content']['NEW_content_0']['CType']);
+        self::assertArrayNotHasKey(PageCreatorService::CHILDREN_KEY, $written['tt_content']['NEW_content_0']);
+    }
+
+    #[Test]
     public function aSectionWithoutChildrenAsksNothing(): void
     {
-        $children = $this->createMock(SectionChildren::class);
+        $children = $this->sectionChildren();
         $children->expects(self::never())->method('dataMap');
 
         $this->service($this->dataHandler(['NEW_page' => 1]), $children)->createLandingPage(
@@ -198,7 +235,7 @@ final class PageCreatorServiceChildrenTest extends UnitTestCase
     #[Test]
     public function theApprovalCheckRefusesWithoutWriting(): void
     {
-        $children = $this->createMock(SectionChildren::class);
+        $children = $this->sectionChildren();
         $children->method('dataMap')->willReturn(ContentElementDataMap::refused('Refused: grant.'));
         $dataHandler = $this->dataHandler([]);
         $dataHandler->expects(self::never())->method('start');
@@ -208,6 +245,19 @@ final class PageCreatorServiceChildrenTest extends UnitTestCase
             [['section' => 'faq', 'ctype' => 'accordion', 'header' => 'FAQ', 'subheader' => '', 'bodytext' => '', 'children' => self::ITEMS]],
             10,
         );
+    }
+
+    /**
+     * A SectionChildren double for which `accordion` takes child records.
+     */
+    private function sectionChildren(): SectionChildren&MockObject
+    {
+        $children = $this->createMock(SectionChildren::class);
+        $children->method('describe')->willReturnCallback(
+            static fn(array $cTypes): array => in_array('accordion', $cTypes, true) ? ['accordion' => ['tx_items' => ['table' => 'tx_item', 'maxItems' => 9, 'fields' => []]]] : [],
+        );
+
+        return $children;
     }
 
     private function template(): Template
