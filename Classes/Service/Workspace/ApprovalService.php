@@ -17,6 +17,7 @@ use Netresearch\NrLandingpage\Domain\Model\Workspace\WorkspaceDraft;
 use Netresearch\NrLandingpage\Service\BackendAccessGuard;
 use Netresearch\NrLandingpage\Service\ImageNotReadableException;
 use Netresearch\NrLandingpage\Service\PageCreatorService;
+use Netresearch\NrLandingpage\Service\SectionChildrenRefusedException;
 use Netresearch\NrLandingpage\Service\SectionNormalizer;
 use Netresearch\NrLandingpage\Service\TemplateService;
 use Psr\Log\LoggerAwareInterface;
@@ -82,6 +83,14 @@ class ApprovalService implements LoggerAwareInterface
         }
         $this->policy->assertSections($template, $sections);
         $this->policy->assertPageFields($template, $draft->pageFields);
+        // The child records are written with the approver's rights; a record the
+        // approver may not create refuses the approval before anything is
+        // written, since the approver saw the draft with its items (NEXT-229).
+        try {
+            $this->pageCreator->assertChildrenWritable($sections, $parentPageUid);
+        } catch (SectionChildrenRefusedException $e) {
+            throw new WorkspaceRefusedException($e->getMessage(), 1799600117);
+        }
         $animations = $this->sectionNormalizer->animations($draft->sections);
 
         $attempt = bin2hex(random_bytes(16));

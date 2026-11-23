@@ -148,6 +148,8 @@ Each section is displayed as a card showing:
 -  **Section name** and **content type** (badge)
 -  **Header** and **subheader**
 -  **Body text** — rendered as HTML preview
+-  **Items** — for an accordion, card group or similar type: one
+   group of fields per item, editable like the header
 -  **Animation** — optional animation effect for the section
    (e.g. scroll-triggered fade-in, typewriter). Not every section
    needs animation; leave blank for sections where motion would be

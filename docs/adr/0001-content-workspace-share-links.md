@@ -463,7 +463,11 @@ cannot approve content the editor was not shown.
    `subtitle`, `nav_title`, `seo_title`, `description`, `abstract`, `keywords`,
    `author`, `no_index`, `og_title`, `og_description`, `twitter_title` and
    `twitter_description` (reserved fields stay dropped by the page creation).
-   A template's own list applies where it has one. A draft outside the limit
+   A template's own list applies where it has one. A section keeps child records
+   (the items of an accordion or card group, NEXT-229) only where its template
+   lists content types; they are written with the approver's rights as well,
+   so a record the approver could not create refuses the approval here, before
+   step 2. A draft outside the limit
    is refused with the section (position and name) or the field named. The
    approver sees each section's content type and the page fields in the
    approval view.

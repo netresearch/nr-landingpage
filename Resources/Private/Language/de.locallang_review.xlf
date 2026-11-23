@@ -105,6 +105,10 @@
                 <source>Text</source>
                 <target>Text</target>
             </trans-unit>
+            <trans-unit id="field_items" resname="field_items">
+                <source>Items</source>
+                <target>Einträge</target>
+            </trans-unit>
             <trans-unit id="field_all" resname="field_all">
                 <source>The whole section</source>
                 <target>Der ganze Abschnitt</target>

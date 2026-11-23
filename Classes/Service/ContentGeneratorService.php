@@ -21,11 +21,8 @@ use Netresearch\NrLlm\Service\LlmServiceManagerInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Throwable;
-use TYPO3\HtmlSanitizer\Behavior;
-use TYPO3\HtmlSanitizer\Behavior\Attr;
-use TYPO3\HtmlSanitizer\Behavior\Tag;
-use TYPO3\HtmlSanitizer\Sanitizer;
-use TYPO3\HtmlSanitizer\Visitor\CommonVisitor;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Localization\LanguageService;
 
 final class ContentGeneratorService implements LoggerAwareInterface
 {
@@ -40,11 +37,13 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
     private const VALID_IMAGEORIENT = [0, 1, 2, 8, 9, 10, 17, 18, 25, 26];
 
-    private ?Sanitizer $sanitizer = null;
+    private ?StructuredHtmlSanitizer $structuredSanitizer = null;
 
     private function sanitizeHtml(string $html): string
     {
-        return $this->getSanitizer()->sanitize($html);
+        $this->structuredSanitizer ??= new StructuredHtmlSanitizer();
+
+        return $this->structuredSanitizer->sanitize($html);
     }
 
     private function sanitizeCreativeHtml(string $html): string
@@ -124,33 +123,6 @@ final class ContentGeneratorService implements LoggerAwareInterface
         return trim(preg_replace('#\n{3,}#', "\n\n", $html) ?? $html);
     }
 
-    private function getSanitizer(): Sanitizer
-    {
-        if ($this->sanitizer === null) {
-            $hrefAttr = (new Attr('href'))
-                ->addValues(new Behavior\RegExpAttrValue('#^(https?://|/|mailto:|tel:)#'));
-
-            $behavior = (new Behavior())
-                ->withFlags(Behavior::ENCODE_INVALID_TAG)
-                ->withTags(
-                    new Tag('p'),
-                    new Tag('br'),
-                    new Tag('ul'),
-                    new Tag('ol'),
-                    new Tag('li'),
-                    new Tag('strong'),
-                    new Tag('em'),
-                    (new Tag('a'))->addAttrs($hrefAttr),
-                    new Tag('h2'),
-                    new Tag('h3'),
-                    new Tag('h4'),
-                );
-            $visitor = new CommonVisitor($behavior);
-            $this->sanitizer = new Sanitizer($behavior, $visitor);
-        }
-        return $this->sanitizer;
-    }
-
     public function __construct(
         private readonly CompletionServiceInterface $completionService,
         private readonly LlmServiceManagerInterface $llmServiceManager,
@@ -158,6 +130,7 @@ final class ContentGeneratorService implements LoggerAwareInterface
         private readonly CTypeMetadataService $cTypeMetadataService,
         private readonly BackendLayoutService $backendLayoutService,
         private readonly CreativeHtmlSanitizer $creativeHtmlSanitizer,
+        private readonly ?SectionChildren $sectionChildren = null,
     ) {}
 
     /**
@@ -174,14 +147,48 @@ final class ContentGeneratorService implements LoggerAwareInterface
             return $this->generateCreativeContent($template, $briefingAnswers, $outputLanguage, $parentPageId, $site);
         }
 
-        $prompt = $this->buildContentPrompt($template, $briefingAnswers, $outputLanguage, $parentPageId);
+        $allowedCTypes = $this->offeredCTypes($template, $parentPageId);
+        $prompt = $this->buildContentPrompt($template, $briefingAnswers, $outputLanguage, $parentPageId, $allowedCTypes);
         $response = $this->completeJsonWithTemplate($template, $prompt, 'generateContent', $site);
 
         $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout, $parentPageId);
         $columnMap = $this->filterColumnMap($columnMap, $template->contentColumns);
         $validColPositions = array_keys($columnMap);
 
-        return $this->validateSections($response, $template->allowedCTypes, $validColPositions);
+        return $this->validateSections($response, $allowedCTypes, $validColPositions);
+    }
+
+    /**
+     * The template's content types the editor may create below the parent
+     * page: its `TCEFORM.tt_content.CType` rules (read only when the wizard
+     * already has a parent page) and the editor's grants, child records
+     * included (NEXT-228/229). A template without its own list keeps the
+     * defaults, as before.
+     *
+     * @return list<string>
+     * @throws NoContentTypeOfferedException when a template list is narrowed to nothing
+     */
+    private function offeredCTypes(Template $template, int $parentPageId): array
+    {
+        $user = $GLOBALS['BE_USER'] ?? null;
+        if ($template->allowedCTypes === [] || !$this->sectionChildren instanceof SectionChildren || !$user instanceof BackendUserAuthentication) {
+            return $template->allowedCTypes;
+        }
+
+        $offered = $this->sectionChildren->offeredOnPage($parentPageId, $user, $template->allowedCTypes);
+        if ($offered === []) {
+            throw new NoContentTypeOfferedException(
+                sprintf(
+                    'None of the content types of the template "%s" (%s) may be created %s. Check the page TSconfig (TCEFORM.tt_content.CType) and the content type and table permissions of your backend groups.',
+                    $template->title,
+                    implode(', ', $template->allowedCTypes),
+                    $parentPageId > 0 ? 'below page ' . $parentPageId : 'by you',
+                ),
+                1799700103,
+            );
+        }
+
+        return $offered;
     }
 
     /**
@@ -343,22 +350,24 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
     /**
      * @param array<string, string> $briefingAnswers
+     * @param list<string>|null $allowedCTypes the content types offered for this page, null for the template's own list
      */
-    private function buildContentPrompt(Template $template, array $briefingAnswers, string $outputLanguage = '', int $parentPageId = 0): string
+    private function buildContentPrompt(Template $template, array $briefingAnswers, string $outputLanguage = '', int $parentPageId = 0, ?array $allowedCTypes = null): string
     {
+        $allowedCTypes ??= $template->allowedCTypes;
         $briefing = $this->formatBriefing($briefingAnswers);
         $sourceBlock = $this->buildSourceBlock($briefingAnswers);
-        $cTypes = $template->allowedCTypes !== []
-            ? implode(', ', $template->allowedCTypes)
+        $cTypes = $allowedCTypes !== []
+            ? implode(', ', $allowedCTypes)
             : 'text, textmedia, textpic';
-        $cTypeInstruction = $template->allowedCTypes !== []
+        $cTypeInstruction = $allowedCTypes !== []
             ? "Verwende ausschliesslich folgende Content-Typen: {$cTypes}"
             : "Verwende gaengige Content-Typen wie: {$cTypes}";
 
         $columnMap = $this->backendLayoutService->getColumnMap($template->backendLayout, $parentPageId);
         $columnMap = $this->filterColumnMap($columnMap, $template->contentColumns);
 
-        $cTypeMetadata = $this->buildCTypeMetadataBlock($template->allowedCTypes);
+        $cTypeMetadata = $this->buildCTypeMetadataBlock($allowedCTypes) . $this->buildChildrenBlock($allowedCTypes);
         $rulesBlock = $this->buildCTypeRulesBlock($template);
         $columnBlock = $this->buildColumnBlock($columnMap);
         $languageBlock = $this->buildLanguageBlock($outputLanguage);
@@ -467,6 +476,58 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Halte fuer jede Section die Regeln ihres Content-Typs strikt ein.
             Sie gelten zusaetzlich zu den Anweisungen oben; bei einem Widerspruch gilt die Regel.
             {$rules->toPromptLines()}
+            BLOCK;
+    }
+
+    /**
+     * The child records the allowed content types take (NEXT-229): per type
+     * the inline column and the columns of its records, as nr-llm describes
+     * them for the current editor, and how a section carries them. Empty when
+     * no allowed type has child records, so such a template's prompt stays as
+     * it was.
+     *
+     * @param list<string> $allowedCTypes
+     */
+    private function buildChildrenBlock(array $allowedCTypes): string
+    {
+        if (!$this->sectionChildren instanceof SectionChildren || $allowedCTypes === []) {
+            return '';
+        }
+
+        $user = $GLOBALS['BE_USER'] ?? null;
+        $lang = $GLOBALS['LANG'] ?? null;
+        $described = $this->sectionChildren->describe(
+            $allowedCTypes,
+            $user instanceof BackendUserAuthentication ? $user : null,
+            $lang instanceof LanguageService ? $lang : null,
+        );
+        if ($described === []) {
+            return '';
+        }
+
+        $json = json_encode($described, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: '';
+        $example = '';
+        foreach ($described as $cType => $columns) {
+            foreach ($columns as $column => $collection) {
+                $fields = array_keys($collection['fields']);
+                $record = '{' . implode(', ', array_map(static fn(string $field): string => '"' . $field . '": "..."', $fields)) . '}';
+                $example = '{"ctype": "' . $cType . '", ..., "children": {"' . $column . '": [' . $record . ', ' . $record . ']}}';
+                break 2;
+            }
+        }
+
+        return <<<BLOCK
+
+            --- UNTERELEMENTE (Items) ---
+            Diese Content-Typen bestehen aus einzelnen Items (z.B. Akkordeon-Eintraege, Karten, Icons).
+            Gib fuer eine Section mit einem dieser Typen ihre Items im Objekt "children" an:
+            Schluessel ist die Spalte, Wert eine Liste von Items in der gewuenschten Reihenfolge,
+            jedes Item mit den dort genannten Feldern ("required": true muss gesetzt sein,
+            "richText": true ist HTML wie bodytext). Hoechstens "maxItems" Items je Spalte.
+            Beispiel: {$example}
+            Fuer andere Content-Typen kein "children". Sections mit Items bekommen kein Bild.
+
+            {$json}
             BLOCK;
     }
 
@@ -719,10 +780,30 @@ final class ContentGeneratorService implements LoggerAwareInterface
                 'imagePrompt' => is_string($item['imagePrompt'] ?? null) ? $item['imagePrompt'] : '',
                 'imageorient' => $imageorient,
                 'animation' => $this->validateAnimation($item['animation'] ?? null),
+                'children' => $this->validateChildren($ctype, $item['children'] ?? null, $allowedCTypes),
             ];
         }
 
         return $validated;
+    }
+
+    /**
+     * The child records of a generated section, cleaned for the editor who
+     * asked: only what the content type describes and that editor may set
+     * (NEXT-229). A template without its own content type list gets none.
+     *
+     * @param list<string> $allowedCTypes
+     * @return array<string, list<array<string, string>>>
+     */
+    private function validateChildren(string $ctype, mixed $raw, array $allowedCTypes): array
+    {
+        if (!$this->sectionChildren instanceof SectionChildren || $allowedCTypes === []) {
+            return [];
+        }
+
+        $user = $GLOBALS['BE_USER'] ?? null;
+
+        return $this->sectionChildren->clean($ctype, $raw, $user instanceof BackendUserAuthentication ? $user : null);
     }
 
     /**

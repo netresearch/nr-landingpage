@@ -23,6 +23,7 @@ use Netresearch\NrLandingpage\Service\Workspace\CommentRepository;
 use Netresearch\NrLandingpage\Service\Workspace\DraftAccessGuard;
 use Netresearch\NrLandingpage\Service\Workspace\PlainText;
 use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewService;
+use Netresearch\NrLandingpage\Service\Workspace\SectionItemsText;
 use Netresearch\NrLandingpage\Service\Workspace\ShareLinkRepository;
 use Netresearch\NrLandingpage\Service\Workspace\WorkspaceSettings;
 use Psr\Http\Message\ResponseInterface;
@@ -168,7 +169,13 @@ final class WorkspaceController
                 'ctype' => $text('ctype'),
                 'header' => $text('header'),
                 'subheader' => $text('subheader'),
-                'lines' => self::lines(PlainText::fromHtml($text('bodytext'))),
+                'lines' => [
+                    ...self::lines(PlainText::fromHtml($text('bodytext'))),
+                    ...array_map(
+                        static fn(array $item): string => implode(' – ', $item),
+                        SectionItemsText::of($section),
+                    ),
+                ],
                 'comments' => $bySection[$id] ?? [],
             ];
         }
