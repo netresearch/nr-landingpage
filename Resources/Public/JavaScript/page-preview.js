@@ -57,7 +57,8 @@ function bodyHtml(section) {
  * @returns {string}
  */
 function sectionHtml(section, imageCatalog) {
-    const image = section.imageUid ? imageCatalog[section.imageUid] : null;
+    // An element with items gets no image when the page is created.
+    const image = section.imageUid && !hasItems(section) ? imageCatalog[section.imageUid] : null;
     let figure = '';
     if (image?.publicUrl) {
         const side = FLOAT_RIGHT.has(section.imageorient) ? 'right' : (FLOAT_LEFT.has(section.imageorient) ? 'left' : 'top');
@@ -69,7 +70,35 @@ function sectionHtml(section, imageCatalog) {
         + (section.header ? '<h2>' + escapeHtml(section.header) + '</h2>' : '')
         + (section.subheader ? '<p class="subheader">' + escapeHtml(section.subheader) + '</p>' : '')
         + bodyHtml(section)
+        + itemsHtml(section)
         + '<div class="clear"></div></section>';
+}
+
+/**
+ * @param {{children?: Object<string, Array<Object<string, string>>>}} section
+ * @returns {boolean}
+ */
+function hasItems(section) {
+    return Object.values(section.children || {}).some((records) => Array.isArray(records) && records.length > 0);
+}
+
+/**
+ * The items of an accordion, card group or similar element, in order. A
+ * value holding markup is the server-sanitized rich text of the item and is
+ * shown like the body text; any other value is text.
+ *
+ * @param {{children?: Object<string, Array<Object<string, string>>>}} section
+ * @returns {string}
+ */
+function itemsHtml(section) {
+    if (!hasItems(section)) {
+        return '';
+    }
+    const items = Object.values(section.children).flatMap((records) => Array.isArray(records) ? records : []);
+    return '<ol class="items">' + items.map((record) => '<li>' + Object.values(record || {}).map((value) => {
+        const text = String(value ?? '');
+        return /<[a-z][^>]*>/i.test(text) ? text : '<p>' + escapeHtml(text) + '</p>';
+    }).join('') + '</li>').join('') + '</ol>';
 }
 
 const STYLE = 'body{font:16px/1.55 system-ui,sans-serif;color:#222;margin:0;padding:1.5rem 2rem;background:#fff}'

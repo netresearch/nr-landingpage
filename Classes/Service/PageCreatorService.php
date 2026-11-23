@@ -520,8 +520,8 @@ class PageCreatorService implements LoggerAwareInterface
      * placeholder (the element's own placeholder under `tt_content` holds the
      * columns to merge into it), or none. Refused as a whole when the records
      * cannot be written. An element whose type a {@see BeforePageCreationEvent}
-     * listener changed to one without child records loses them, which is
-     * logged; a listener that keeps them must keep a type that takes them.
+     * listener changed to one that takes none of their columns loses them,
+     * which is logged.
      *
      * @param array<string, mixed> $element
      * @return array<string, array<string, array<string, mixed>>>
@@ -540,8 +540,11 @@ class PageCreatorService implements LoggerAwareInterface
             throw new SectionChildrenRefusedException('The child records of a section cannot be written without a backend user.', 1799700101);
         }
 
-        if ($this->sectionChildren->describe([$ctype]) === []) {
-            $this->logger?->warning('Child records dropped: the element\'s type takes none', ['ctype' => $ctype]);
+        // Matched by column, not by type: a listener may change an accordion
+        // into a card group, whose items live in another column.
+        $columns = $this->sectionChildren->describe([$ctype])[$ctype] ?? [];
+        if (array_intersect_key($children, $columns) === []) {
+            $this->logger?->warning('Child records dropped: the element\'s type takes none in their columns', ['ctype' => $ctype, 'columns' => array_keys($children)]);
 
             return [];
         }

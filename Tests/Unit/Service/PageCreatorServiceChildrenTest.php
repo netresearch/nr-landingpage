@@ -217,6 +217,34 @@ final class PageCreatorServiceChildrenTest extends UnitTestCase
     }
 
     #[Test]
+    public function aListenerThatChangesTheTypeToAnotherWithItemsInOtherColumnsDropsThem(): void
+    {
+        $children = $this->createMock(SectionChildren::class);
+        $children->method('describe')->willReturn(['card_group' => ['tx_cards' => ['table' => 'tx_card', 'maxItems' => 9, 'fields' => []]]]);
+        $children->expects(self::never())->method('dataMap');
+
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function (object $event): object {
+            if ($event instanceof BeforePageCreationEvent) {
+                $elements = $event->contentElements;
+                $elements[0]['CType'] = 'card_group';
+                $event->contentElements = $elements;
+            }
+
+            return $event;
+        });
+
+        $this->service($this->dataHandler(['NEW_page' => 1, 'NEW_content_0' => 2]), $children, $dispatcher)->createLandingPage(
+            $this->template(),
+            10,
+            'Page',
+            '/page',
+            [],
+            [['section' => 'faq', 'ctype' => 'accordion', 'header' => 'FAQ', 'subheader' => '', 'bodytext' => '', 'children' => self::ITEMS]],
+        );
+    }
+
+    #[Test]
     public function aSectionWithoutChildrenAsksNothing(): void
     {
         $children = $this->sectionChildren();

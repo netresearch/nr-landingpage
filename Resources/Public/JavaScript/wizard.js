@@ -1223,9 +1223,12 @@ class LandingPageWizard {
                 cardBody.appendChild(this.renderSectionChildren(section.children, index));
             }
 
-            // Image selection area (always shown)
-            const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
-            cardBody.appendChild(this.renderImageSection(section, index, sectionImages, false));
+            // Image selection area, except for an element with items, which
+            // gets no image when the page is created
+            if (!section.children || Object.keys(section.children).length === 0) {
+                const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
+                cardBody.appendChild(this.renderImageSection(section, index, sectionImages, false));
+            }
 
             card.appendChild(cardHeader);
             card.appendChild(cardBody);

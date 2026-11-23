@@ -67,6 +67,25 @@ test.describe('Structured content step: page preview', () => {
         await expect(preview(modal).locator('img')).toHaveCount(0);
     });
 
+    test('shows the items of an element, editable, and no image for it', async ({ authenticatedPage: page }) => {
+        const modal = await walkToStructuredContent(page, {
+            sections: [{
+                section: 'FAQ', ctype: 'accordion', header: 'FAQ header', subheader: '', bodytext: '', imageUid: 7, imageorient: 0,
+                children: { tx_items: [{ header: 'First question', bodytext: '<p>First answer</p>' }, { header: 'Second question' }] },
+            }],
+            images: [[{ uid: 7, name: 'office.png', title: 'Office', alternative: 'Our office', publicUrl: PIXEL, recommended: true }]],
+        });
+
+        await expect(modal.locator('#section-card-0 [data-image-uid="7"]')).toHaveCount(0);
+        await toggle(modal).click();
+        await expect(preview(modal).locator('ol.items > li')).toHaveCount(2);
+        await expect(preview(modal).locator('img')).toHaveCount(0);
+
+        await modal.locator('#section-card-0 .section-children input').first().fill('Edited question');
+        await expect(preview(modal).locator('ol.items > li').first()).toContainText('Edited question');
+        await expect(preview(modal).locator('ol.items > li').first()).toContainText('First answer');
+    });
+
     test('is a sandboxed frame without scripts', async ({ authenticatedPage: page }) => {
         const modal = await walkToStructuredContent(page, {
             ...content,
