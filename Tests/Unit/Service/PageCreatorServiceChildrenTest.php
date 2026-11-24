@@ -245,6 +245,29 @@ final class PageCreatorServiceChildrenTest extends UnitTestCase
     }
 
     #[Test]
+    public function aTypeTheParentPageDoesNotOfferRefusesThePage(): void
+    {
+        $children = $this->createMock(SectionChildren::class);
+        $children->method('describe')->willReturn(['accordion' => ['tx_items' => ['table' => 'tx_item', 'maxItems' => 9, 'fields' => []]]]);
+        $children->method('dataMap')->willReturn(new ContentElementDataMap(['tt_content' => ['NEW_content_0' => ['tx_items' => 'NEWa']], 'tx_item' => ['NEWa' => ['header' => 'Q1']]], []));
+        $children->method('offeredOnPage')->willReturn([]);
+
+        $dataHandler = $this->dataHandler([]);
+        $dataHandler->expects(self::never())->method('start');
+
+        $this->expectException(SectionChildrenRefusedException::class);
+        $this->expectExceptionCode(1799700104);
+        $this->service($dataHandler, $children)->createLandingPage(
+            $this->template(),
+            10,
+            'Page',
+            '/page',
+            [],
+            [['section' => 'faq', 'ctype' => 'accordion', 'header' => 'FAQ', 'subheader' => '', 'bodytext' => '', 'children' => self::ITEMS]],
+        );
+    }
+
+    #[Test]
     public function aSectionWithoutChildrenAsksNothing(): void
     {
         $children = $this->sectionChildren();
@@ -281,6 +304,7 @@ final class PageCreatorServiceChildrenTest extends UnitTestCase
     private function sectionChildren(): SectionChildren&MockObject
     {
         $children = $this->createMock(SectionChildren::class);
+        $children->method('offeredOnPage')->willReturnArgument(2);
         $children->method('describe')->willReturnCallback(
             static fn(array $cTypes): array => in_array('accordion', $cTypes, true) ? ['accordion' => ['tx_items' => ['table' => 'tx_item', 'maxItems' => 9, 'fields' => []]]] : [],
         );

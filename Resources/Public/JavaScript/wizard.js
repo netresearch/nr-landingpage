@@ -1270,7 +1270,7 @@ class LandingPageWizard {
                     label.htmlFor = id;
                     label.textContent = this.label('wizard.content.item', position + 1) + ' – ' + field;
 
-                    const long = field === 'bodytext' || String(value).length > 120;
+                    const long = field === 'bodytext' || String(value).length > 120 || /[\r\n]/.test(String(value));
                     const input = document.createElement(long ? 'textarea' : 'input');
                     if (!long) {
                         input.type = 'text';

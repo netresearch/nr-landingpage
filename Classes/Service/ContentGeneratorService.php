@@ -743,6 +743,12 @@ final class ContentGeneratorService implements LoggerAwareInterface
 
             $ctype = $item['ctype'];
             if ($allowedCTypes !== [] && !in_array($ctype, $allowedCTypes, true)) {
+                // The fallback must be offered too: the list may be narrowed
+                // to the page and the editor, and leave `text` out.
+                if (!in_array('text', $allowedCTypes, true)) {
+                    continue;
+                }
+
                 $ctype = 'text';
             }
 

@@ -530,23 +530,32 @@ class PageCreatorService implements LoggerAwareInterface
     private function childrenDataMap(array $element, string $placeholder, int|string $pid, int $parentPageId): array
     {
         $children = $element[self::CHILDREN_KEY] ?? null;
-        if (!is_array($children) || $children === []) {
-            return [];
-        }
-
+        $children = is_array($children) ? $children : [];
         $ctype = is_string($element['CType'] ?? null) ? $element['CType'] : '';
-        $user = $GLOBALS['BE_USER'] ?? null;
-        if (!$this->sectionChildren instanceof SectionChildren || !$user instanceof BackendUserAuthentication) {
-            throw new SectionChildrenRefusedException('The child records of a section cannot be written without a backend user.', 1799700101);
+        if (!$this->sectionChildren instanceof SectionChildren) {
+            if ($children === []) {
+                return [];
+            }
+
+            throw new SectionChildrenRefusedException('The child records of a section cannot be written without nr-llm\'s content-type rule.', 1799700101);
         }
 
         // Matched by column, not by type: a listener may change an accordion
         // into a card group, whose items live in another column.
         $columns = $this->sectionChildren->describe([$ctype])[$ctype] ?? [];
-        if (array_intersect_key($children, $columns) === []) {
-            $this->logger?->warning('Child records dropped: the element\'s type takes none in their columns', ['ctype' => $ctype, 'columns' => array_keys($children)]);
+        if ($columns === [] || ($children !== [] && array_intersect_key($children, $columns) === [])) {
+            if ($children !== []) {
+                $this->logger?->warning('Child records dropped: the element\'s type takes none in their columns', ['ctype' => $ctype, 'columns' => array_keys($children)]);
+            }
 
             return [];
+        }
+
+        // A type with child records goes through the rule even without any:
+        // it refuses a relation whose minitems the section does not meet.
+        $user = $GLOBALS['BE_USER'] ?? null;
+        if (!$user instanceof BackendUserAuthentication) {
+            throw new SectionChildrenRefusedException('The child records of a section cannot be written without a backend user.', 1799700101);
         }
 
         /** @var array<string, list<array<string, string>>> $children */
@@ -555,6 +564,15 @@ class PageCreatorService implements LoggerAwareInterface
             throw new SectionChildrenRefusedException(
                 sprintf('The %s element "%s" cannot be created with its items: %s', $ctype, is_string($element['header'] ?? null) ? $element['header'] : '', implode(' ', $map->refusals)),
                 1799700102,
+            );
+        }
+
+        // dataMap() checked the records; the element's own type is
+        // typesOfferedOnPage()'s question, asked for the final parent page.
+        if (!in_array($ctype, $this->sectionChildren->offeredOnPage($parentPageId, $user, [$ctype]), true)) {
+            throw new SectionChildrenRefusedException(
+                sprintf('The %s element "%s" cannot be created below page %d: its page TSconfig or your permissions do not offer that content type.', $ctype, is_string($element['header'] ?? null) ? $element['header'] : '', $parentPageId),
+                1799700104,
             );
         }
 

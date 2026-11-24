@@ -64,6 +64,22 @@ final class ContentGeneratorServiceChildrenTest extends UnitTestCase
     }
 
     #[Test]
+    public function aSectionOfAnUnofferedTypeIsDroppedWhenTextIsNotOfferedEither(): void
+    {
+        $sections = (new ReflectionMethod(ContentGeneratorService::class, 'validateSections'))->invoke(
+            $this->service($this->createMock(SectionChildren::class)),
+            ['sections' => [
+                ['section' => 'FAQ', 'ctype' => 'accordion', 'header' => 'FAQ'],
+                ['section' => 'Cards', 'ctype' => 'card_group', 'header' => 'Cards'],
+            ]],
+            ['card_group'],
+            [0],
+        );
+
+        self::assertSame(['card_group'], array_column($sections, 'ctype'));
+    }
+
+    #[Test]
     public function aTemplateWithoutAListGetsNoChildren(): void
     {
         $children = $this->createMock(SectionChildren::class);

@@ -128,6 +128,10 @@ class SectionChildren
         $row = [];
         foreach ($fields as $name => $field) {
             $value = $record[$name] ?? null;
+            if (is_bool($value)) {
+                $value = $value ? '1' : '0';
+            }
+
             if (!is_string($value) && !is_int($value) && !is_float($value)) {
                 continue;
             }
