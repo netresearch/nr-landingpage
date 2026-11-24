@@ -56,6 +56,20 @@ final class ItemChoicesTest extends UnitTestCase
     }
 
     #[Test]
+    public function anItemWithoutTheColumnGetsTheChoicesOfItsDefault(): void
+    {
+        $fields = ['icon' => ['type' => 'select', 'itemsBy' => ['column' => 'icon_set', 'default' => 'Ionicons', 'items' => ['Ionicons' => ['home']]]]];
+
+        self::assertSame(['icon' => 'home'], ItemChoices::keep(['icon' => 'home'], $fields));
+    }
+
+    #[Test]
+    public function aPartialListDropsNothing(): void
+    {
+        self::assertSame(['icon' => 'x'], ItemChoices::keep(['icon' => 'x'], ['icon' => ['type' => 'select', 'items' => ['0'], 'itemsPartial' => true]]));
+    }
+
+    #[Test]
     public function aLongListStandsOnce(): void
     {
         $long = array_map(static fn(int $number): string => 'icon-' . $number, range(1, 31));

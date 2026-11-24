@@ -98,11 +98,17 @@ final readonly class ItemChoices
      */
     private static function choicesOf(array $field, array $row): ?array
     {
+        // A list that may leave choices out decides nothing; nr-llm checks at the save.
+        if (($field['itemsPartial'] ?? false) === true) {
+            return null;
+        }
+
         $by = $field['itemsBy'] ?? null;
         if (is_array($by)) {
             $column = $by['column'] ?? '';
             $sets = is_array($by['items'] ?? null) ? $by['items'] : [];
-            $set = is_string($column) ? ($sets[$row[$column] ?? ''] ?? []) : [];
+            $default = is_string($by['default'] ?? null) ? $by['default'] : '';
+            $set = is_string($column) ? ($sets[$row[$column] ?? $default] ?? []) : [];
 
             return is_array($set) ? self::strings($set) : [];
         }
