@@ -83,6 +83,33 @@ final class PageCreatorServiceChildrenTest extends FunctionalTestCase
         }
     }
 
+    /** The sections stand on the page in the order they were generated, with items or without. */
+    #[Test]
+    public function theSectionsKeepTheirOrder(): void
+    {
+        $this->setUpBackendUser(1);
+        $result = $this->get(PageCreatorService::class)->createLandingPage(
+            new Template(uid: 1, title: 'T', identifier: 't', allowedCTypes: ['text', 'nrlp_accordion']),
+            self::PARENT,
+            'Ordered page',
+            '/ordered',
+            [],
+            [
+                ['section' => 'a', 'ctype' => 'text', 'header' => 'First', 'subheader' => '', 'bodytext' => ''],
+                ['section' => 'b', 'ctype' => 'nrlp_accordion', 'header' => 'Second', 'subheader' => '', 'bodytext' => '', 'children' => ['tx_nrlpfixture_items' => [['header' => 'Q']]]],
+                ['section' => 'c', 'ctype' => 'text', 'header' => 'Third', 'subheader' => '', 'bodytext' => ''],
+            ],
+        );
+
+        $elements = $this->get(ConnectionPool::class)->getConnectionForTable('tt_content')
+            ->select(['uid', 'header'], 'tt_content', ['pid' => $result['pageUid']], [], ['sorting' => 'ASC'])->fetchAllAssociative();
+        // The animation runtime is an element of its own, not a section.
+        $elements = array_values(array_filter($elements, static fn(array $row): bool => in_array((int) $row['uid'], $result['contentUids'], true)));
+        self::assertSame(['First', 'Second', 'Third'], array_column($elements, 'header'));
+        // The caller's uids stand in the order of the sections.
+        self::assertSame($result['contentUids'], array_map(static fn(array $row): int => (int) $row['uid'], $elements));
+    }
+
     #[Test]
     public function anEditorWithoutTheItemTableIsRefusedAndNothingIsCreated(): void
     {

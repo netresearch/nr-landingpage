@@ -141,13 +141,13 @@ final class PageCreatorServiceTest extends UnitTestCase
     }
 
     #[Test]
-    public function contentElementsGetCorrectSorting(): void
+    public function eachContentElementIsPlacedAfterTheOneBefore(): void
     {
         $dh = $this->createMockDataHandler(['NEW_page' => 1, 'NEW_content_0' => 10, 'NEW_content_1' => 11]);
         $dh->expects(self::once())->method('start')
             ->with(self::callback(function (array $dataMap): bool {
-                return ($dataMap['tt_content']['NEW_content_0']['sorting'] ?? 0) === 256
-                    && ($dataMap['tt_content']['NEW_content_1']['sorting'] ?? 0) === 512;
+                return ($dataMap['tt_content']['NEW_content_0']['pid'] ?? '') === 'NEW_page'
+                    && ($dataMap['tt_content']['NEW_content_1']['pid'] ?? '') === '-NEW_content_0';
             }), []);
 
         $service = $this->createService($dh);

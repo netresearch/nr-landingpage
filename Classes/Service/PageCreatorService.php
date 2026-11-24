@@ -153,8 +153,11 @@ class PageCreatorService implements LoggerAwareInterface
             }
 
             unset($element[self::CHILDREN_KEY]);
-            $element['pid'] = $newPageId;
-            $element['sorting'] = ($index + 1) * 256;
+            // DataHandler computes "sorting" itself and puts a record with a
+            // page as its pid first on that page: each further element goes
+            // after the one before it.
+            $element['pid'] = $contentUidMap === [] ? $newPageId : '-' . $contentUidMap[array_key_last($contentUidMap)];
+            unset($element['sorting']);
 
             $rawImageUid = $contentSections[$index]['imageUid'] ?? 0;
             $imageUid = is_int($rawImageUid) ? $rawImageUid : (is_numeric($rawImageUid) ? (int) $rawImageUid : 0);
