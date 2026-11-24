@@ -505,7 +505,13 @@ final class ContentGeneratorService implements LoggerAwareInterface
             return '';
         }
 
-        $json = json_encode($described, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: '';
+        $compact = ItemChoices::compact($described);
+        $json = json_encode($compact['described'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: '';
+        $lists = '';
+        foreach ($compact['lists'] as $name => $choices) {
+            $lists .= "\n" . $name . ': ' . $choices;
+        }
+
         $example = '';
         foreach ($described as $cType => $columns) {
             foreach ($columns as $column => $collection) {
@@ -526,8 +532,13 @@ final class ContentGeneratorService implements LoggerAwareInterface
             "richText": true ist HTML wie bodytext). Hoechstens "maxItems" Items je Spalte.
             Beispiel: {$example}
             Fuer andere Content-Typen kein "children". Sections mit Items bekommen kein Bild.
+            Ein Feld mit "items" nimmt genau einen dieser Werte. Bei "itemsBy" haengen die Werte
+            vom Feld "column" desselben Items ab; setze dann beide Felder. Ohne "column" gelten
+            die Werte von "default". "itemsPartial": die Liste ist unvollstaendig, waehle nur
+            genannte Werte. Waehle ein Icon, das zum Inhalt passt. "Liste N" verweist auf die Listen am Ende dieses Abschnitts.
 
             {$json}
+            {$lists}
             BLOCK;
     }
 

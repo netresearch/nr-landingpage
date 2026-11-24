@@ -28,9 +28,13 @@ return [
         'enablecolumns' => ['disabled' => 'hidden'],
     ],
     'types' => [
-        '1' => ['showitem' => 'parent_content, header, bodytext, sys_language_uid, l10n_parent, hidden'],
+        '1' => ['showitem' => 'align, parent_content, header, bodytext, sys_language_uid, l10n_parent, hidden'],
     ],
     'columns' => [
+        'align' => [
+            'label' => 'Align',
+            'config' => ['type' => 'select', 'renderType' => 'selectSingle', 'items' => [['label' => 'Left', 'value' => 'left'], ['label' => 'Right', 'value' => 'right']], 'default' => 'left'],
+        ],
         'hidden' => ['exclude' => true, 'label' => 'Hidden', 'config' => ['type' => 'check']],
         'sys_language_uid' => ['exclude' => true, 'label' => 'Language', 'config' => ['type' => 'language']],
         'l10n_parent' => [
