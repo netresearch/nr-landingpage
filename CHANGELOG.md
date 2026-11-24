@@ -13,9 +13,15 @@ level lower.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-25
+
 ### Added
 
-- The Page Composer lets the model choose the icons of items where nr-llm describes the choice. A value that is not among a column's choices is left out instead of refusing the page. nr-llm 0.55 is accepted.
+- The Page Composer lets the model choose the icons of items where nr-llm describes the choice. A value that is not among a column's choices is left out instead of refusing the page. nr-llm 0.55 is accepted ([#169](https://github.com/netresearch/nr-landingpage/pull/169)).
+
+### Fixed
+
+- The sections of a created page stand in the order they were generated, live and in a workspace; they stood in reverse ([#168](https://github.com/netresearch/nr-landingpage/pull/168)).
 
 ## [0.9.0] - 2026-11-24
 
@@ -523,7 +529,8 @@ Additive/non-breaking 0.x patch. See [#7](https://github.com/netresearch/nr-land
 ### Changes
 Initial release
 
-[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/netresearch/nr-landingpage/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/netresearch/nr-landingpage/compare/v0.8.4...v0.9.0
 [0.8.4]: https://github.com/netresearch/nr-landingpage/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/netresearch/nr-landingpage/compare/v0.8.2...v0.8.3
