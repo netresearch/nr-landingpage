@@ -57,7 +57,8 @@ function bodyHtml(section) {
  * @returns {string}
  */
 function sectionHtml(section, imageCatalog) {
-    const image = section.imageUid ? imageCatalog[section.imageUid] : null;
+    // An element with items gets no image when the page is created.
+    const image = section.imageUid && !hasItems(section) ? imageCatalog[section.imageUid] : null;
     let figure = '';
     if (image?.publicUrl) {
         const side = FLOAT_RIGHT.has(section.imageorient) ? 'right' : (FLOAT_LEFT.has(section.imageorient) ? 'left' : 'top');
@@ -69,7 +70,72 @@ function sectionHtml(section, imageCatalog) {
         + (section.header ? '<h2>' + escapeHtml(section.header) + '</h2>' : '')
         + (section.subheader ? '<p class="subheader">' + escapeHtml(section.subheader) + '</p>' : '')
         + bodyHtml(section)
+        + itemsHtml(section)
         + '<div class="clear"></div></section>';
+}
+
+/**
+ * @param {{children?: Object<string, Array<Object<string, string>>>}} section
+ * @returns {boolean}
+ */
+function hasItems(section) {
+    return Object.values(section.children || {}).some((records) => Array.isArray(records) && records.length > 0);
+}
+
+/**
+ * The items of an accordion, card group or similar element, in order. A
+ * value holding markup is the server-sanitized rich text of the item and is
+ * shown like the body text; any other value is text.
+ *
+ * @param {{children?: Object<string, Array<Object<string, string>>>}} section
+ * @returns {string}
+ */
+function itemsHtml(section) {
+    if (!hasItems(section)) {
+        return '';
+    }
+    const items = Object.values(section.children).flatMap((records) => Array.isArray(records) ? records : []);
+    return '<ol class="items">' + items.map((record) => '<li>' + Object.values(record || {}).map((value) => {
+        const text = String(value ?? '');
+        return /<[a-z][^>]*>/i.test(text) ? itemMarkup(text) : '<p>' + escapeHtml(text) + '</p>';
+    }).join('') + '</li>').join('') + '</ol>';
+}
+
+/** The tags the server keeps in rich text (StructuredHtmlSanitizer). */
+const ITEM_TAGS = new Set(['P', 'BR', 'UL', 'OL', 'LI', 'STRONG', 'EM', 'A', 'H2', 'H3', 'H4']);
+
+/**
+ * The markup of an item value as the server would keep it: the editor can
+ * change an item in the wizard after the server sanitized it, so the preview
+ * keeps only the tags the server allows, links only to http(s), mailto, tel
+ * and the site, and shows everything else as text.
+ *
+ * @param {string} html
+ * @returns {string}
+ */
+function itemMarkup(html) {
+    const doc = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html');
+    const render = (node) => Array.from(node.childNodes).map((child) => {
+        if (child.nodeType === Node.TEXT_NODE) {
+            return escapeHtml(child.textContent || '');
+        }
+        if (child.nodeType !== Node.ELEMENT_NODE) {
+            return '';
+        }
+        const inner = render(child);
+        if (!ITEM_TAGS.has(child.tagName)) {
+            return ['STYLE', 'SCRIPT', 'TEMPLATE'].includes(child.tagName) ? '' : inner;
+        }
+        const tag = child.tagName.toLowerCase();
+        if (tag === 'br') {
+            return '<br>';
+        }
+        const href = tag === 'a' ? child.getAttribute('href') || '' : '';
+        const link = /^(https?:\/\/|\/|mailto:|tel:)/.test(href) ? ' href="' + escapeHtml(href) + '"' : '';
+        return '<' + tag + link + '>' + inner + '</' + tag + '>';
+    }).join('');
+
+    return render(doc.body);
 }
 
 const STYLE = 'body{font:16px/1.55 system-ui,sans-serif;color:#222;margin:0;padding:1.5rem 2rem;background:#fff}'

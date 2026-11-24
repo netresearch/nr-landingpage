@@ -1,0 +1,11 @@
+{
+    "name": "netresearch/nrlp-children-fixture",
+    "description": "An accordion-like content type with item records, for the functional tests of NEXT-229. Not shipped.",
+    "type": "typo3-cms-extension",
+    "license": "GPL-2.0-or-later",
+    "extra": {
+        "typo3/cms": {
+            "extension-key": "nrlp_children_fixture"
+        }
+    }
+}

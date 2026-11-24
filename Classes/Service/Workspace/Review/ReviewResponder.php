@@ -41,7 +41,7 @@ class ReviewResponder
         'draft_review_of', 'draft_reviewer', 'draft_leave', 'draft_expires',
         'permission_view', 'permission_comment', 'permission_edit',
         'status_approved', 'status_created',
-        'section', 'field_header', 'field_subheader', 'field_bodytext', 'field_all',
+        'section', 'field_header', 'field_subheader', 'field_bodytext', 'field_items', 'field_all',
         'comments_heading', 'comments_none',
         'comment_form', 'comment_about', 'comment_text', 'comment_submit',
         'suggest_summary', 'suggest_help', 'suggest_text', 'suggest_submit',

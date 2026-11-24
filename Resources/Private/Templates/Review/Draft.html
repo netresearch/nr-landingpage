@@ -46,6 +46,17 @@
                 </f:if>
             </f:for>
 
+            <f:if condition="{section.items}">
+                <div class="field">
+                    <h3>{labels.field_items}</h3>
+                    <ol>
+                        <f:for each="{section.items}" as="item">
+                            <li><f:for each="{item}" as="value"><p>{value}</p></f:for></li>
+                        </f:for>
+                    </ol>
+                </div>
+            </f:if>
+
             <section class="comments" aria-labelledby="comments-{section.id}">
                 <h3 id="comments-{section.id}">{labels.comments_heading}</h3>
                 <f:if condition="{section.comments}">

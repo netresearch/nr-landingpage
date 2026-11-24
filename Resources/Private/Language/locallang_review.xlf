@@ -80,6 +80,9 @@
             <trans-unit id="field_bodytext" resname="field_bodytext">
                 <source>Text</source>
             </trans-unit>
+            <trans-unit id="field_items" resname="field_items">
+                <source>Items</source>
+            </trans-unit>
             <trans-unit id="field_all" resname="field_all">
                 <source>The whole section</source>
             </trans-unit>

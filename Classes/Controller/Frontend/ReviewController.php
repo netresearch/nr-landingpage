@@ -24,6 +24,7 @@ use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewRefusedException;
 use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewResponder;
 use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewService;
 use Netresearch\NrLandingpage\Service\Workspace\Review\ReviewTokens;
+use Netresearch\NrLandingpage\Service\Workspace\SectionItemsText;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Http\NormalizedParams;
@@ -248,6 +249,7 @@ final class ReviewController
                 'number' => $index + 1,
                 'name' => is_string($section['section'] ?? null) ? $section['section'] : '',
                 'fields' => $fields,
+                'items' => SectionItemsText::of($section),
                 'commentText' => $retained !== null && $retained['action'] === 'comment' && $retained['section'] === $id ? $retained['text'] : '',
                 'comments' => $bySection[$id] ?? [],
             ];

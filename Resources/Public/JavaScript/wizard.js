@@ -1218,9 +1218,17 @@ class LandingPageWizard {
                 cardBody.appendChild(bodytext);
             }
 
-            // Image selection area (always shown)
-            const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
-            cardBody.appendChild(this.renderImageSection(section, index, sectionImages, false));
+            // The items of an accordion, card group or icon group (NEXT-229)
+            if (section.children && Object.keys(section.children).length > 0) {
+                cardBody.appendChild(this.renderSectionChildren(section.children, index));
+            }
+
+            // Image selection area, except for an element with items, which
+            // gets no image when the page is created
+            if (!section.children || Object.keys(section.children).length === 0) {
+                const sectionImages = (images[index] && images[index].length > 0) ? images[index] : [];
+                cardBody.appendChild(this.renderImageSection(section, index, sectionImages, false));
+            }
 
             card.appendChild(cardHeader);
             card.appendChild(cardBody);
@@ -1229,6 +1237,62 @@ class LandingPageWizard {
 
         // After the cards: rendering them may have chosen the recommended images.
         this.syncPagePreview();
+    }
+
+    /**
+     * The child records of a section — the items of an accordion, a card
+     * group or an icon group — as editable fields, one group per item. Every
+     * change goes into the wizard state, which the save sends as it is.
+     *
+     * @param {Object<string, Array<Object<string, string>>>} children
+     * @param {number} index
+     * @returns {HTMLElement}
+     */
+    renderSectionChildren(children, index) {
+        const wrapper = document.createElement('fieldset');
+        wrapper.className = 'section-children mb-2';
+        const legend = document.createElement('legend');
+        legend.className = 'form-label fs-6';
+        legend.textContent = this.label('wizard.content.items');
+        wrapper.appendChild(legend);
+
+        Object.entries(children).forEach(([column, records]) => {
+            (records || []).forEach((record, position) => {
+                const group = document.createElement('div');
+                group.className = 'border rounded p-2 mb-2';
+                group.setAttribute('role', 'group');
+                group.setAttribute('aria-label', this.label('wizard.content.item', position + 1));
+
+                Object.entries(record).forEach(([field, value]) => {
+                    const id = 'section-' + index + '-' + column + '-' + position + '-' + field;
+                    const label = document.createElement('label');
+                    label.className = 'form-label small mb-0';
+                    label.htmlFor = id;
+                    label.textContent = this.label('wizard.content.item', position + 1) + ' – ' + field;
+
+                    const long = field === 'bodytext' || String(value).length > 120 || /[\r\n]/.test(String(value));
+                    const input = document.createElement(long ? 'textarea' : 'input');
+                    if (!long) {
+                        input.type = 'text';
+                    } else {
+                        input.rows = 3;
+                    }
+                    input.id = id;
+                    input.className = 'form-control form-control-sm mb-1';
+                    input.value = String(value);
+                    input.addEventListener('input', () => {
+                        WizardState.getContentSections()[index].children[column][position][field] = input.value;
+                    });
+
+                    group.appendChild(label);
+                    group.appendChild(input);
+                });
+
+                wrapper.appendChild(group);
+            });
+        });
+
+        return wrapper;
     }
 
     /**

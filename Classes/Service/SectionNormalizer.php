@@ -24,11 +24,12 @@ class SectionNormalizer
     public function __construct(
         private readonly ImageSearchService $imageSearchService,
         private readonly CreativeHtmlSanitizer $creativeHtmlSanitizer,
+        private readonly ?SectionChildren $sectionChildren = null,
     ) {}
 
     /**
      * @param array<array-key, mixed> $rawSections
-     * @return list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid: int, imageorient: int, colPos: int}>
+     * @return list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid: int, imageorient: int, colPos: int, children: array<string, list<array<string, string>>>}>
      * @throws ImageNotReadableException when a section names an image the current user may not read
      */
     public function normalize(array $rawSections, Template $template): array
@@ -45,7 +46,7 @@ class SectionNormalizer
 
     /**
      * @param array<array-key, mixed> $section
-     * @return array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid: int, imageorient: int, colPos: int}
+     * @return array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid: int, imageorient: int, colPos: int, children: array<string, list<array<string, string>>>}
      * @throws ImageNotReadableException
      */
     private function normalizeSection(array $section, Template $template): array
@@ -61,16 +62,38 @@ class SectionNormalizer
             $bodytext = $this->creativeHtmlSanitizer->sanitize($bodytext);
         }
 
+        $ctype = $this->allowedCType($this->stringOf($section['ctype'] ?? null), $template);
+
         return [
             'section' => $this->stringOf($section['section'] ?? null),
-            'ctype' => $this->allowedCType($this->stringOf($section['ctype'] ?? null), $template),
+            'ctype' => $ctype,
             'header' => $this->stringOf($section['header'] ?? null),
             'subheader' => $this->stringOf($section['subheader'] ?? null),
             'bodytext' => $bodytext,
             'imageUid' => $imageUid,
             'imageorient' => $this->intOf($section['imageorient'] ?? 0),
             'colPos' => $this->intOf($section['colPos'] ?? 0),
+            'children' => $this->children($ctype, $section['children'] ?? null, $template),
         ];
+    }
+
+    /**
+     * The child records of a section (NEXT-229), cleaned as at generation:
+     * only what the content type describes, rich text sanitised again (the
+     * editor can change it in the wizard and the review). Only a template
+     * with its own list of content types authorises them — an approval writes
+     * them with the approver's rights (ADR-0001, section 9) — and a section
+     * whose type became `text` has none.
+     *
+     * @return array<string, list<array<string, string>>>
+     */
+    private function children(string $ctype, mixed $raw, Template $template): array
+    {
+        if (!$this->sectionChildren instanceof SectionChildren || $template->isCreativeMode() || $template->allowedCTypes === []) {
+            return [];
+        }
+
+        return $this->sectionChildren->clean($ctype, $raw);
     }
 
     /**

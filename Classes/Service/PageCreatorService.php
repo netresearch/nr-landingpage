@@ -54,18 +54,42 @@ class PageCreatorService implements LoggerAwareInterface
         'tx_nrlandingpage_workspace_ref',
     ];
 
+    /**
+     * The key under which an element carries its section's child records
+     * through {@see BeforePageCreationEvent}; removed before the write.
+     */
+    public const CHILDREN_KEY = '_nrlandingpage_children';
+
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly ResourceFactory $resourceFactory,
         private readonly AnimationLoaderService $animationLoaderService,
         private readonly AnimationScriptBuilder $animationScriptBuilder,
+        private readonly ?SectionChildren $sectionChildren = null,
     ) {}
+
+    /**
+     * Refuse sections whose child records could not be written below the
+     * parent page by the current backend user — the check the page creation
+     * runs before it writes, for a caller that must refuse before it commits
+     * to anything (the approval of a workspace draft).
+     *
+     * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid?: int, colPos?: int, children?: array<string, list<array<string, string>>>}> $contentSections
+     * @throws SectionChildrenRefusedException
+     */
+    public function assertChildrenWritable(array $contentSections, int $parentPageId): void
+    {
+        $elements = $this->buildContentElements($contentSections);
+        foreach ($elements as $index => $element) {
+            $this->childrenDataMap($element, 'NEW_content_' . $index, 'NEW_page', $parentPageId);
+        }
+    }
 
     /**
      * Create a landing page with content elements via DataHandler.
      *
      * @param array<string, string> $pageFields SEO and other page field values
-     * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid?: int, colPos?: int}> $contentSections
+     * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid?: int, colPos?: int, children?: array<string, list<array<string, string>>>}> $contentSections
      * @param array<int, array{type?: string, duration?: float, delay?: float, stagger?: float}> $animations
      * @param string $workspaceRef '<draft uid>:<approval attempt>' for a page made from a workspace draft,
      *        written with the page's first insert so a crash cannot leave a page without it (ADR-0001, section 9)
@@ -105,9 +129,30 @@ class PageCreatorService implements LoggerAwareInterface
             ],
         ];
 
+        // tt_content before the child tables, as the backend form posts them.
+        if ($contentElements !== []) {
+            $dataMap['tt_content'] = [];
+        }
         $contentUidMap = [];
+        $withChildren = [];
         foreach ($contentElements as $index => $element) {
             $newContentId = 'NEW_content_' . $index;
+            // Checked for every element before anything is written: the
+            // wizard has no clean-up after a refused write (NEXT-229).
+            foreach ($this->childrenDataMap($element, $newContentId, $newPageId, $parentPageId) as $table => $rows) {
+                foreach ($rows as $id => $row) {
+                    if ($table === 'tt_content' && $id === $newContentId) {
+                        $element = array_replace($element, $row);
+                        $withChildren[$index] = true;
+
+                        continue;
+                    }
+
+                    $dataMap[$table][$id] = $row;
+                }
+            }
+
+            unset($element[self::CHILDREN_KEY]);
             $element['pid'] = $newPageId;
             $element['sorting'] = ($index + 1) * 256;
 
@@ -126,6 +171,13 @@ class PageCreatorService implements LoggerAwareInterface
                     $imageUid,
                 );
                 // Reset imageUid so the upgrade logic below is skipped
+                $imageUid = 0;
+            }
+
+            // An element with child records keeps its type: turned into
+            // textpic it would lose them. Its section image is not used.
+            if ($imageUid > 0 && isset($withChildren[$index])) {
+                $this->logger?->info('Section image not used: the element holds child records', ['ctype' => $ctype]);
                 $imageUid = 0;
             }
 
@@ -177,7 +229,7 @@ class PageCreatorService implements LoggerAwareInterface
         }
 
         // Pass 2: Create sys_file_reference records with real UIDs
-        $this->createImageReferences($pageUid, $contentUids, $contentSections);
+        $this->createImageReferences($pageUid, $contentUids, $contentSections, $withChildren);
 
         // Pass 3: Add the animation runtime and the animation map if animation is enabled
         if ($template->isAnimationEnabled()) {
@@ -272,7 +324,7 @@ class PageCreatorService implements LoggerAwareInterface
     }
 
     /**
-     * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid?: int, colPos?: int}> $contentSections
+     * @param list<array{section: string, ctype: string, header: string, subheader: string, bodytext: string, imageUid?: int, colPos?: int, children?: array<string, list<array<string, string>>>}> $contentSections
      * @return list<array<string, mixed>>
      */
     private function buildContentElements(array $contentSections): array
@@ -299,6 +351,11 @@ class PageCreatorService implements LoggerAwareInterface
             $bodytext = (string) ($section['bodytext'] ?? '');
             if ($bodytext !== '') {
                 $element['bodytext'] = $bodytext;
+            }
+
+            $children = $section['children'] ?? null;
+            if (is_array($children) && $children !== []) {
+                $element[self::CHILDREN_KEY] = $children;
             }
 
             $elements[] = $element;
@@ -383,15 +440,16 @@ class PageCreatorService implements LoggerAwareInterface
      *
      * @param list<int> $contentUids Real tt_content UIDs (same order as $contentSections)
      * @param list<array<string, mixed>> $contentSections Original content section data
+     * @param array<int, true> $withChildren the elements holding child records, which get no image
      */
-    private function createImageReferences(int $pageUid, array $contentUids, array $contentSections): void
+    private function createImageReferences(int $pageUid, array $contentUids, array $contentSections, array $withChildren = []): void
     {
         $dataMap = [];
         $refIndex = 0;
 
         foreach ($contentSections as $index => $section) {
             $contentUid = $contentUids[$index] ?? 0;
-            if ($contentUid === 0) {
+            if ($contentUid === 0 || isset($withChildren[$index])) {
                 continue;
             }
 
@@ -455,6 +513,70 @@ class PageCreatorService implements LoggerAwareInterface
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * The datamap rows of an element's child records, keyed by table and
+     * placeholder (the element's own placeholder under `tt_content` holds the
+     * columns to merge into it), or none. Refused as a whole when the records
+     * cannot be written. An element whose type a {@see BeforePageCreationEvent}
+     * listener changed to one that takes none of their columns loses them,
+     * which is logged.
+     *
+     * @param array<string, mixed> $element
+     * @return array<string, array<string, array<string, mixed>>>
+     * @throws SectionChildrenRefusedException
+     */
+    private function childrenDataMap(array $element, string $placeholder, int|string $pid, int $parentPageId): array
+    {
+        $children = $element[self::CHILDREN_KEY] ?? null;
+        $children = is_array($children) ? $children : [];
+        $ctype = is_string($element['CType'] ?? null) ? $element['CType'] : '';
+        if (!$this->sectionChildren instanceof SectionChildren) {
+            if ($children === []) {
+                return [];
+            }
+
+            throw new SectionChildrenRefusedException('The child records of a section cannot be written without nr-llm\'s content-type rule.', 1799700101);
+        }
+
+        // Matched by column, not by type: a listener may change an accordion
+        // into a card group, whose items live in another column.
+        $columns = $this->sectionChildren->describe([$ctype])[$ctype] ?? [];
+        if ($columns === [] || ($children !== [] && array_intersect_key($children, $columns) === [])) {
+            if ($children !== []) {
+                $this->logger?->warning('Child records dropped: the element\'s type takes none in their columns', ['ctype' => $ctype, 'columns' => array_keys($children)]);
+            }
+
+            return [];
+        }
+
+        // A type with child records goes through the rule even without any:
+        // it refuses a relation whose minitems the section does not meet.
+        $user = $GLOBALS['BE_USER'] ?? null;
+        if (!$user instanceof BackendUserAuthentication) {
+            throw new SectionChildrenRefusedException('The child records of a section cannot be written without a backend user.', 1799700101);
+        }
+
+        /** @var array<string, list<array<string, string>>> $children */
+        $map = $this->sectionChildren->dataMap($ctype, $placeholder, $children, $pid, $parentPageId, $user);
+        if ($map->isRefused()) {
+            throw new SectionChildrenRefusedException(
+                sprintf('The %s element "%s" cannot be created with its items: %s', $ctype, is_string($element['header'] ?? null) ? $element['header'] : '', implode(' ', $map->refusals)),
+                1799700102,
+            );
+        }
+
+        // dataMap() checked the records; the element's own type is
+        // typesOfferedOnPage()'s question, asked for the final parent page.
+        if (!in_array($ctype, $this->sectionChildren->offeredOnPage($parentPageId, $user, [$ctype]), true)) {
+            throw new SectionChildrenRefusedException(
+                sprintf('The %s element "%s" cannot be created below page %d: its page TSconfig or your permissions do not offer that content type.', $ctype, is_string($element['header'] ?? null) ? $element['header'] : '', $parentPageId),
+                1799700104,
+            );
+        }
+
+        return $map->dataMap;
     }
 
     private function getImageFieldForCType(string $ctype): string

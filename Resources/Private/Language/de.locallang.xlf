@@ -177,6 +177,14 @@
                 <source>Section body text</source>
                 <target>Abschnitts-Text</target>
             </trans-unit>
+            <trans-unit id="wizard.content.items" resname="wizard.content.items">
+                <source>Items</source>
+                <target>Einträge</target>
+            </trans-unit>
+            <trans-unit id="wizard.content.item" resname="wizard.content.item">
+                <source>Item %s</source>
+                <target>Eintrag %s</target>
+            </trans-unit>
             <trans-unit id="wizard.content.imageSuggestions" resname="wizard.content.imageSuggestions">
                 <source>Select an image for this section:</source>
                 <target>Bild für diesen Abschnitt wählen:</target>

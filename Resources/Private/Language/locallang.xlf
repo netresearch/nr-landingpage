@@ -134,6 +134,12 @@
             <trans-unit id="wizard.content.sectionBody" resname="wizard.content.sectionBody">
                 <source>Section body text</source>
             </trans-unit>
+            <trans-unit id="wizard.content.items" resname="wizard.content.items">
+                <source>Items</source>
+            </trans-unit>
+            <trans-unit id="wizard.content.item" resname="wizard.content.item">
+                <source>Item %s</source>
+            </trans-unit>
             <trans-unit id="wizard.content.imageSuggestions" resname="wizard.content.imageSuggestions">
                 <source>Select an image for this section:</source>
             </trans-unit>
