@@ -111,6 +111,20 @@ final class PageCreatorServiceChildrenTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function aValueThatIsNoChoiceOfItsColumnIsLeftOut(): void
+    {
+        $this->setUpBackendUser(1);
+
+        $children = $this->get(SectionChildren::class)->clean('nrlp_accordion', [
+            'tx_nrlpfixture_items' => [['header' => 'A', 'align' => 'Right'], ['header' => 'B', 'align' => 'diagonal']],
+        ]);
+
+        $items = $children['tx_nrlpfixture_items'] ?? [];
+        self::assertSame('right', $items[0]['align'] ?? null);
+        self::assertSame(['header' => 'B'], $items[1] ?? null);
+    }
+
+    #[Test]
     public function anEditorWithoutTheItemTableIsRefusedAndNothingIsCreated(): void
     {
         $editor = $this->setUpBackendUser(2);

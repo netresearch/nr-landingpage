@@ -146,6 +146,9 @@ class SectionChildren
             }
         }
 
+        // A value that is none of its column's choices would refuse the page.
+        $row = ItemChoices::keep($row, $fields);
+
         // A record without a required value could not be written; it is left
         // out here rather than refused at the save.
         foreach ($fields as $name => $field) {

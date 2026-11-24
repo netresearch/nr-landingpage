@@ -13,6 +13,10 @@ level lower.
 
 ## [Unreleased]
 
+### Added
+
+- The Page Composer lets the model choose the icons of items where nr-llm describes the choice. A value that is not among a column's choices is left out instead of refusing the page. nr-llm 0.55 is accepted.
+
 ## [0.9.0] - 2026-11-24
 
 ### Added
