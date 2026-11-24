@@ -13,6 +13,17 @@ level lower.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-24
+
+### Added
+
+- The Page Composer creates accordion, card group, icon group, timeline and similar elements with their items instead of empty ([#166](https://github.com/netresearch/nr-landingpage/pull/166)). The items come from the model, are editable in the wizard, shown to reviewers and approvers, and written with the element through nr-llm's `ContentElementComposer`.
+- Generation offers only the template's content types the editor may create on the target page (the editor's permissions, and `TCEFORM.tt_content.CType` when the wizard has a page; [#166](https://github.com/netresearch/nr-landingpage/pull/166)).
+
+### Changed
+
+- nr-llm 0.54 is required; 0.43.10 to 0.53 are no longer accepted ([#166](https://github.com/netresearch/nr-landingpage/pull/166)).
+
 ## [0.8.4] - 2026-11-24
 
 ### Changed
@@ -508,7 +519,8 @@ Additive/non-breaking 0.x patch. See [#7](https://github.com/netresearch/nr-land
 ### Changes
 Initial release
 
-[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.8.4...HEAD
+[Unreleased]: https://github.com/netresearch/nr-landingpage/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/netresearch/nr-landingpage/compare/v0.8.4...v0.9.0
 [0.8.4]: https://github.com/netresearch/nr-landingpage/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/netresearch/nr-landingpage/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/netresearch/nr-landingpage/compare/v0.8.1...v0.8.2
