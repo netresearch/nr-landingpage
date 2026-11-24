@@ -533,8 +533,9 @@ final class ContentGeneratorService implements LoggerAwareInterface
             Beispiel: {$example}
             Fuer andere Content-Typen kein "children". Sections mit Items bekommen kein Bild.
             Ein Feld mit "items" nimmt genau einen dieser Werte. Bei "itemsBy" haengen die Werte
-            vom Feld "column" desselben Items ab; setze dann beide Felder. Waehle ein Icon, das
-            zum Inhalt passt. "Liste N" verweist auf die Listen am Ende dieses Abschnitts.
+            vom Feld "column" desselben Items ab; setze dann beide Felder. Ohne "column" gelten
+            die Werte von "default". "itemsPartial": die Liste ist unvollstaendig, waehle nur
+            genannte Werte. Waehle ein Icon, das zum Inhalt passt. "Liste N" verweist auf die Listen am Ende dieses Abschnitts.
 
             {$json}
             {$lists}

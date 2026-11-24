@@ -64,6 +64,25 @@ final class ItemChoicesTest extends UnitTestCase
     }
 
     #[Test]
+    public function theChoicesOfAnEmptyColumnAreKept(): void
+    {
+        $fields = ['x' => ['type' => 'select', 'itemsBy' => ['column' => 'layout', 'default' => '', 'items' => ['' => ['a'], 'wide' => ['a', 'b']]]]];
+
+        self::assertSame(['x' => 'a'], ItemChoices::keep(['x' => 'a'], $fields));
+        self::assertSame([], ItemChoices::keep(['x' => 'b'], $fields));
+    }
+
+    #[Test]
+    public function numericChoicesKeepTheirNamesInThePrompt(): void
+    {
+        $fields = ['x' => ['itemsBy' => ['column' => 'n', 'items' => [0 => ['a'], 1 => ['b']]]]];
+
+        $json = json_encode(ItemChoices::compact(['t' => ['c' => ['table' => 't', 'maxItems' => 1, 'fields' => $fields]]])['described'], JSON_THROW_ON_ERROR);
+
+        self::assertStringContainsString('{"0":["a"],"1":["b"]}', $json);
+    }
+
+    #[Test]
     public function aPartialListDropsNothing(): void
     {
         self::assertSame(['icon' => 'x'], ItemChoices::keep(['icon' => 'x'], ['icon' => ['type' => 'select', 'items' => ['0'], 'itemsPartial' => true]]));

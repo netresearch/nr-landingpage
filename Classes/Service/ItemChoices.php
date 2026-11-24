@@ -80,7 +80,8 @@ final readonly class ItemChoices
                     }
 
                     if (is_array($field['itemsBy'] ?? null) && is_array($field['itemsBy']['items'] ?? null)) {
-                        $field['itemsBy']['items'] = array_map($compact, $field['itemsBy']['items']);
+                        // An object: numeric choices would make it a JSON list.
+                        $field['itemsBy']['items'] = (object) array_map($compact, $field['itemsBy']['items']);
                     }
 
                     $described[$cType][$column]['fields'][$name] = $field;
